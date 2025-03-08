@@ -22,6 +22,7 @@ import pandas as pd
 from scipy.io import wavfile
 
 from listen_classes import audio_data, parameters
+from listen_main_functions import establish_initial_rhythm, do_reinforcement
 
 def plotting_demo():
     progress_bar = st.sidebar.progress(0)
@@ -80,39 +81,43 @@ if 'reinforce' not in st.session_state:
 if 'tower_name' not in st.session_state:
     st.session_state.tower_name = None
 if 'raw_file' not in st.session_state:
-    st.session_state.raw_file = None
+    st.session_state.raw_file = None 
     
 def reset_nominals():
     st.session_state.nominals = False
     st.session_state.isfile = False
     st.session_state.reinforce = 0
 
-def reset_tower():
-    #st.session_state.nominals = False
-    #st.session_state.reinforce = 0
-    pass
-
-st.write('count', st.session_state.raw_file, st.session_state.counter, st.session_state.tower, st.session_state.nominals, st.session_state.isfile, st.session_state.reinforce)
+st.write('count', st.session_state.counter, st.session_state.tower, st.session_state.nominals, st.session_state.isfile, st.session_state.reinforce)
 st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
 
-nominal_data = pd.read_csv('./bell_data/nominal_data.csv')
+@st.cache_data               
+def read_bell_data():
+    nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
+    st.write('Data reading in')
+    return nominal_import
+
+nominal_data = read_bell_data()
+
 tower_names = nominal_data["Tower Name"].tolist()
 
 default_index = tower_names.index("Brancepeth, S Brandon")
 
 if not st.session_state.tower_name:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key=None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_tower())
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key=None, placeholder="Choose a tower", label_visibility="visible")
 else:
     st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = tower_names.index(st.session_state.tower_name), key=None, placeholder="Choose a tower", label_visibility="visible")
+
 
 if st.session_state.tower_name:
     st.session_state.tower = True 
 
 if st.session_state.tower:
     selected_index = tower_names.index(st.session_state.tower_name)
-    
+    st.session_state.tower_id = nominal_data["Tower ID"][selected_index]
+
     bell_options = list(nominal_data.columns)[3:]
     #Determine the number of valid bells
     bell_names = []; bell_nominals = []
@@ -145,7 +150,7 @@ if st.session_state.tower:
                     bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
     
     bell_nominals = sorted(bell_nominals, reverse = True)
-    st.write(str(len(bell_nominals)), 'bells selected, with (editable) nominal frequencies')
+    st.write(str(len(bell_nominals)), 'bells selected, with (editable) nominal frequencies in Hz')
 
     
     def click_nominals():
@@ -182,9 +187,7 @@ if st.session_state.nominals:
     
     if raw_file is not None:
         st.session_state.raw_file = raw_file
-        
-    st.write(st.session_state.raw_file)
-    
+            
     if st.session_state.raw_file is not None:
         st.session_state.isfile = True
     else:
@@ -224,15 +227,35 @@ if st.session_state.isfile:
 if st.session_state.reinforce > 0:
     #Begin frequency reinforcement -- stop when the flag stops being on!
     #Zero for not at all, 1 for doing it and 2 for done
-    Paras = parameters(Audio, bell_nominals, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
-    
     if st.session_state.reinforce == 1:
-        go = True
-        while go:
-            st.write('Finding frequencies')
-            time.sleep(1.0)
-
+        Paras = parameters(Audio, bell_nominals, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
+        Paras.fname = str(st.session_state.tower_id)
     
+    st.main_log = st.empty()
+    st.main_log.write('**Detecting initial rhythm**')
+    
+    st.quality_log = st.empty()
+    st.quality_log.write('Frequency confidence: %.1f %%' % 0.0)
+
+    st.current_log = st.empty()
+    if st.session_state.reinforce == 1:
+        st.current_log.write('Detecting ringing...')
+
+        Data = establish_initial_rhythm(Audio, Paras)
+        
+        st.current_log.write('Initial rhythm established with ' + str(len(Data.strikes)) + ' tenor strikes.')
+        
+        do_reinforcement(Paras, Data, Audio)
+
+        st.main_log.write('**Bell frequency profiles established**')
+        
+        st.session_state.reinforce = 2
+        st.rerun()
+        
+    if st.session_state.reinforce == 2:   #At least some frequency reinforcement has happened
+        
+        st.current_log.write('Things have finished')
+
     
 
         #fs, data = wavfile.read(raw_file.getvalue())        

@@ -10,6 +10,8 @@ import os
 from scipy.io import wavfile
 import numpy as np
 import wave
+from scipy.fftpack import fft
+from scipy.ndimage import gaussian_filter1d
 
 class audio_data():
     #Does the initial audio normalisation things
@@ -30,18 +32,19 @@ class audio_data():
             #Convert this to a wav
             os.system('ffmpeg -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
-                st.write('Audio file %s uploaded and converted sucessfully.' % raw_file.name)
+                st.write('Audio file "%s" uploaded and converted sucessfully.' % raw_file.name)
                 upload_success = True
 
             else:
                 os.system('rm -r ./tmp/' + raw_file.name)
                 st.error("This doesn't seem to be an audio file.")
+                st.stop()
                 
         else:
             st.write('File is in a nice format. Lovely.')
             new_fname = './tmp/' + raw_file.name
 
-            st.write('Audio file %s uploaded sucessfully.' % raw_file.name)
+            st.write('Audio file "%s" uploaded sucessfully.' % raw_file.name)
             upload_success = True
 
         if upload_success:
@@ -123,12 +126,78 @@ class parameters():
         else:
             self.nominals = []
             
-        self.nreinforces = nreinforces
+        self.n_reinforces = nreinforces
         self.frequency_folder = './tmp/'
         
-        st.write('Parameters sorted', self.overall_tmin)
+class data():
+    def __init__(self, Paras, Audio, tmin = -1, tmax = -1):
+        #This is called at the start -- can make some things like blank arrays for the nominals and the like. Can also do the FTs here etc (just once)
+        
+        #Chnage the length of the audio as appropriate
+        
+        if tmin > 0.0:
+            cut_min_int = int(tmin*Audio.fs)
+        else:
+            cut_min_int = 0
+        if tmax > 0.0:
+            cut_max_int = int(tmax*Audio.fs)
+        else:
+            cut_max_int = -1
+        
+        Audio.signal_trim = Audio.signal[cut_min_int:cut_max_int]
             
+        self.nominals = Paras.nominals
 
+        self.initial_profile = np.identity(Paras.nbells)     #Initial frequencies for the bells -- these are just the nominals
+     
+        self.ts, self.transform = self.do_fourier_transform(Paras, Audio)
+     
+        self.transform_derivative = self.find_transform_derivatives(Paras)
+        
+        print('__________________________________________________________________________________________')
+        print('Calculating transform in range', cut_min_int/Audio.fs, 'to', cut_max_int/Audio.fs, 'seconds...')
+        
+        self.test_frequencies = self.nominals    #This is the case initially
+        self.frequency_profile = np.identity(Paras.nbells)   #Each bell corresponds to its nominal frequency alone -- this will later be updated.
+        
+
+    def do_fourier_transform(self, Paras, Audio):
+        
+        full_transform = []; ts = []
+        
+        Paras.tmax = len(Audio.signal_trim)/Audio.fs
+        
+        t = Paras.fcut_length/2   #Initial time (halfway through each transform)
+        
+        while t < Paras.tmax - Paras.fcut_length/2:
+            cut_start  = int(t*Audio.fs - Paras.fcut_int/2)
+            cut_end    = int(t*Audio.fs + Paras.fcut_int/2)
+            
+            signal_cut = Audio.signal_trim[cut_start:cut_end]
+            
+            transform_raw = abs(fft(signal_cut)[:len(signal_cut)//2])
+            transform = 0.5*transform_raw*Audio.fs/len(signal_cut)
+                            
+            ts.append(t)        
+            full_transform.append(transform)
+            
+            t = t + Paras.dt
+        
+        ts = np.array(ts)
+        full_transform = np.array(full_transform)    
+                
+        Paras.nt = len(ts)
+        
+        return ts, full_transform
+    
+    def find_transform_derivatives(self, Paras):
+        allfreqs_smooth = gaussian_filter1d(self.transform, int(Paras.transform_smoothing/Paras.dt), axis = 0)
+        diffs = np.zeros(allfreqs_smooth.shape)
+        diffs[1:,:] = allfreqs_smooth[1:,:] - allfreqs_smooth[:-1,:] 
+        
+        diffs[diffs < 0.0] = 0.0
+        return diffs
+    
 
 
 
