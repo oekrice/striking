@@ -19,7 +19,9 @@ import time
 import numpy as np
 from utils import show_code
 import pandas as pd
+from scipy.io import wavfile
 
+from listen_classes import audio_data, parameters
 
 def plotting_demo():
     progress_bar = st.sidebar.progress(0)
@@ -65,19 +67,51 @@ st.markdown(
     10. Display 'frequencies done' and give the option to start
     """
 )
-tower_name = False
-nominals_selected = False
+if "counter" not in st.session_state:
+    st.session_state.counter = 0
+if 'nominals' not in st.session_state:
+    st.session_state.nominals = False
+if 'tower' not in st.session_state:
+    st.session_state.tower = False
+if 'isfile' not in st.session_state:
+    st.session_state.isfile = False
+if 'reinforce' not in st.session_state:
+    st.session_state.reinforce = 0
+if 'tower_name' not in st.session_state:
+    st.session_state.tower_name = None
+if 'raw_file' not in st.session_state:
+    st.session_state.raw_file = None
+    
+def reset_nominals():
+    st.session_state.nominals = False
+    st.session_state.isfile = False
+    st.session_state.reinforce = 0
+
+def reset_tower():
+    #st.session_state.nominals = False
+    #st.session_state.reinforce = 0
+    pass
+
+st.write('count', st.session_state.raw_file, st.session_state.counter, st.session_state.tower, st.session_state.nominals, st.session_state.isfile, st.session_state.reinforce)
+st.session_state.counter += 1
+
+progress_counter = 0   #How far through the thing is
 
 nominal_data = pd.read_csv('./bell_data/nominal_data.csv')
 tower_names = nominal_data["Tower Name"].tolist()
 
 default_index = tower_names.index("Brancepeth, S Brandon")
 
-tower_name = st.selectbox('Select tower...', tower_names, index = None, key=None, placeholder="Choose a tower", label_visibility="visible")
-#tower_name = st.selectbox('Select tower...', tower_names, index = default_index, key=None, placeholder="Choose a tower", label_visibility="visible")
+if not st.session_state.tower_name:
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key=None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_tower())
+else:
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = tower_names.index(st.session_state.tower_name), key=None, placeholder="Choose a tower", label_visibility="visible")
 
-if tower_name:
-    selected_index = tower_names.index(tower_name)
+if st.session_state.tower_name:
+    st.session_state.tower = True 
+
+if st.session_state.tower:
+    selected_index = tower_names.index(st.session_state.tower_name)
     
     bell_options = list(nominal_data.columns)[3:]
     #Determine the number of valid bells
@@ -104,31 +138,106 @@ if tower_name:
         for i in range(start, end):
             with cols[i%per_row]:
                 if bell_names[i].isnumeric():
-                    checked = st.checkbox(bell_names[i], value = True)
+                    checked = st.checkbox(bell_names[i], value = True)#, on_change = reset_nominals)
                 else:
-                    checked = st.checkbox(bell_names[i], value = False)
+                    checked = st.checkbox(bell_names[i], value = False)#, on_change = reset_nominals)
                 if checked:
                     bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
     
     bell_nominals = sorted(bell_nominals, reverse = True)
     st.write(str(len(bell_nominals)), 'bells selected, with (editable) nominal frequencies')
 
-    with st.form("Freuqency Data"):
+    
+    def click_nominals():
+        st.session_state.nominals = True 
+        
+    with st.form("Frequency Data"):
 
         #Make nice dataframe for this
         freq_df = pd.DataFrame(data = np.array(bell_nominals)[np.newaxis,:], columns = ["Bell %d" % (ri + 1) for ri in range(len(bell_nominals))])
             
-        freq_df = st.data_editor(freq_df, hide_index = True)
-        
+        freq_df_new = st.data_editor(freq_df, hide_index = True)
+                    
         bell_nominals = np.array(freq_df.loc[0])
+                    
+        if st.form_submit_button("Confirm Nominal Frequencies"):
+            st.session_state.nominals = True
+            
+@st.cache_data               
+def process_audio_files(raw_file):
+    #Function that needs caching to avoid the need to keep uploading and converting things
         
-        nominals_selected = st.form_submit_button("Confirm Nominal Frequencies")
+    Audio = audio_data(raw_file)
+    
+    if Audio.signal is not None:
         
+        st.write('Imported audio length: %d seconds.' % (len(Audio.signal)/Audio.fs))
+    return Audio
+    
+if st.session_state.nominals:
+    #Nominal frequencies detected. Proceed to upload audio...
+    st.write("Nominal frequencies confirmed. Upload ringing audio (preferably as .wav):")
+    
+    raw_file = st.file_uploader("Upload audio file (preferably .wav)", label_visibility = 'hidden')
+    
+    if raw_file is not None:
+        st.session_state.raw_file = raw_file
+        
+    st.write(st.session_state.raw_file)
+    
+    if st.session_state.raw_file is not None:
+        st.session_state.isfile = True
+    else:
+        st.session_state.isfile = False
+        
+    if st.session_state.isfile:
+        Audio = process_audio_files(st.session_state.raw_file)   
+       
+if st.session_state.isfile:
 
-if nominals_selected:
-    st.write("Final nominals", bell_nominals)
+    def change_reinforce():
+        if st.session_state.reinforce != 1:
+            st.session_state.reinforce = 1
+        else:
+            st.session_state.reinforce = 2
+        return
 
+    with st.form("Set up parameters"):
+        
+        
+        st.write("Audio parameters:")
+        tmax = len(Audio.signal)/Audio.fs
+        
+        overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax), format = "%ds")
+        
+        rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 0.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
+        
+        reinforce_tmax = st.slider("Max. time for reinforcement (longer is slower but more accurate):", min_value = 0.0, max_value = min(90.0, tmax), value=(60.0), format = "%ds")
+    
+        nreinforces = int(st.slider("Max number of frequency reinforcements:", min_value = 2, max_value = 10, value = 5, step = 1))
+        
+        if st.session_state.reinforce == 0 or st.session_state.reinforce == 2:
+            st.form_submit_button("Find frequency profiles", on_click = change_reinforce)
+        else: 
+            st.form_submit_button("Stop finding frequencies", on_click = change_reinforce)
+                
+if st.session_state.reinforce > 0:
+    #Begin frequency reinforcement -- stop when the flag stops being on!
+    #Zero for not at all, 1 for doing it and 2 for done
+    Paras = parameters(Audio, bell_nominals, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
+    
+    if st.session_state.reinforce == 1:
+        go = True
+        while go:
+            st.write('Finding frequencies')
+            time.sleep(1.0)
 
+    
+    
+
+        #fs, data = wavfile.read(raw_file.getvalue())        
+    #See if it is a .wav or not with a try and except
+    
 #plotting_demo()
 #show_code(plotting_demo)
 
