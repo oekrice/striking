@@ -18,10 +18,11 @@ class audio_data():
     def __init__(self, raw_file):
         
         upload_success = False
+        
+        raw_file.name = raw_file.name.replace(" ", "_")
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
-            #upload_data = raw_file.getvalue()
         
         if raw_file.name[-4:] != '.wav':
             st.write('Uploaded file is not a .wav - attempting to convert it.')
