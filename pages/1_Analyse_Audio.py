@@ -102,7 +102,9 @@ if 'found_new_freqs' not in st.session_state:
     st.session_state.found_new_freqs = False
 if 'use_existing_freqs' not in st.session_state:
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
-  
+if 'already_saved' not in st.session_state:
+    st.session_state.already_saved = False   #Positive if do want to use existing frequencies. Negative if not.
+    
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
     st.session_state.reinforce_test_frequencies = None   #Positive if do want to use existing frequencies. Negative if not.
@@ -221,7 +223,7 @@ def process_audio_files(raw_file):
         st.write('Imported audio length: %d seconds.' % (len(Audio.signal)/Audio.fs))
     return Audio
     
-if st.session_state.tower_selected and (st.session_state.nominals_confirmed or st.session_state.file_uploaded):
+if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     #This should come up EVERY time after the first confirmation
     
@@ -310,9 +312,9 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     
     rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
     
-    reinforce_tmax = st.slider("Max. time for reinforcement (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
+    reinforce_tmax = st.slider("Max. time for frequency analysis (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
 
-    nreinforces = int(st.slider("Max number of frequency reinforcements:", min_value = 2, max_value = 10, value = 5, step = 1))
+    nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
     
     Paras = parameters(Audio, np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
     Paras.fname = str(st.session_state.tower_id)
@@ -370,7 +372,7 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
                     
     if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
     
-        st.main_log.write('**Frequency reinforcement completed seemingly succesfully**')
+        st.main_log.write('**Frequency analysis completed seemingly succesfully**')
         #Determine colours:
         colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
         toprint = st.session_state.reinforce_frequency_data[2]
@@ -380,7 +382,7 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
         if toprint > colour_thresholds[1]:
             c = colours[2]
 
-        st.quality_log.write('Best quality from reinforcement = :%s[%.1f%%]' % (c, 100*toprint))
+        st.quality_log.write('Best frequency analysis quality = :%s[%.1f%%]' % (c, 100*toprint))
         
         if toprint < 0.95:
             st.current_log.write('This might not be good enough to provide anything useful. But may as well try...')
@@ -393,10 +395,11 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
         if st.session_state.reinforce_frequency_data[2] > 0.95 :
             st.save_option.write('Save these frequency profiles for future use? They will be available to all users.')
     
-            if st.save_button.button("Save frequency profiles"):
+            if st.save_button.button("Save frequency profiles", disabled = st.session_state.already_saved):
                 np.save('%s%s_freqs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_test_frequencies)
                 np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
                 np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
+                st.session_state.already_saved = True
                 st.rerun()
 
 
