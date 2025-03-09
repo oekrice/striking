@@ -19,8 +19,6 @@ if False:
 
 df = pd.read_csv('./bell_data/raw_data.csv')
 
-max_bells = 24  #I think this should do... But will check later
-
 #Run through everything just in turn -- only need one loop
 #Make a dataframe with name, ids and bell nominals. 
 all_bell_types = df["Bell Role"].unique()

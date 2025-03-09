@@ -114,6 +114,8 @@ if 'reinforce_frequency_data' not in st.session_state:
 def reset_nominals():
     st.session_state.nominals_confirmed = False
     st.session_state.bell_nominals = False
+    st.session_state.reinforce_frequency_data = None
+    st.session_state.reinforce_status = 0
     st.write('Resetting nominals')
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
@@ -135,12 +137,14 @@ tower_names = nominal_data["Tower Name"].tolist()
 default_index = tower_names.index("Brancepeth, S Brandon")
 
 if not st.session_state.tower_name:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key=None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 else:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = tower_names.index(st.session_state.tower_name), key=None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 
+else:
+     st.session_state.tower_selected = False    
 
 if st.session_state.tower_selected:
     selected_index = tower_names.index(st.session_state.tower_name)
@@ -160,19 +164,22 @@ if st.session_state.tower_selected:
     st.write("Ring of ", str(nbells_max), "with", str(len(bell_names)), "bells to choose from:")
     
     nrows = len(bell_names)//11 + 1
-    per_row = 1 + len(bell_names)//nrows 
-    
+    per_row = len(bell_names)//nrows 
+    mincheck = len(bell_names)-1; maxcheck = 0
+
+    nbells_save = 0; max_bell = 0
+
     for row in range(nrows):
         #Need more than one row sometimes (if more than 8?)
         start = row*per_row
         end = min(len(bell_names), (row+1)*per_row)
         cols = st.columns(end-start)
-        mincheck = len(bell_names)-1; maxcheck = 0
         #Display checkboxes
         for i in range(start, end):
             with cols[i%per_row]:
                 if bell_names[i].isnumeric():
                     checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals)
+                    max_bell = max(max_bell, int(bell_names[i]))    
                 else:
                     checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals)
                 if checked:
@@ -180,6 +187,7 @@ if st.session_state.tower_selected:
                     maxcheck = max(i, maxcheck)
                     bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
         
+    nbells_save = len(bell_nominals)
     bell_nominals = sorted(bell_nominals, reverse = True)
       
     st.write(str(len(bell_nominals)), 'bells selected, with (editable) nominal frequencies in Hz')
@@ -213,14 +221,15 @@ def process_audio_files(raw_file):
         st.write('Imported audio length: %d seconds.' % (len(Audio.signal)/Audio.fs))
     return Audio
     
-if st.session_state.nominals_confirmed or st.session_state.file_uploaded:
+if st.session_state.tower_selected and (st.session_state.nominals_confirmed or st.session_state.file_uploaded):
     
     #This should come up EVERY time after the first confirmation
     
     #Establish filename for the frequencies.
     #Needs to contain tower, first and last bells, and a counter. Can work on formats in a bit.
-    freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, mincheck, maxcheck)
+    freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, nbells_save, max_bell)
     
+    #rst.write(freq_root)
     #Determine colours:
     colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
 
@@ -245,7 +254,7 @@ if st.session_state.nominals_confirmed or st.session_state.file_uploaded:
     freq_filename = freq_root + '_%03d' % (max_existing + 1)         
         
     if frequency_counter == 1:
-        st.write('Found %d existing frequency profile which match the selected bells:' % frequency_counter)
+        st.write('Found %d existing frequency profile which matches the selected bells:' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):.')
         options = st.radio("Choose existing profile or make a new one (can change your mind later):", ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])])
         
@@ -262,8 +271,11 @@ if st.session_state.nominals_confirmed or st.session_state.file_uploaded:
 
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
-    
-    raw_file = st.file_uploader("Upload ringing audio for analysis")
+    def reset_on_upload():
+        st.session_state.reinforce_frequency_data = None
+        st.session_state.reinforce_status = 0
+
+    raw_file = st.file_uploader("Upload ringing audio for analysis", on_change = reset_on_upload)
     
     if raw_file is not None:
         st.session_state.raw_file = raw_file
@@ -296,9 +308,9 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     
     overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax), format = "%ds")
     
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 0.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
+    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
     
-    reinforce_tmax = st.slider("Max. time for reinforcement (longer is slower but more accurate):", min_value = 0.0, max_value = min(90.0, tmax), value=(60.0), format = "%ds")
+    reinforce_tmax = st.slider("Max. time for reinforcement (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
 
     nreinforces = int(st.slider("Max number of frequency reinforcements:", min_value = 2, max_value = 10, value = 5, step = 1))
     
@@ -316,9 +328,8 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
         st.main_log = st.empty()
         st.main_log.write('**Detecting initial rhythm**')
         
-
         st.quality_log = st.empty()
-        
+
         if st.session_state.reinforce_frequency_data is not None:
             colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
             toprint = st.session_state.reinforce_frequency_data[2]
@@ -330,12 +341,15 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     
             st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (c, 100*toprint))
         else:
-            st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (0.0))
+            st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % ('red', 0.0))
     
         st.current_log = st.empty()
         
         st.current_log.write('Detecting ringing...')
     
+        st.save_option = st.empty()
+        st.save_button = st.empty()
+
         Data = establish_initial_rhythm(Audio, Paras)
                 
         st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
@@ -344,24 +358,19 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     
         st.write(st.session_state.reinforce_frequency_data)
         
-        time.sleep(5.0)
         if st.session_state.reinforce_frequency_data is not None:
-            if st.session_state.reinforce_frequency_data[2] > 0.95:
+            if st.session_state.reinforce_frequency_data[2] > 0.90:
                 st.session_state.reinforce_status = 2
             else:
                 st.session_state.reinforce_status = 0
         else:
             st.session_state.reinforce_status = 0
-            
-        st.write(st.session_state.reinforce_frequency_data)
-        
-        time.sleep(5.0)
-
+                    
         st.rerun()
                     
     if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
     
-        st.main_log.write('**Frequency reinforcement complete seemingly succesfully**')
+        st.main_log.write('**Frequency reinforcement completed seemingly succesfully**')
         #Determine colours:
         colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
         toprint = st.session_state.reinforce_frequency_data[2]
@@ -372,7 +381,27 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
             c = colours[2]
 
         st.quality_log.write('Best quality from reinforcement = :%s[%.1f%%]' % (c, 100*toprint))
-        st.current_log.write()
+        
+        if toprint < 0.95:
+            st.current_log.write('This might not be good enough to provide anything useful. But may as well try...')
+        elif toprint < 0.975:
+            st.current_log.write('Not perfect but it\'ll probably do.')
+        else:
+            st.current_log.write('That should be fine to detect everything reasonably well.')
+  
+        #If it's good, give an option to save out so it can be used next time
+        if st.session_state.reinforce_frequency_data[2] > 0.95 :
+            st.save_option.write('Save these frequency profiles for future use? They will be available to all users.')
+    
+            if st.save_button.button("Save frequency profiles"):
+                np.save('%s%s_freqs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_test_frequencies)
+                np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
+                np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
+                st.rerun()
+
+
+
+
 
 
 
