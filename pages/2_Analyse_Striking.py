@@ -18,7 +18,6 @@ import pandas as pd
 
 from strike_model import find_ideal_times
 from scipy import interpolate
-import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 
@@ -392,41 +391,3 @@ if st.session_state.current_touch >= 0:
             plt.tight_layout()
             st.pyplot(fig)
 
-    
-#plotting_demo()
-
-#show_code(plotting_demo)
-if False:   #Trying to be interactive, sort of works OK but not really...
-
-    #An attempt to plot the method?
-    rows_per_plot = 60
-    nplotsk = nrows//rows_per_plot + 1
-    rows_per_plot = int(nrows/nplotsk) + 2
-    blueline_data = pd.DataFrame({})
-    raw_actuals = np.array(raw_actuals)
-    
-    #Make raw dataframe with each ROW as the things
-    row_data = pd.DataFrame({})
-    
-
-    fig = go.Figure()
-    plot_array = np.zeros((nbells, int(len(raw_actuals)/nbells)))
-    for bell in range(1, nbells + 1):
-        points = []  ; changes = []
-        bellstrikes = np.where(raw_bells == bell)[0]
-        errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
-        targets = np.array(raw_target[bellstrikes])
-        for row in range(min_plot_change, max_plot_change+1):
-            #Find linear position... Linear interpolate?
-            target_row = np.array(raw_target[row*nbells:(row+1)*nbells])
-            ys = np.arange(1,nbells+1)
-            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-            rat = float(f(raw_actuals[bellstrikes][row]))
-            points.append(rat); changes.append(row)
-            plot_array[bell-1,row] = rat
-            
-        fig.add_trace(go.Line(x = points, y = changes, name = columns[bell-1]))
-    fig.update_yaxes(scaleanchor="x", scaleratio=1)
-    fig.update_yaxes(autorange ="reversed")
-    fig.update_layout(height = 800)
-    st.plotly_chart(fig)
