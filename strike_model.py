@@ -5,7 +5,7 @@ import os
 from scipy.ndimage import gaussian_filter1d
 from scipy import stats
 from scipy.optimize import minimize_scalar, curve_fit
-
+import streamlit as st
             
 def find_ideal_hgap(cut_init, gap_init, row, nbells):
     #Finds ideal handstroke gap for two rows (given in cut_init)
@@ -64,14 +64,12 @@ def find_predicted_gaps(all_ideal_gaps, nbells, nrows, ngaps):
 
     return all_gaps
 
-
-def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6, reference_data = []):
+@st.cache_data
+def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
 
     alltimes = np.array(alltimes)
 
     nrows = int(len(alltimes)/nbells)
-
-    #print('Number of rows', len(alltimes)/nbells)
 
     all_ideal_gaps = find_all_gaps(alltimes, nbells, nrows)
 
@@ -107,13 +105,13 @@ def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6, reference_data = 
             #print('b',data)
         return data
 
-    nback = ncount  #Influenced by the preceding change in its entirety. CAN CHANGE THIS.
+    nback = ncount  
     all_ideals = np.zeros(nrows*nbells)
     n_adjust = int(nback/nbells)
 
     if len(alltimes) != len(all_ideals):
-        raise Exception('Not a complete number of changes -- aborting')
-
+        st.error('Not a complete number of changes -- aborting')
+        st.stop()
     #print('Finding individual strikes')
 
     for strike in range(len(all_ideals)):
@@ -121,16 +119,22 @@ def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6, reference_data = 
         row_position = strike%(nbells)  #Row position up to nbells
         row_number = strike//nbells
         if strike == 0 or strike == 1:  #First strikes are naturally perfect
-            all_ideals[strike] = alltimes[strike]
+            all_ideals[strike] = int(alltimes[strike])
 
-        elif strike < nback:  #Not enough preceding data, assume a linear interpolation from preceding
+        elif strike < nbells:  #Not enough preceding data, assume a linear interpolation from preceding
             data = np.array(alltimes[:strike])
             data = adjust_times(data, row_number, n_adjust,row_position)  #Adjust to take into account handstroke gaps
             basis = np.arange(len(data)) - len(data) + row_position
 
             popt, pcov = curve_fit(f1, basis, data)
-            all_ideals[strike] = f1(row_position, *popt)
+            all_ideals[strike] = int(f1(row_position, *popt))
 
+        else:  #Is enough, try a quadratic one
+            data = np.array(alltimes[max(0,strike-nback):strike])
+            data = adjust_times(data, row_number, n_adjust,row_position)  #Adjust to take into account handstroke gaps
+            basis = np.arange(len(data)) - len(data) + row_position
+            popt, pcov = curve_fit(f2, basis, data)
+            all_ideals[strike] = int(f2(row_position, *popt))
     #plt.plot(alltimes)
     #errors = (alltimes - all_ideals)
     #plt.plot(errors[:])

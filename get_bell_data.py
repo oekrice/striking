@@ -65,7 +65,6 @@ if fine:
     tower_names.append(tower_name)
     
 allrows = np.array(allrows)
-print(allrows.shape)
 
 newdata = {'Tower ID': tower_ids, 'Tower Name': tower_names}
 df_new = pd.DataFrame(newdata)

@@ -79,7 +79,6 @@ def dealwith_upload():
         st.rerun()
     return
     
-    
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("# Analyse Striking")
 st.sidebar.header("Choose a Touch:")
@@ -99,13 +98,17 @@ if 'current_touch' not in st.session_state:
     st.session_state.current_touch = -1   #Positive if do want to use existing frequencies. Negative if not.
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+if "rhythm_variation_time" not in st.session_state:
+    st.session_state.rhythm_variation_time = 48
+if "handstroke_gap_variation_time" not in st.session_state:
+    st.session_state.handstroke_gap_variation_time = 10
     
 titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = st.session_state.cached_data[i][0] + ' -- ' + str(st.session_state.cached_data[i][1]) + ' changes'
-    if st.sidebar.button(title):
+    title = st.session_state.cached_data[i][0] + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    if st.sidebar.button(title, key = i):
         st.session_state.current_touch = i
         selected_title = title
     titles.append(title)
@@ -121,7 +124,7 @@ st.write(st.session_state.current_touch)
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
-    st.write('**Analysing ringing from %s:**' % titles[st.session_state.current_touch])
+    st.write('**Analysing ringing from %s**' % titles[st.session_state.current_touch])
 
 if st.session_state.current_touch >= 0:
     #Write in to a local bit to actually do the analysis
@@ -131,7 +134,6 @@ if st.session_state.current_touch >= 0:
     available_models = []
     #If data is uploaded, treat it slightly differently to otherwise. Can just output various things immediately without calculation
     if len(strikes) == 0:
-        st.write('from csv')
         #This is from a .csv
         raw_data = st.session_state.cached_rawdata[st.session_state.current_touch]
         cols = raw_data.columns.tolist()
@@ -143,11 +145,61 @@ if st.session_state.current_touch >= 0:
         
         nbells = np.max(raw_data["Bell No"])
     else:        
-        st.write('From this app. Dont use yet.')
+        #I think it would be easiest to just plonk this into a dataframe and treat it like an imported one, given I've already written code for that
+        allbells = []
+        allcerts_save = []
+        allstrikes = []
+        yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
+        orders = []
+        for row in range(len(st.session_state.allstrikes[0])):
+            order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], yvalues), reverse = False)])
+            certs = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], st.session_state.allcerts[:,row]), reverse = False)])
+            allstrikes = allstrikes + sorted((st.session_state.allstrikes[:,row]).tolist())
+            allcerts_save = allcerts_save + certs.tolist()
+            allbells = allbells + order.tolist()
+            orders.append(order)
+
+        allstrikes = 1000*np.array(allstrikes)*0.01
+        allbells = np.array(allbells)
+        allcerts_save = np.array(allcerts_save)
+        orders = np.array(orders)
+        
+        raw_data = pd.DataFrame({'Bell No': allbells, 'Actual Time': allstrikes, 'Confidence': allcerts_save})
+
+        raw_actuals = raw_data["Actual Time"]
+        nbells = np.max(raw_data["Bell No"])
+
         existing_models = []
         
+    if "Individual Model" not in  raw_data.columns.tolist():
+        count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
+        ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
+        raw_data['Individual Model'] = ideal_times
+        existing_models.append('Individual Model')
+
+    if "Metronomic Model" not in  raw_data.columns.tolist():
+        @st.cache_data
+        def find_metronomic():
+            nrows = int(len(raw_actuals)//nbells)
+    
+            ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
+            raw_data['Individual Model'] = ideal_times
+            all_metros = []
+            for row in range(nrows):
+                actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
+                start = np.min(actual)
+                end = np.max(actual)
+                metronomic_target = np.linspace(start, end, nbells)
+                all_metros = all_metros + metronomic_target.tolist()
+
+            return all_metros
+
+        all_metros = find_metronomic()
+        raw_data['Metronomic Model'] = all_metros
+        existing_models.append('Metronomic Model')
+
     if len(existing_models) > 0:
-        
+                
         selection = st.selectbox("Select striking model:", options = existing_models)   #Can set default for this later?
         
         raw_target = np.array(raw_data[selection])
@@ -156,15 +208,24 @@ if st.session_state.current_touch >= 0:
         nstrikes = len(raw_actuals)
         nrows = int(nstrikes//nbells)
     
+        if selection == "Individual Model":
+            rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
+            st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
+            st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
+            ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
+            raw_data['Individual Model'] = ideal_times
+
+            
         remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
         
         min_include_change, max_include_change = st.slider("Include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
 
         
         st.message = st.empty()
-        st.message.write("Calculating things...")
+        st.message.write("Calculating stats things...")
         #Blue Line
-        with st.expander("View Blue Line"):
+        st.blueline = st.empty()
+        with st.blueline.expander("View Blue Line"):
         
             def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change):
         
@@ -183,7 +244,10 @@ if st.session_state.current_touch >= 0:
         
                 nrows_plot = max_plot_change - min_plot_change
                 rows_per_plot = 61#6*int(nrows_plot//24)
-                nplotsk = nrows_plot//rows_per_plot + 1
+                if nbells < 9:
+                    nplotsk = max(3, nrows_plot//rows_per_plot + 1)
+                else:
+                    nplotsk = max(2, nrows_plot//rows_per_plot + 1)
                 rows_per_plot = int(nrows_plot/nplotsk) + 2
                 
                 #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
@@ -219,7 +283,7 @@ if st.session_state.current_touch >= 0:
                 plt.tight_layout()
                 st.pyplot(fig)
                 
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(120, nrows)), format = "%d", step = 2)
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(240, nrows)), format = "%d", step = 2)
             plot_blue_line(raw_target, min_plot_change, max_plot_change)
             
         diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]

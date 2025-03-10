@@ -120,9 +120,11 @@ if 'allcerts' not in st.session_state:
 if 'cached_strikes' not in st.session_state:
     st.session_state.cached_strikes = []  #Positive if do want to use existing frequencies. Negative if not.
 if 'cached_certs' not in st.session_state:
-    st.session_state.cached_certs = []   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.cached_certs = []  #Positive if do want to use existing frequencies. Negative if not.
 if 'cached_data' not in st.session_state:
     st.session_state.cached_data = []   #Positive if do want to use existing frequencies. Negative if not.
+if 'cached_rawdata' not in st.session_state:
+    st.session_state.cached_rawdata = []   #Positive if do want to use existing frequencies. Negative if not.
 if 'incache' not in st.session_state:
     st.session_state.incache = False   
 
@@ -512,15 +514,17 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
 
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         if st.button("Save this striking data to the cache for analysis", disabled = st.session_state.incache) and not st.session_state.incache:
-            if st.session_state.cached_strikes is not None:
+            if not st.session_state.handstroke_first:
                 st.session_state.cached_strikes.append(st.session_state.allstrikes)
                 st.session_state.cached_certs.append(st.session_state.allcerts)
                 st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                st.session_state.cached_rawdata.append([])
             else:
-                st.session_state.cached_strikes = [st.session_state.allstrikes]
-                st.session_state.cached_certs = [st.session_state.allcerts]
-                st.session_state.cached_data = [st.session_state.tower_name, len(st.session_state.allstrikes[0])]
-
+                st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
+                st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
+                st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                st.session_state.cached_rawdata.append([])
+            
             st.session_state.incache = True
             st.rerun()
             
