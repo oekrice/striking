@@ -24,6 +24,7 @@ import os
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
+from listen_other_functions import find_colour
 
 def plotting_demo():
     progress_bar = st.sidebar.progress(0)
@@ -47,39 +48,27 @@ def plotting_demo():
     st.button("Re-run")
 
 
-st.set_page_config(page_title="Analyse Striking", page_icon="📈")
-st.markdown("# Analyse Striking")
+st.set_page_config(page_title="Analyse Audio", page_icon="📈")
+st.markdown("# Analyse Audio")
 #st.sidebar.header("Analyse Striking")
 st.write(
-    """This page is designed to test analysing the striking from uploaded (or perhaps live...) audio"""
-    
+    """
+    This page is to find strike times from uploaded (or perhaps live at some point...) audio.
+    1. Select the tower and bells being rung.
+    2. Upload the audio file. Ringing must start withing 1 minute of the start of the (trimmed) audio, and must begin in rounds (ish).   
+    3. Choose whether to use existing frequency profiles or learn new ones.
+    4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
+    5. Once decent frequencies are found, you can run the main bit which will find strike times throughout.
+    6. This can then be either saved to the cache for analysis on the other tab, or downlaoded as a .csv for use later.   
+    """
 )
 
 st.markdown(
     """
-    1. Select a tower from drop down from Dove. This populates frequency data
-    2. Select the bells which are being rung with checkboxes
-    3. (Optionally) tweak the parameters
-    4. Upload the audio
-    5. Trim start and end times
-    6. Display if existing frequency data exists on the device and give an option to use if so
-    7. This should all happen automatically. Then put a big button up
-    8. If determining frequencies, but a progress bar with percentage quality
-    9. Have an interrupt button for when this is good enough
-    10. Display 'frequencies done' and give the option to start
+
     """
 )
 
-'''
-Some thoughts on logic:
-For the first time in the session, don't display anything other than the tower box. 
-BUT after this, always have the frequency box up
-Then after the FIRST TIME commiting frequencies the rest appears with the audio etc. -- and stays there.
-DO need to reset parameter sliders etc. after new audio. That's OK.
-Finding frequencies -- need a couple of states. 0 for not done frequencies, 1 for doing and 2 for done
-Separately, have a check for if the existing loaded data is fine. Could be done frequencies or loaded in ones.
-OK.
-'''
 #Establish persistent variables
 
 if "counter" not in st.session_state:
@@ -132,6 +121,8 @@ if 'cached_strikes' not in st.session_state:
     st.session_state.cached_strikes = []  #Positive if do want to use existing frequencies. Negative if not.
 if 'cached_certs' not in st.session_state:
     st.session_state.cached_certs = []   #Positive if do want to use existing frequencies. Negative if not.
+if 'cached_data' not in st.session_state:
+    st.session_state.cached_data = []   #Positive if do want to use existing frequencies. Negative if not.
 if 'incache' not in st.session_state:
     st.session_state.incache = False   
 
@@ -143,13 +134,10 @@ def reset_nominals():
     st.session_state.reinforce_status = 0
     st.session_state.good_frequencies_selected = False
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
-    st.session_state.raw_file = None 
-
-    st.write('Resetting nominals')
+    #st.session_state.raw_file = None 
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
 
-st.write('Init status', st.session_state.counter, st.session_state.reinforce_status, st.session_state.found_new_freqs)
 st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
@@ -173,7 +161,8 @@ else:
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 
 else:
-     st.session_state.tower_selected = False    
+    st.session_state.tower_selected = False  
+    st.session_state.nominals_confirmed = False  
 
 if st.session_state.tower_selected:
     selected_index = tower_names.index(st.session_state.tower_name)
@@ -240,14 +229,12 @@ if st.session_state.tower_selected:
     #    st.write("Nominal frequencies confirmed (remove this later)")
 
 @st.cache_data               
-def process_audio_files(raw_file):
+def process_audio_files(raw_file, doprints):
     #Function that needs caching to avoid the need to keep uploading and converting things
         
-    Audio = audio_data(raw_file)
-    st.session_state.analysis_status = 0 #If new file is uploaded, reset status
+    Audio = audio_data(raw_file, doprints)
     
-    if Audio.signal is not None:
-        
+    if Audio.signal is not None and doprints:
         st.write('Imported audio length: %d seconds.' % (len(Audio.signal)/Audio.fs))
     return Audio
     
@@ -260,8 +247,6 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, nbells_save, max_bell)
     
     #rst.write(freq_root)
-    #Determine colours:
-    colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
 
     #Check for files with this handle
     existing_files = 0; allquals = []; allcs = []; max_existing = -1
@@ -272,11 +257,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
                 max_existing = max(max_existing, int(file[12:15]))
                 quals = np.load('./frequency_data/' + file)
                 allquals.append(quals[2])
-                c = colours[0]
-                if quals[2] > colour_thresholds[0]:
-                    c = colours[1]
-                if quals[2] > colour_thresholds[1]:
-                    c = colours[2]
+                c = find_colour(quals[2])
                 allcs.append(c)
                     
             existing_files += 1
@@ -318,31 +299,34 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     def reset_on_upload():
         st.session_state.reinforce_frequency_data = None
         st.session_state.reinforce_status = 0
+        st.session_state.analysis_status = 0 #If new file is uploaded, reset status
 
-    raw_file = st.file_uploader("Upload ringing audio for analysis", on_change = reset_on_upload)
+    raw_file = st.file_uploader("Upload ringing audio for analysis. WIll add recording function at some point", on_change = reset_on_upload)
     
-
     if raw_file is not None:
         st.session_state.raw_file = raw_file
-        trimmed_filename = raw_file.name[:-4]
+        st.session_state.trimmed_filename = raw_file.name[:-4]
 
     if st.session_state.raw_file is not None:
         st.session_state.file_uploaded = True
     else:
         st.session_state.file_uploaded = False
-        
-    if st.session_state.file_uploaded:
-        Audio = process_audio_files(st.session_state.raw_file)   
        
+    if st.session_state.file_uploaded:
         
-if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
+        Audio = process_audio_files(st.session_state.raw_file, doprints = True)   
+      
+#To avoid errors after caching, may need to do the audio class here again even if it's not displayed. OK.
+
+
+if st.session_state.file_uploaded and st.session_state.nominals_confirmed and st.session_state.tower_selected:
 
     def change_reinforce():
         if st.session_state.reinforce_status != 1:
             st.session_state.reinforce_status = 1
         elif st.session_state.reinforce_frequency_data is not None:
             st.session_state.reinforce_status = 0
-            if st.session_state.reinforce_frequency_data[2] > 0.95:
+            if st.session_state.reinforce_frequency_data[2] > 0.85:
                 st.session_state.reinforce_status = 2
             else:
                 st.session_state.reinforce_status = 0
@@ -358,7 +342,7 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
     
     if st.session_state.use_existing_freqs < 0:
-        reinforce_tmax = st.slider("Max. time for frequency analysis (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
+        reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
         nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
     else:
         reinforce_tmax = 90.0
@@ -387,14 +371,8 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
             
     
             if st.session_state.reinforce_frequency_data is not None:
-                colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
                 toprint = st.session_state.reinforce_frequency_data[2]
-                c = colours[0]
-                if toprint > colour_thresholds[0]:
-                    c = colours[1]
-                if toprint > colour_thresholds[1]:
-                    c = colours[2]
-        
+                c = find_colour(toprint)
                 st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (c, 100*toprint))
             else:
                 st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % ('red', 0.0))
@@ -409,9 +387,10 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
             Data = do_reinforcement(Paras, Data, Audio)
                     
             if st.session_state.reinforce_frequency_data is not None:
-                if st.session_state.reinforce_frequency_data[2] > 0.90:
+                if st.session_state.reinforce_frequency_data[2] > 0.85:
                     st.session_state.reinforce_status = 2
                 else:
+                    st.main_log.write("**Frequency profiles not good enough to use... Apologies**")
                     st.session_state.reinforce_status = 0
             else:
                 st.session_state.reinforce_status = 0
@@ -447,7 +426,7 @@ if (st.session_state.reinforce_status == 2 and st.session_state.use_existing_fre
 else:
     st.session_state.good_frequencies_selected = False
     
-if st.session_state.good_frequencies_selected and st.session_state.file_uploaded and st.session_state.nominals_confirmed:
+if st.session_state.good_frequencies_selected and st.session_state.file_uploaded and st.session_state.nominals_confirmed or (st.session_state.analysis_status == 2 and st.session_state.nominals_confirmed):
 
     #st.write(st.session_state.analysis_status)
     if st.session_state.use_existing_freqs < 0:
@@ -475,13 +454,14 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
     st.analysis_sublog2 = st.empty()
 
     if st.session_state.analysis_status == 1:
+        print('Clicked')
         st.session_state.incache = False
         st.analysis_log.write('**Finding strike times**')
         st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
 
         #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
         Data = establish_initial_rhythm(Audio, Paras, final = True)
-
+       
         #Load in final frequencies as session variables
         if st.session_state.use_existing_freqs < 0:
             st.session_state.final_freqs = st.session_state.reinforce_test_frequencies
@@ -504,8 +484,9 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
     if st.session_state.analysis_status == 2:
         st.analysis_log.write('**Audio Analysed**')
         st.analysis_sublog.progress(100, text = 'Analysis complete')
+        c = find_colour(np.mean(st.session_state.allcerts))
 
-        st.analysis_sublog2.write('%d rows found with average confidence %.1f%%' % (len(st.session_state.allstrikes[0]), 100*np.mean(st.session_state.allcerts)))
+        st.analysis_sublog2.write('**%d rows found with average confidence :%s[%.1f%%]**' % (len(st.session_state.allstrikes[0]), c,  100*np.mean(st.session_state.allcerts)))
         
         #Judge if these frequencies are fine
         goodenough = True
@@ -534,9 +515,12 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
             if st.session_state.cached_strikes is not None:
                 st.session_state.cached_strikes.append(st.session_state.allstrikes)
                 st.session_state.cached_certs.append(st.session_state.allcerts)
+                st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
             else:
                 st.session_state.cached_strikes = [st.session_state.allstrikes]
                 st.session_state.cached_certs = [st.session_state.allcerts]
+                st.session_state.cached_data = [st.session_state.tower_name, len(st.session_state.allstrikes[0])]
+
             st.session_state.incache = True
             st.rerun()
             
@@ -554,7 +538,7 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
             return df.to_csv().encode("utf-8")
 
         csv = convert_for_download(striking_df)
-        st.download_button("Download data to device as CSV", csv, file_name = trimmed_filename + '.csv', mime="text/csv")
+        st.download_button("Download raw timing data to device as .csv", csv, file_name = st.session_state.trimmed_filename + '.csv', mime="text/csv")
 
         if st.button("View all rows and detection confidences"):
             for ri, row in enumerate(orders):
@@ -569,9 +553,18 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
                         string = string + 'E'
                     elif bell == 12:
                         string = string + 'T'
-                            
+                    elif bell == 13:
+                        string = string + 'A'
+                    elif bell == 14:
+                        string = string + 'B'
+                    elif bell == 15:
+                        string = string + 'C'
+                    elif bell == 16:
+                        string = string + 'D'
+                        
+                c = find_colour(np.mean(rowconf))
                 confstring = ('%d' % np.mean(rowconf)*100 )
-                st.write(string, ' -- %d %%' % (np.mean(rowconf)*100))
+                st.write(':%s[%s -- %d %%]' % (c ,string, np.mean(rowconf)*100))
 
 
 

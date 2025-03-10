@@ -13,7 +13,7 @@ import pandas as pd
 from listen_classes import data
 
 from scipy.fftpack import fft
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds
+from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
 
 
 def establish_initial_rhythm(Audio, Paras, final = False):
@@ -29,13 +29,14 @@ def establish_initial_rhythm(Audio, Paras, final = False):
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
     Paras.rounds_tmax = Paras.ringing_start*Paras.dt  + Paras.rounds_tmax
 
+    print('start', Paras.ringing_start)
     if not final:
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
 
     if not final:
         Data = data(Paras, Audio, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, Audio, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, Audio, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
 
     #Find strike probabilities from the nominals
     Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = True, final = final)
@@ -76,7 +77,7 @@ def do_reinforcement(Paras, Data, Audio):
             
         #Save out frequency data only when finished reinforcing?
         
-        print('Finding strike probabilities...')
+        #print('Finding strike probabilities...')
         
         Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = False, final = False)
                 
@@ -85,21 +86,29 @@ def do_reinforcement(Paras, Data, Audio):
         #Filter these strikes for the best rows, to then be used for reinforcement
         best_strikes = []; best_certs = []; allcerts = []; row_ids = []
         #Pick the ones that suit each bell in turn --but make sure to weight!
-        for bell in range(Paras.nbells):
-            threshold = 0.05   #Need changes to be at least this good... Need to improve on this really.
-            allcerts = []; count = 0
-            for row in range(len(strikes[0])):
-                allcerts.append(strike_certs[bell,row])
-            if len(allcerts) > Paras.nreinforce_rows:
-                threshold = max(threshold, sorted(allcerts, reverse = True)[Paras.nreinforce_rows]) 
-            for row in range(len(strikes[0])):
-                if strike_certs[bell,row] > threshold and count < Paras.nreinforce_rows:
-                    if row not in row_ids:
-                        row_ids.append(row)
-                        best_strikes.append(strikes[:,row])
-                        best_certs.append(strike_certs[:,row])
-                        count += 1
-                        
+        done  = False
+        while not done:
+            for bell in range(Paras.nbells):
+                threshold = 0.05   #Need changes to be at least this good... Need to improve on this really.
+                allcerts = []; count = 0
+                for row in range(len(strikes[0])):
+                    allcerts.append(strike_certs[bell,row])
+                if len(allcerts) > Paras.nreinforce_rows:
+                    threshold = max(threshold, sorted(allcerts, reverse = True)[Paras.nreinforce_rows]) 
+                for row in range(len(strikes[0])):
+                    if strike_certs[bell,row] > threshold and count < Paras.nreinforce_rows:
+                        #st.write(row, row_ids)
+                        if row not in row_ids:
+                            row_ids.append(row)
+                            best_strikes.append(strikes[:,row])
+                            best_certs.append(strike_certs[:,row])
+                            count += 1
+            done = True
+            if len(best_strikes) > 3:
+                done = True
+            else:
+                threshold = threshold/2
+            
         st.current_log.write('Using ' + str(len(best_strikes)) + ' rows for next reinforcement')
         Data.strikes, Data.strike_certs = np.array(best_strikes).T, np.array(best_certs).T
         
@@ -147,14 +156,8 @@ def do_reinforcement(Paras, Data, Audio):
             
         if st.session_state.reinforce_frequency_data is not None:
             #Determine colours:
-            colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
             toprint = Data.freq_data[2]
-            c = colours[0]
-            if toprint > colour_thresholds[0]:
-                c = colours[1]
-            if toprint > colour_thresholds[1]:
-                c = colours[2]
-
+            c = find_colour(toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*st.session_state.reinforce_frequency_data[2]))
 
     return Data
@@ -190,14 +193,12 @@ def find_final_strikes(Paras, Audio):
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = False, final = True)
                            
          if len(allstrikes) == 0:  #Look for changes after this time
-             Data.first_change_limit = Paras.first_change_limit 
              Data.handstroke_first = Paras.handstroke_first
          else:
              if len(allstrikes)%2 == 0:
                  Data.handstroke_first = Paras.handstroke_first
              else:
                  Data.handstroke_first = not(Paras.handstroke_first)
-             Data.first_change_limit = np.array(allstrikes[-1][:]) - int(tmin/Paras.dt) - 50   
              Data.last_change = np.array(allstrikes[-1]) - int(tmin/Paras.dt)
              Data.cadence_ref = Paras.cadence_ref
 
@@ -209,6 +210,13 @@ def find_final_strikes(Paras, Audio):
              Paras.stop_flag = True
             
          if len(Data.strikes) > 0:
+             if len(allstrikes) == 0:   #Check for rounds at the start
+                 if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
+                     st.error('This recording doesn\'t appear to start with the tenor behind. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                     st.session_state.analysis_status = 0
+                     time.sleep(5.0)
+                     st.rerun()
+                     
              for row in range(0,len(Data.strikes[0])):
                  allstrikes.append((Data.strikes[:,row] + int(tmin/Paras.dt)).tolist())
                  allcerts.append(Data.strike_certs[:,row].tolist())
@@ -218,7 +226,6 @@ def find_final_strikes(Paras, Audio):
          tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
              
          #Update global class things
-         Paras.first_change_limit = np.array(allstrikes[-1]) - int(tmin/Paras.dt) + 20
          nrows_count = int(min(len(Paras.allcadences), 20))
          Paras.cadence_ref = np.mean(Paras.allcadences[-nrows_count:])
          Paras.allstrikes = np.array(allstrikes)
@@ -234,7 +241,7 @@ def save_strikes(Paras):
     allstrikes = []
     allbells = []
     allcerts_save = []
-    yvalues = np.arange(Paras.nbells) + 1
+    yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
     orders = []
     
     if not st.session_state.handstroke_first:

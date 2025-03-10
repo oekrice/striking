@@ -15,7 +15,7 @@ from scipy.ndimage import gaussian_filter1d
 
 class audio_data():
     #Does the initial audio normalisation things
-    def __init__(self, raw_file):
+    def __init__(self, raw_file, doprints = True):
         
         upload_success = False
         
@@ -24,7 +24,7 @@ class audio_data():
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
         
-        if raw_file.name[-4:] != '.wav':
+        if raw_file.name[-4:] != '.wav' and doprints:
             st.write('Uploaded file is not a .wav - attempting to convert it.')
         
         if raw_file.name[-4:] != '.wav':
@@ -33,7 +33,8 @@ class audio_data():
             #Convert this to a wav
             os.system('ffmpeg -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
-                st.write('Audio file "%s" uploaded and converted sucessfully.' % raw_file.name)
+                if doprints:
+                    st.write('Audio file "%s" uploaded and converted sucessfully.' % raw_file.name)
                 upload_success = True
 
             else:
@@ -42,10 +43,12 @@ class audio_data():
                 st.stop()
                 
         else:
-            st.write('File is in a nice format. Lovely.')
+            if doprints:
+                st.write('File is in a nice format. Lovely.')
             new_fname = './tmp/' + raw_file.name
 
-            st.write('Audio file "%s" uploaded sucessfully.' % raw_file.name)
+            if doprints:
+                st.write('Audio file "%s" uploaded sucessfully.' % raw_file.name)
             upload_success = True
 
         

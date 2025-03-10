@@ -10,8 +10,18 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 import time
+import matplotlib.pyplot as plt
 
-
+def find_colour(value):
+    #For prettiness purposes
+    colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
+    c = colours[0]
+    if value > colour_thresholds[0]:
+        c = colours[1]
+    if value > colour_thresholds[1]:
+        c = colours[2]
+    return  c
+    
 def normalise(nbits, raw_input):
     #Normalises the string to the number of bits
     return raw_input/(2**(nbits-1))
@@ -170,9 +180,9 @@ def find_strike_times_rounds(Paras, Data, Audio, final = False, doplots = 0):
     
                 if len(poss) < 1:
                     #st.session_state.reinforce = 0
-                    st.error('Cannot find strike for bell %d in rounds. Try changing the start time?'% (bell+1))
+                    st.error('Cannot find strike for bell %d in rounds. Check tower/number of bells correct or try changing the start time?'% (bell+1))
                     st.session_state.reinforce_status = 0
-                    time.sleep(2.0)
+                    time.sleep(5.0)
 
                     st.rerun()
                 strikes[bell] = poss[0]
@@ -255,9 +265,13 @@ def find_strike_times_rounds(Paras, Data, Audio, final = False, doplots = 0):
                     peaks_range = peaks[(peaks > start)*(peaks < end)]
                     sigs_range = sigs[(peaks > start)*(peaks < end)]
                     
-                    start_bell = max(start_bell, allstrikes[-1][bell] + int(3.0*Paras.cadence))
-                    end_bell = end
-                    
+                    if len(allstrikes) > 0:
+                        start_bell = max(start_bell, allstrikes[-1][bell] + int(3.0*Paras.cadence))
+                        end_bell = end
+                    else:
+                        start_bell = np.min(taims) - 2.0*Paras.cadence
+                        end_bell = np.max(taims) + 2.0*Paras.cadence
+
                     sigs_range = sigs_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
                     peaks_range = peaks_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
 
@@ -296,8 +310,8 @@ def find_strike_times_rounds(Paras, Data, Audio, final = False, doplots = 0):
                 Paras.ringing_finished = True
                 
                 bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
-                Data.freq_data = np.array([Paras.dt, Paras.fcut_length, np.mean(allconfs[1:]), np.min(allconfs[1:])])
-                Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
+                Data.freq_data = np.array([Paras.dt, Paras.fcut_length, 0., 0.])
+                Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
 
                 if len(allstrikes) == 0:
                     return [], []
@@ -518,6 +532,11 @@ def do_frequency_analysis(Paras, Data, Audio):
         peaks = peaks[:npeaks]
         prominences = peak_prominences(probs_clean, peaks)[0]
 
+        if len(peaks) == 0:
+            st.error('Frequency reinforcement failed. Sorry... Try changing the audio parameters a bit?')
+            time.sleep(10.0)
+            st.rerun()
+            
         peaks = peaks[prominences > 0.25*np.max(prominences)]
         
         final_freqs = final_freqs + freq_tests[peaks].tolist()
@@ -592,17 +611,18 @@ def do_frequency_analysis(Paras, Data, Audio):
        
 def find_first_strikes(Paras, Data, Audio):
     #Takes normalised wave vector, and does some fourier things
-        
+    #This funcdtion is the one which probably needs improving the most...
     tenor_probs = Data.strike_probabilities[-1]
     tenor_probs = gaussian_filter1d(tenor_probs, 5)
     tenor_peaks, _ = find_peaks(tenor_probs) 
     tenor_peaks = tenor_peaks[tenor_peaks < Paras.rounds_tmax/Paras.dt]
-    tenor_peaks = tenor_peaks[tenor_peaks > Paras.ringing_start + int(5.0/Paras.dt)]
+    tenor_peaks = tenor_peaks[tenor_peaks > Paras.ringing_start + int(2.5/Paras.dt)]
     prominences = peak_prominences(tenor_probs, tenor_peaks)[0]
     tenor_peaks = np.array([val for _, val in sorted(zip(prominences,tenor_peaks), reverse = True)]).astype('int')
     prominences = np.array(sorted(prominences, reverse = True))
     #Test the first few tenor peaks to see if the following diffs are fine...    
     npeaks_ish = int((Paras.rounds_tmax - Paras.ringing_start*Paras.dt)/2.0)   #How many strikes expected in this time
+    
     if npeaks_ish < 5:
         st.error("Time range for detecting rounds is too small")
         st.session_state.reinforce_status = 0
@@ -610,7 +630,7 @@ def find_first_strikes(Paras, Data, Audio):
 
         st.rerun()
         
-    threshold = 0.75*sorted(prominences, reverse = True)[npeaks_ish - 1]
+    threshold = 0.5*sorted(prominences, reverse = True)[min(npeaks_ish - 1, len(tenor_peaks)-1)]
         
     tenor_big_peaks = np.array(tenor_peaks[prominences > threshold])  
     tenor_peaks = np.array(tenor_peaks[prominences > 0.01]) 
@@ -625,6 +645,7 @@ def find_first_strikes(Paras, Data, Audio):
         
     tenor_strikes = []; best_length = 0; go = True
     
+    #print('Big peaks', tenor_big_peaks)
     for first_test in range(min(8, len(tenor_big_peaks))):
         if not go:
             break
@@ -643,15 +664,27 @@ def find_first_strikes(Paras, Data, Audio):
             poss = tenor_peaks[(tenor_peaks > start)*(tenor_peaks < end)]  #Possible strikes in range -- just pick biggest
             prominences = peak_prominences(tenor_probs, poss)[0]
             poss = np.array([val for _, val in sorted(zip(prominences,poss), reverse = True)]).astype('int')
-            if ri > 2:
+            if ri > 1:
                 avg_change_length = np.mean(np.array(teststrikes)[1:] - np.array(teststrikes)[:-1])
-                rangestart = max(rangestart, int(0.75*avg_change_length))
-                rangeend = min(rangeend, int(1.25*avg_change_length))
+                last_twochange_length = np.array(teststrikes)[-1] - np.array(teststrikes)[-3] 
+                avg_twochange_length = np.mean(np.array(teststrikes)[2:] - np.array(teststrikes)[:-2])
+                #Look at the one detected TWO blows ago and figure that out. Hopefully fine...
+                rangestart = int(0.9*last_twochange_length)
+                rangeend = int(1.1*last_twochange_length)
+
             if len(poss) < 1:
                 break
+            
+
             teststrikes.append(poss[0])
-            start = poss[0] + rangestart
-            end = poss[0] + rangeend 
+
+            if ri > 1:
+                start = teststrikes[-2] + rangestart
+                end = teststrikes[-2] + rangeend
+            else:
+                start = poss[0] + rangestart
+                end = poss[0] + rangeend
+            
         teststrikes = np.array(teststrikes)
         diff1s = teststrikes[1:] - teststrikes[:-1]
         diff2s = teststrikes[2:] - teststrikes[:-2]
@@ -659,25 +692,20 @@ def find_first_strikes(Paras, Data, Audio):
         twostroke_max_variance = 1.0*avg_change_length/(Paras.nbells - 1)   #Relative difference in the length of changes
         handstroke_max_variance = 2.0*avg_change_length/(Paras.nbells - 1)   #Relative difference accounting for handstroke gaps (should be at least 1)
 
+        #print(first_test, diff1s, diff2s)
         for tests in range(2, len(diff2s)):
             if max(diff2s[:tests]) - min(diff2s[:tests]) < twostroke_max_variance:   
                 if max(diff1s[:tests]) - min(diff1s[:tests]) < handstroke_max_variance:
                     if tests + 2 > best_length:
                         best_length = tests + 2
                         tenor_strikes = teststrikes[:tests+2]
-                        if best_length >= Paras.nrounds_min:
-                            go = False  #This will do!
                  
-        
-    if len(tenor_strikes) < 4:
+    if len(tenor_strikes) < 5:
         #print(tenor_big_peaks, tenor_peaks)
         #st.session_state.reinforce = 0
-        st.error('Reliable tenor strikes not found within the required time... Try cutting out start silence?')
-        st.error('Tenor strikes (for testing purposese...):')
-        st.write(np.array(tenor_strikes))
+        st.error('Reliable tenor strikes not found within the required time... Try cutting out start silence or increasing rounds time?')
         st.session_state.reinforce_status = 0
-        time.sleep(10.0)
-
+        time.sleep(5.0)
         st.rerun()
     #print('Tenor strikes in rounds (check these are reasonable): ', np.array(tenor_strikes)*Paras.dt)
     
