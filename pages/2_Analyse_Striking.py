@@ -284,6 +284,8 @@ if st.session_state.current_touch >= 0:
                     #ax.set_yticks([])
                 plt.tight_layout()
                 st.pyplot(fig)
+                plt.clf()
+                plt.close()
                 
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(240, nrows)), format = "%d", step = 2)
             plot_blue_line(raw_target, min_plot_change, max_plot_change)
@@ -360,7 +362,9 @@ if st.session_state.current_touch >= 0:
                 plt.suptitle(titles[plot_id])
                 plt.tight_layout()
                 st.pyplot(fig)
-        
+                plt.clf()
+                plt.close()
+
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
         #Bar Chart
@@ -396,4 +400,6 @@ if st.session_state.current_touch >= 0:
 
             plt.tight_layout()
             st.pyplot(fig)
+            plt.clf()
+            plt.close()
 

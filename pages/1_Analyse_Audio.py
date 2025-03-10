@@ -314,12 +314,12 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed and st
     st.write("Audio parameters:")
     tmax = len(Audio.signal)/Audio.fs
     
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax), format = "%ds")
+    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1 ,format = "%ds")
     
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
+    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1, value=(30.0), format = "%ds")
     
     if st.session_state.use_existing_freqs < 0:
-        reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
+        reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), step = 1, alue=(90.0), format = "%ds")
         nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
     else:
         reinforce_tmax = 90.0
