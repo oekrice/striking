@@ -45,7 +45,8 @@ def dealwith_upload():
             uploaded_files.pop(uploaded_files.index(uploaded_file))
         else:
             isfine = True
-            st.write(uploaded_file.name)
+            uploaded_file.name = uploaded_file.name.replace(" ", "_")
+
             with open('./tmp/%s' % uploaded_file.name, 'wb') as f: 
                 f.write(uploaded_file.getvalue())        
             try:
@@ -176,10 +177,7 @@ if st.session_state.current_touch >= 0:
     if "Metronomic Model" not in  raw_data.columns.tolist():
         @st.cache_data
         def find_metronomic():
-            nrows = int(len(raw_actuals)//nbells)
-    
-            ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
-            raw_data['Individual Model'] = ideal_times
+            nrows = int(len(raw_data['Actual Time'])//nbells)
             all_metros = []
             for row in range(nrows):
                 actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
