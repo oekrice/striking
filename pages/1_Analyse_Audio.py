@@ -13,39 +13,13 @@
 # limitations under the License.
 
 import streamlit as st
-import inspect
-import textwrap
-import time
 import numpy as np
-from utils import show_code
 import pandas as pd
-from scipy.io import wavfile
 import os
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
 from listen_other_functions import find_colour
-
-def plotting_demo():
-    progress_bar = st.sidebar.progress(0)
-    status_text = st.sidebar.empty()   #Used as a space for the next though it's not there yet
-    last_rows = np.random.randn(1, 1)
-    chart = st.line_chart(last_rows)
-
-    for i in range(1, 101):
-        new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
-        status_text.text("%i%% Complete" % i)
-        chart.add_rows(new_rows)
-        progress_bar.progress(i)
-        last_rows = new_rows
-        time.sleep(0.05)
-
-    progress_bar.empty()
-
-    # Streamlit widgets automatically run the script from top to bottom. Since
-    # this button is not connected to any other logic, it just causes a plain
-    # rerun.
-    st.button("Re-run")
 
 
 st.set_page_config(page_title="Analyse Audio", page_icon="📈")
@@ -63,11 +37,12 @@ st.write(
     """
 )
 
-st.markdown(
-    """
-
-    """
-)
+if not os.path.exists('./tmp/'):
+    os.system('mkdir ./tmp/')
+if not os.path.exists('./frequency_data/'):
+    os.system('mkdir ./frequency_data/')
+if not os.path.exists('./striking_data/'):
+    os.system('mkdir ./striking_data/')
 
 #Establish persistent variables
 

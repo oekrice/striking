@@ -13,19 +13,16 @@
 # limitations under the License.
 
 import streamlit as st
-import inspect
-import textwrap
-import time
 import numpy as np
-from utils import show_code
 import pandas as pd
 
 from strike_model import find_ideal_times
 from scipy import interpolate
-import plotly.express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
+
+import os
 
 cmap = plt.cm.gnuplot2
 cmap = [
@@ -75,6 +72,7 @@ def dealwith_upload():
                     st.session_state.cached_rawdata.append(raw_data)
                     st.write(strike_data)
     if len(uploaded_files) > 0:
+        os.system('rm -r ./tmp/%s' % uploaded_file.name)
         st.session_state.uploader_key += 1
         st.rerun()
     return
