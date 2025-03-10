@@ -23,7 +23,7 @@ from scipy.io import wavfile
 import os
 
 from listen_classes import audio_data, parameters
-from listen_main_functions import establish_initial_rhythm, do_reinforcement
+from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
 
 def plotting_demo():
     progress_bar = st.sidebar.progress(0)
@@ -104,7 +104,11 @@ if 'use_existing_freqs' not in st.session_state:
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
 if 'already_saved' not in st.session_state:
     st.session_state.already_saved = False   #Positive if do want to use existing frequencies. Negative if not.
-    
+if 'good_frequencies_selected' not in st.session_state:
+    st.session_state.good_frequencies_selected = False   #Decent frequencies are selected (either preloaded or calculated now)
+if 'analysis_status' not in st.session_state:
+    st.session_state.analysis_status = 0   
+
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
     st.session_state.reinforce_test_frequencies = None   #Positive if do want to use existing frequencies. Negative if not.
@@ -112,12 +116,35 @@ if 'reinforce_frequency_profile' not in st.session_state:
     st.session_state.reinforce_frequency_profile = None   #Positive if do want to use existing frequencies. Negative if not.
 if 'reinforce_frequency_data' not in st.session_state:
     st.session_state.reinforce_frequency_data = None   #Positive if do want to use existing frequencies. Negative if not.
+ 
+#Final frequency data for use
+if 'final_freqs' not in st.session_state:
+    st.session_state.final_freqs = None   #Positive if do want to use existing frequencies. Negative if not.
+if 'final_freqprobs' not in st.session_state:
+    st.session_state.final_freqprobs = None   #Positive if do want to use existing frequencies. Negative if not.
+    
+if 'allstrikes' not in st.session_state:
+    st.session_state.allstrikes = None   #Positive if do want to use existing frequencies. Negative if not.
+if 'allcerts' not in st.session_state:
+    st.session_state.allcerts = None   #Positive if do want to use existing frequencies. Negative if not.
+   
+if 'cached_strikes' not in st.session_state:
+    st.session_state.cached_strikes = []  #Positive if do want to use existing frequencies. Negative if not.
+if 'cached_certs' not in st.session_state:
+    st.session_state.cached_certs = []   #Positive if do want to use existing frequencies. Negative if not.
+if 'incache' not in st.session_state:
+    st.session_state.incache = False   
+
   
 def reset_nominals():
     st.session_state.nominals_confirmed = False
     st.session_state.bell_nominals = False
     st.session_state.reinforce_frequency_data = None
     st.session_state.reinforce_status = 0
+    st.session_state.good_frequencies_selected = False
+    st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.raw_file = None 
+
     st.write('Resetting nominals')
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
@@ -205,7 +232,7 @@ if st.session_state.tower_selected:
         
     edited_nominals = np.array(st.data_editor(freq_df, hide_index = True, on_change = reset_nominals))[0].tolist()
     
-    if st.button("Confirm Tower and Frequencies"):
+    if st.button("Confirm Tower and Frequencies", disabled = st.session_state.nominals_confirmed):
         st.session_state.nominals_confirmed = True
         st.session_state.bell_nominals = edited_nominals
             
@@ -217,6 +244,7 @@ def process_audio_files(raw_file):
     #Function that needs caching to avoid the need to keep uploading and converting things
         
     Audio = audio_data(raw_file)
+    st.session_state.analysis_status = 0 #If new file is uploaded, reset status
     
     if Audio.signal is not None:
         
@@ -255,10 +283,18 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     frequency_counter = existing_files//3    #ID of THIS frequency set
     freq_filename = freq_root + '_%03d' % (max_existing + 1)         
         
+    def stop_analysis():
+        if st.session_state.final_freqs is not None:
+            st.session_state.analysis_status = 2    #Need a done condition here
+        else:
+            st.session_state.analysis_status = 0
+        return
+    
     if frequency_counter == 1:
         st.write('Found %d existing frequency profile which matches the selected bells:' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):.')
-        options = st.radio("Choose existing profile or make a new one (can change your mind later):", ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])])
+        allstrings = ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])]
+        options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis)
         
     elif frequency_counter > 1:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
@@ -266,11 +302,17 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         allstrings = ["Make new profile"]
         for qi, qual in enumerate(allquals):
             allstrings.append(":%s[Profile %d: %.1f%% match]" % (allcs[qi], qi + 1, 100*qual))
-        options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings)
-
+        options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis)
+    
     else:
         st.write('No existing frequency profiles which match these bells -- will need to create one.')
-
+        options = "Make new profile"
+        
+    if options == "Make new profile":
+        st.session_state.use_existing_freqs = -1
+    else:
+        st.session_state.use_existing_freqs  = allstrings.index(options) - 1
+        existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
     def reset_on_upload():
@@ -279,9 +321,11 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
 
     raw_file = st.file_uploader("Upload ringing audio for analysis", on_change = reset_on_upload)
     
+
     if raw_file is not None:
         st.session_state.raw_file = raw_file
-            
+        trimmed_filename = raw_file.name[:-4]
+
     if st.session_state.raw_file is not None:
         st.session_state.file_uploaded = True
     else:
@@ -290,6 +334,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     if st.session_state.file_uploaded:
         Audio = process_audio_files(st.session_state.raw_file)   
        
+        
 if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
 
     def change_reinforce():
@@ -312,27 +357,71 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
     
     rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), value=(30.0), format = "%ds")
     
-    reinforce_tmax = st.slider("Max. time for frequency analysis (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
+    if st.session_state.use_existing_freqs < 0:
+        reinforce_tmax = st.slider("Max. time for frequency analysis (longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), value=(90.0), format = "%ds")
+        nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
+    else:
+        reinforce_tmax = 90.0
+        nreinforces = 5
 
-    nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
-    
-    Paras = parameters(Audio, np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
+    Paras = parameters(Audio,np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
     Paras.fname = str(st.session_state.tower_id)
 
-    if st.session_state.reinforce_status == 0 or st.session_state.reinforce_status == 2:
-        st.button("Find new frequency profiles", on_click = change_reinforce)
-    else: 
-        st.button("Stop finding frequencies", on_click = change_reinforce)
-                    
-    if st.session_state.reinforce_status == 1:
-        #Begin frequency reinforcement -- stop when the flag stops being on!
-        #Zero for not at all, 1 for doing it and 2 for done. Need something to fill this space if never doing reinforcement
-        st.main_log = st.empty()
-        st.main_log.write('**Detecting initial rhythm**')
+    if st.session_state.use_existing_freqs < 0:
         
-        st.quality_log = st.empty()
-
-        if st.session_state.reinforce_frequency_data is not None:
+        if st.session_state.reinforce_status == 0 or st.session_state.reinforce_status == 2:
+            st.button("Find new frequency profiles", on_click = change_reinforce)
+        else: 
+            st.button("Stop finding frequencies", on_click = change_reinforce)
+                     
+        if st.session_state.reinforce_status > 0:
+            #Create placeholders for frequency detection text
+            st.main_log = st.empty()
+            st.quality_log = st.empty()
+            st.current_log = st.empty()
+    
+        if st.session_state.reinforce_status == 1:
+            #Begin frequency reinforcement -- stop when the flag stops being on!
+            #Zero for not at all, 1 for doing it and 2 for done. Need something to fill this space if never doing reinforcement
+            st.main_log.write('**Detecting initial rhythm**')
+            
+    
+            if st.session_state.reinforce_frequency_data is not None:
+                colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
+                toprint = st.session_state.reinforce_frequency_data[2]
+                c = colours[0]
+                if toprint > colour_thresholds[0]:
+                    c = colours[1]
+                if toprint > colour_thresholds[1]:
+                    c = colours[2]
+        
+                st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (c, 100*toprint))
+            else:
+                st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % ('red', 0.0))
+        
+            
+            st.current_log.write('Detecting ringing...')
+        
+            Data = establish_initial_rhythm(Audio, Paras)
+                    
+            st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
+                    
+            Data = do_reinforcement(Paras, Data, Audio)
+                    
+            if st.session_state.reinforce_frequency_data is not None:
+                if st.session_state.reinforce_frequency_data[2] > 0.90:
+                    st.session_state.reinforce_status = 2
+                else:
+                    st.session_state.reinforce_status = 0
+            else:
+                st.session_state.reinforce_status = 0
+                        
+            st.rerun()
+                        
+        if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
+                             
+            st.main_log.write('**Frequency analysis completed seemingly succesfully**')
+            #Determine colours:
             colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
             toprint = st.session_state.reinforce_frequency_data[2]
             c = colours[0]
@@ -341,58 +430,96 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
             if toprint > colour_thresholds[1]:
                 c = colours[2]
     
-            st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (c, 100*toprint))
-        else:
-            st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % ('red', 0.0))
-    
-        st.current_log = st.empty()
-        
-        st.current_log.write('Detecting ringing...')
-    
-        st.save_option = st.empty()
-        st.save_button = st.empty()
-
-        Data = establish_initial_rhythm(Audio, Paras)
-                
-        st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
-                
-        Data = do_reinforcement(Paras, Data, Audio)
-    
-        st.write(st.session_state.reinforce_frequency_data)
-        
-        if st.session_state.reinforce_frequency_data is not None:
-            if st.session_state.reinforce_frequency_data[2] > 0.90:
-                st.session_state.reinforce_status = 2
+            st.quality_log.write('Best frequency analysis quality = :%s[%.1f%%]' % (c, 100*toprint))
+            
+            if toprint < 0.95:
+                st.current_log.write('This might not be good enough to provide anything useful. But may as well try...')
+            elif toprint < 0.975:
+                st.current_log.write('Not perfect but it\'ll probably do.')
             else:
-                st.session_state.reinforce_status = 0
-        else:
-            st.session_state.reinforce_status = 0
+                st.current_log.write('That should be fine to detect everything reasonably well.')
+            st.divider()
                     
-        st.rerun()
-                    
-    if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
+#st.write(st.session_state.reinforce_status, st.session_state.use_existing_freqs)
+#Proceed to actual calculation
+if (st.session_state.reinforce_status == 2 and st.session_state.use_existing_freqs < 0) or st.session_state.use_existing_freqs >= 0:
+    st.session_state.good_frequencies_selected = True
+else:
+    st.session_state.good_frequencies_selected = False
     
-        st.main_log.write('**Frequency analysis completed seemingly succesfully**')
-        #Determine colours:
-        colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
-        toprint = st.session_state.reinforce_frequency_data[2]
-        c = colours[0]
-        if toprint > colour_thresholds[0]:
-            c = colours[1]
-        if toprint > colour_thresholds[1]:
-            c = colours[2]
+if st.session_state.good_frequencies_selected and st.session_state.file_uploaded and st.session_state.nominals_confirmed:
 
-        st.quality_log.write('Best frequency analysis quality = :%s[%.1f%%]' % (c, 100*toprint))
+    #st.write(st.session_state.analysis_status)
+    if st.session_state.use_existing_freqs < 0:
+        st.empty().write('New frequency profile calculated. Find strike times?')
+    else:
+        st.empty().write('Existing frequency profile loaded. Find strike times?')
         
-        if toprint < 0.95:
-            st.current_log.write('This might not be good enough to provide anything useful. But may as well try...')
-        elif toprint < 0.975:
-            st.current_log.write('Not perfect but it\'ll probably do.')
+    def change_analysis():
+        if st.session_state.analysis_status == 1:
+            if st.session_state.final_freqs is not None:
+                st.session_state.analysis_status = 2    #Need a done condition here
+            else:
+                st.session_state.analysis_status = 0
         else:
-            st.current_log.write('That should be fine to detect everything reasonably well.')
-  
+            st.session_state.analysis_status = 1
+        return
+
+    if st.session_state.analysis_status != 1:
+        st.empty().button("Find strike times", on_click = change_analysis)
+    else:
+        st.empty().button("Stop", on_click = change_analysis)
+        
+    st.analysis_log = st.empty()
+    st.analysis_sublog = st.empty()
+    st.analysis_sublog2 = st.empty()
+
+    if st.session_state.analysis_status == 1:
+        st.session_state.incache = False
+        st.analysis_log.write('**Finding strike times**')
+        st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
+
+        #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
+        Data = establish_initial_rhythm(Audio, Paras, final = True)
+
+        #Load in final frequencies as session variables
+        if st.session_state.use_existing_freqs < 0:
+            st.session_state.final_freqs = st.session_state.reinforce_test_frequencies
+            st.session_state.final_freqprobs = st.session_state.reinforce_frequency_profile
+        else:
+            st.session_state.final_freqs = np.load('./frequency_data/' + existing_filename + '_freqs.npy')
+            st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
+            
+        st.session_state.allstrikes, st.session_state.allcerts = find_final_strikes(Paras, Audio)
+
+        st.session_state.analysis_status = 2
+        
+        #Update freuqency data to reflect the quality of the whole thing
+        bellconfs_individual = np.mean(np.array(st.session_state.allcerts)[1:,:], axis = 0)
+        st.session_state.reinforce_frequency_data = np.array([Paras.dt, Paras.fcut_length, np.mean(np.array(st.session_state.allcerts)[1:]), np.min(np.array(st.session_state.allcerts)[1:])])
+        st.session_state.reinforce_frequency_data = np.concatenate((st.session_state.reinforce_frequency_data, bellconfs_individual))
+
+        st.rerun()
+
+    if st.session_state.analysis_status == 2:
+        st.analysis_log.write('**Audio Analysed**')
+        st.analysis_sublog.progress(100, text = 'Analysis complete')
+
+        st.analysis_sublog2.write('%d rows found with average confidence %.1f%%' % (len(st.session_state.allstrikes[0]), 100*np.mean(st.session_state.allcerts)))
+        
+        #Judge if these frequencies are fine
+        goodenough = True
+        if np.mean(st.session_state.allcerts) < 0.95:
+            goodenough = False
+        if len(st.session_state.allstrikes[0]) < 60.0:
+            goodenough = False
+        
         #If it's good, give an option to save out so it can be used next time
-        if st.session_state.reinforce_frequency_data[2] > 0.95 :
+        if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough:
+            
+            st.save_option = st.empty()
+            st.save_button = st.empty()
+
             st.save_option.write('Save these frequency profiles for future use? They will be available to all users.')
     
             if st.save_button.button("Save frequency profiles", disabled = st.session_state.already_saved):
@@ -402,23 +529,49 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed:
                 st.session_state.already_saved = True
                 st.rerun()
 
+        #Give options to save to the cache (so this works on the analysis page) or to download as a csv
+        if st.button("Save this striking data to the cache for analysis", disabled = st.session_state.incache) and not st.session_state.incache:
+            if st.session_state.cached_strikes is not None:
+                st.session_state.cached_strikes.append(st.session_state.allstrikes)
+                st.session_state.cached_certs.append(st.session_state.allcerts)
+            else:
+                st.session_state.cached_strikes = [st.session_state.allstrikes]
+                st.session_state.cached_certs = [st.session_state.allcerts]
+            st.session_state.incache = True
+            st.rerun()
+            
+        if len(st.session_state.cached_strikes) == 1:
+            st.write('%d set of striking data currently saved - view using the tab on the left' % len(st.session_state.cached_strikes))
+        elif len(st.session_state.cached_strikes) > 1:
+            st.write('%d sets of striking data currently saved - view using the tab on the left' % len(st.session_state.cached_strikes))
+        
+        #Give options to save to the cache (so this works on the analysis page) or to download as a csv
+        #Create strike data in the right format (like the Strikeometer)
+        striking_df, orders = save_strikes(Paras)
+        
+        @st.cache_data
+        def convert_for_download(df):
+            return df.to_csv().encode("utf-8")
 
+        csv = convert_for_download(striking_df)
+        st.download_button("Download data to device as CSV", csv, file_name = trimmed_filename + '.csv', mime="text/csv")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        if st.button("View all rows and detection confidences"):
+            for ri, row in enumerate(orders):
+                rowconf = st.session_state.allcerts[:,ri]
+                string = ''
+                for bell in row:
+                    if bell < 10:
+                        string = string + str(bell)
+                    elif bell == 10:
+                        string = string + '0'
+                    elif bell == 11:
+                        string = string + 'E'
+                    elif bell == 12:
+                        string = string + 'T'
+                            
+                confstring = ('%d' % np.mean(rowconf)*100 )
+                st.write(string, ' -- %d %%' % (np.mean(rowconf)*100))
 
 
 

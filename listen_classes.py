@@ -48,6 +48,7 @@ class audio_data():
             st.write('Audio file "%s" uploaded sucessfully.' % raw_file.name)
             upload_success = True
 
+        
         if upload_success:
         
             self.fs, self.data = wavfile.read(new_fname)
