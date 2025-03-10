@@ -71,8 +71,9 @@ def dealwith_upload():
                     st.session_state.cached_certs.append([])
                     st.session_state.cached_rawdata.append(raw_data)
                     st.write(strike_data)
-    if len(uploaded_files) > 0:
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
+           
+    if len(uploaded_files) > 0:
         st.session_state.uploader_key += 1
         st.rerun()
     return
