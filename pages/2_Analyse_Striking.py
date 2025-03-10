@@ -78,6 +78,13 @@ def dealwith_upload():
         st.rerun()
     return
     
+if not os.path.exists('./tmp/'):
+    os.system('mkdir ./tmp/')
+if not os.path.exists('./frequency_data/'):
+    os.system('mkdir ./frequency_data/')
+if not os.path.exists('./striking_data/'):
+    os.system('mkdir ./striking_data/')
+
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("# Analyse Striking")
 st.sidebar.header("Choose a Touch:")
