@@ -118,7 +118,6 @@ uploaded_files = st.sidebar.file_uploader(
 
 dealwith_upload()
     
-st.write(st.session_state.current_touch)
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
