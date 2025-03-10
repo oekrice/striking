@@ -46,7 +46,7 @@ def dealwith_upload():
         else:
             isfine = True
             uploaded_file.name = uploaded_file.name.replace(" ", "_")
-
+            uploaded_file.name = uploaded_file.name.replace("'", "")
             with open('./tmp/%s' % uploaded_file.name, 'wb') as f: 
                 f.write(uploaded_file.getvalue())        
             try:

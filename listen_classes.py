@@ -20,6 +20,7 @@ class audio_data():
         upload_success = False
         
         raw_file.name = raw_file.name.replace(" ", "_")
+        raw_file.name = raw_file.name.replace("'", "")
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
