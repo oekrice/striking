@@ -16,6 +16,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import os
+import gc
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
@@ -60,8 +61,6 @@ if 'file_uploaded' not in st.session_state:
     st.session_state.file_uploaded = False
 if 'reinforce_status' not in st.session_state:
     st.session_state.reinforce_status = 0
-if 'raw_file' not in st.session_state:
-    st.session_state.raw_file = None 
 if 'found_new_freqs' not in st.session_state:
     st.session_state.found_new_freqs = False
 if 'use_existing_freqs' not in st.session_state:
@@ -72,6 +71,9 @@ if 'good_frequencies_selected' not in st.session_state:
     st.session_state.good_frequencies_selected = False   #Decent frequencies are selected (either preloaded or calculated now)
 if 'analysis_status' not in st.session_state:
     st.session_state.analysis_status = 0   
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+
 
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
@@ -103,7 +105,18 @@ if 'cached_rawdata' not in st.session_state:
 if 'incache' not in st.session_state:
     st.session_state.incache = False   
 
-  
+#Audio things to be cached -- need to be careful here
+if 'audio_signal' not in st.session_state:
+    st.session_state.audio_signal = None
+if 'fs' not in st.session_state:
+    st.session_state.fs = None
+if 'audio_filename' not in st.session_state:
+    st.session_state.audio_filename = None
+    
+Audio = None
+Data = None
+Paras = None
+
 def reset_nominals():
     st.session_state.nominals_confirmed = False
     st.session_state.bell_nominals = False
@@ -111,7 +124,6 @@ def reset_nominals():
     st.session_state.reinforce_status = 0
     st.session_state.good_frequencies_selected = False
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
-    #st.session_state.raw_file = None 
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
 
@@ -129,6 +141,8 @@ nominal_data = read_bell_data()
 tower_names = nominal_data["Tower Name"].tolist()
 
 default_index = tower_names.index("Brancepeth, S Brandon")
+
+st.write('State variables:', st.session_state.tower_name, st.session_state.tower_selected, st.session_state.nominals_confirmed, st.session_state.audio_signal is not None)
 
 if not st.session_state.tower_name:
     st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
@@ -204,20 +218,16 @@ if st.session_state.tower_selected:
             
     #if st.session_state.nominals_confirmed:
     #    st.write("Nominal frequencies confirmed (remove this later)")
-
-@st.cache_data               
+    
+@st.cache_data(ttl=120)
 def process_audio_files(raw_file, doprints):
     #Function that needs caching to avoid the need to keep uploading and converting things
+    audio_data(raw_file, doprints)
         
-    Audio = audio_data(raw_file, doprints)
-    
-    if Audio.signal is not None and doprints:
-        st.write('Imported audio length: %d seconds.' % (len(Audio.signal)/Audio.fs))
-    return Audio
+    return st.session_state.audio_signal, st.session_state.fs, st.session_state.audio_filename
     
 if st.session_state.tower_selected and st.session_state.nominals_confirmed:
-    
-    #This should come up EVERY time after the first confirmation
+    #This should come up EVERY time after the first confirmation. Actually no.
     
     #Establish filename for the frequencies.
     #Needs to contain tower, first and last bells, and a counter. Can work on formats in a bit.
@@ -277,27 +287,34 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.session_state.reinforce_frequency_data = None
         st.session_state.reinforce_status = 0
         st.session_state.analysis_status = 0 #If new file is uploaded, reset status
+        
+    #st.write(st.session_state.audio_signal is not None)
 
-    raw_file = st.file_uploader("Upload ringing audio for analysis. WIll add recording function at some point", on_change = reset_on_upload)
+    raw_file = st.file_uploader("Upload ringing audio for analysis. Will add recording function at some point", on_change = reset_on_upload, key = st.session_state.uploader_key)
+           
+    #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     
     if raw_file is not None:
-        st.session_state.raw_file = raw_file
-        st.session_state.trimmed_filename = raw_file.name[:-4]
-
-    if st.session_state.raw_file is not None:
-        st.session_state.file_uploaded = True
-    else:
-        st.session_state.file_uploaded = False
-       
-    if st.session_state.file_uploaded:
+        process_audio_files(raw_file, doprints = True)  
+        del raw_file
+        st.rerun()
         
-        Audio = process_audio_files(st.session_state.raw_file, doprints = True)   
-      
-#To avoid errors after caching, may need to do the audio class here again even if it's not displayed. OK.
+    #st.write(raw_file is not None, st.session_state.audio_signal is not None)
+
+    if st.session_state.audio_signal is not None:
+        #Put some prints to indicate a file has been uploaded
+        st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
+        st.write('Imported audio length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+
+    if ['uploaded_file'] in st.session_state:
+        del st.session_state['uploaded_file']
 
 
-if st.session_state.file_uploaded and st.session_state.nominals_confirmed and st.session_state.tower_selected:
+#st.write('Audio in', st.session_state.audio_signal is not None)
+st.stop()
 
+if st.session_state.nominals_confirmed and st.session_state.tower_selected and st.session_state.audio_signal is not None:
+    
     def change_reinforce():
         if st.session_state.reinforce_status != 1:
             st.session_state.reinforce_status = 1
@@ -314,12 +331,12 @@ if st.session_state.file_uploaded and st.session_state.nominals_confirmed and st
     st.write("Audio parameters:")
     tmax = len(Audio.signal)/Audio.fs
     
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1 ,format = "%ds")
+    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds")
     
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1, value=(30.0), format = "%ds")
+    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(30.0), format = "%ds")
     
     if st.session_state.use_existing_freqs < 0:
-        reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), step = 1, alue=(90.0), format = "%ds")
+        reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 60.0, max_value = min(120.0, tmax), step = 1., value=(90.0), format = "%ds")
         nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
     else:
         reinforce_tmax = 90.0
@@ -431,13 +448,12 @@ if st.session_state.good_frequencies_selected and st.session_state.file_uploaded
     st.analysis_sublog2 = st.empty()
 
     if st.session_state.analysis_status == 1:
-        print('Clicked')
         st.session_state.incache = False
         st.analysis_log.write('**Finding strike times**')
         st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
 
         #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
-        Data = establish_initial_rhythm(Audio, Paras, final = True)
+        establish_initial_rhythm(Audio, Paras, final = True)
        
         #Load in final frequencies as session variables
         if st.session_state.use_existing_freqs < 0:

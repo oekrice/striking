@@ -12,6 +12,7 @@ import numpy as np
 import wave
 from scipy.fftpack import fft
 from scipy.ndimage import gaussian_filter1d
+import gc
 
 class audio_data():
     #Does the initial audio normalisation things
@@ -24,6 +25,7 @@ class audio_data():
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
+        f.close()
         
         if raw_file.name[-4:] != '.wav' and doprints:
             st.write('Uploaded file is not a .wav - attempting to convert it.')
@@ -34,8 +36,6 @@ class audio_data():
             #Convert this to a wav
             os.system('ffmpeg -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
-                if doprints:
-                    st.write('Audio file "%s" uploaded and converted sucessfully.' % raw_file.name)
                 upload_success = True
 
             else:
@@ -48,25 +48,38 @@ class audio_data():
                 st.write('File is in a nice format. Lovely.')
             new_fname = './tmp/' + raw_file.name
 
-            if doprints:
-                st.write('Audio file "%s" uploaded sucessfully.' % raw_file.name)
             upload_success = True
 
-        
         if upload_success:
         
-            self.fs, self.data = wavfile.read(new_fname)
+            st.session_state.audio_signal = None
+            
+            self.fs, self.data = wavfile.read(new_fname)  #Hopefully this doesn't use too much...
     
-            os.system('rm -r ./tmp/' + raw_file.name)
-            os.system('rm -r ./tmp/' + raw_file.name[:-4] + '.wav')
+            if os.path.exists('./tmp/' + raw_file.name):
+                os.system('rm -r ./tmp/' + raw_file.name)
+            if os.path.exists('./tmp/' + raw_file.name[:-4] + '.wav'):
+                os.system('rm -r ./tmp/' + raw_file.name[:-4] + '.wav')
             
             if len(self.data.shape) > 1:  #Is stereo
                 import_wave = np.array(self.data)[:,0]
             else:  #Isn't
                 import_wave = np.array(self.data)[:]
                 
-            self.signal = import_wave/(2**(16 - 1))
-    
+            import_wave = import_wave/(2**(16 - 1))
+            st.session_state.audio_signal = import_wave
+            st.session_state.fs = self.fs
+            
+            st.session_state.audio_filename = raw_file.name[:-4]
+            st.session_state.uploader_key += 1
+
+            del self.fs
+            del self.data
+            del import_wave
+            del raw_file
+            del f
+            #Only care about the signal itself -- delete all the other file stuff
+            
 class parameters():
     #Contains information like number of bells, max times etc. 
     #Also all variables that can theoretically be easily changed
