@@ -124,7 +124,7 @@ class parameters(object):
         self.overall_tcut = 60.0  #How frequently (seconds) to do update rounds etc.
         self.probs_adjust_factor = 2.0   #Power of the bells-hitting-each-other factor. Less on higher numbers seems favourable.
         
-        if not st.session_state.trim_flag:
+        if True:#not st.session_state.trim_flag:
             if overall_tmax > 0.0:
                 st.session_state.trimmed_signal = st.session_state.audio_signal[int(overall_tmin*st.session_state.fs):int(overall_tmax*st.session_state.fs)]
             else:

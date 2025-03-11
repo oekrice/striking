@@ -134,6 +134,10 @@ if st.session_state.current_touch < 0:
 else:
     st.write('**Analysing ringing from %s**' % titles[st.session_state.current_touch])
 
+if len(titles) == 0:
+    st.session_state.current_touch = -1
+    
+
 if st.session_state.current_touch >= 0:
     #Write in to a local bit to actually do the analysis
     strikes = st.session_state.cached_strikes[st.session_state.current_touch]

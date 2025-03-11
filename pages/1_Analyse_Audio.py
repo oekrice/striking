@@ -35,7 +35,7 @@ st.write(
     3. Choose whether to use existing frequency profiles or learn new ones.
     4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
     5. Once decent frequencies are found, you can run the main bit which will find strike times throughout.
-    6. This can then be either saved to the cache for analysis on the other tab, or downlaoded as a .csv for use later.   
+    6. This can then be either saved to the cache for analysis on the other tab, or downloaded as a .csv for use later.   
     """
 )
 
@@ -308,15 +308,15 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
 
-    if st.session_state.audio_signal is not None:
+
+    if st.session_state.trimmed_signal is not None:
+        st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
+        st.write('Trimmed audio length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+    elif st.session_state.audio_signal is not None:
         #Put some prints to indicate a file has been uploaded
         st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
         st.write('Imported audio length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
 
-    elif st.session_state.trimmed_signal is not None:
-        st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Trimmed audio length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
-        
         
     if ['uploaded_file'] in st.session_state:
         del st.session_state['uploaded_file']
@@ -346,7 +346,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     else:
         tmax = len(st.session_state.trimmed_signal)/st.session_state.fs
 
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall (this cannot be changed once anything else happens):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = st.session_state.trim_flag)
+    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
     
     rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(30.0), format = "%ds")
     
@@ -375,7 +375,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     
         if st.session_state.reinforce_status == 1:
             st.session_state.trim_flag = True
-            st.session_state.audio_signal = None   #Remove original untrimmed signal as it's a waste of space
+            #st.session_state.audio_signal = None   #Remove original untrimmed signal as it's a waste of space
             #Begin frequency reinforcement -- stop when the flag stops being on!
             #Zero for not at all, 1 for doing it and 2 for done. Need something to fill this space if never doing reinforcement
             st.main_log.write('**Detecting initial rhythm**')
@@ -551,6 +551,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             time.sleep(5.0)
             #Remove the large things from memory
             st.session_state.trimmed_signal = None
+            st.session_state.audio_signal = None
             Paras = None
             Data = None
             st.session_state.incache = True
