@@ -16,30 +16,29 @@ from scipy.fftpack import fft
 from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
 
 
-def establish_initial_rhythm(Audio, Paras, final = False):
+def establish_initial_rhythm(Paras, final = False):
     #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
     #Hopefully remove a load of the bugs that seem to have appeared.
 
     if not final:
-        Data = data(Paras, Audio, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, Audio, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
         
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
     Paras.rounds_tmax = Paras.ringing_start*Paras.dt  + Paras.rounds_tmax
 
-    print('start', Paras.ringing_start)
     if not final:
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
 
     if not final:
-        Data = data(Paras, Audio, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, Audio, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
 
     #Find strike probabilities from the nominals
-    Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = True, final = final)
+    Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = True, final = final)
     #Find the first strikes based on these probabilities. Hopefully some kind of nice pattern to the treble at least... 
     Paras.local_tmin = Paras.overall_tmin
     Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
@@ -47,15 +46,13 @@ def establish_initial_rhythm(Audio, Paras, final = False):
 
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
     
-    Paras.first_strikes, Paras.first_strike_certs = find_first_strikes(Paras, Data, Audio)
+    Paras.first_strikes, Paras.first_strike_certs = find_first_strikes(Paras, Data)
     
     Data.strikes, Data.strike_certs = Paras.first_strikes, Paras.first_strike_certs
         
-    st.session_state.handstroke_first = Paras.handstroke_first
     return Data
         
-
-def do_reinforcement(Paras, Data, Audio):
+def do_reinforcement(Paras, Data):
         
     #Find the first strikes based on these probabilities. Hopefully some kind of nice pattern to the treble at least... 
     
@@ -68,20 +65,19 @@ def do_reinforcement(Paras, Data, Audio):
             
     for count in range(Paras.n_reinforces):
         
-
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
         #st.write('Doing frequency analysis,  iteration number', count + 1, 'of', Paras.n_reinforces)
         st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (count + 1, Paras.n_reinforces))
 
-        Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data, Audio)  
+        Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
         #Save out frequency data only when finished reinforcing?
         
         #print('Finding strike probabilities...')
         
-        Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = False, final = False)
+        Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = False)
                 
-        strikes, strike_certs = find_strike_times_rounds(Paras, Data, Audio, final = False, doplots = 1) #Finds strike times in integer space
+        strikes, strike_certs = find_strike_times_rounds(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
     
         #Filter these strikes for the best rows, to then be used for reinforcement
         best_strikes = []; best_certs = []; allcerts = []; row_ids = []
@@ -162,7 +158,7 @@ def do_reinforcement(Paras, Data, Audio):
 
     return Data
 
-def find_final_strikes(Paras, Audio):
+def find_final_strikes(Paras):
     
      #Create new data files in turn -- will be more effeicient ways but meh...
      tmin = 0.0
@@ -185,24 +181,24 @@ def find_final_strikes(Paras, Audio):
          Paras.local_tmin = tmin + Paras.overall_tmin
          Paras.local_tint = int((tmin+Paras.overall_tmin)/Paras.dt) 
 
-         Data = data(Paras, Audio, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
+         Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
          
          Data.test_frequencies = st.session_state.final_freqs
          Data.frequency_profile = st.session_state.final_freqprobs
              
-         Data.strike_probabilities = find_strike_probabilities(Paras, Data, Audio, init = False, final = True)
+         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
          if len(allstrikes) == 0:  #Look for changes after this time
-             Data.handstroke_first = Paras.handstroke_first
+             Data.handstroke_first = st.session_state.handstroke_first
          else:
              if len(allstrikes)%2 == 0:
-                 Data.handstroke_first = Paras.handstroke_first
+                 Data.handstroke_first = st.session_state.handstroke_first
              else:
-                 Data.handstroke_first = not(Paras.handstroke_first)
+                 Data.handstroke_first = not(st.session_state.handstroke_first)
              Data.last_change = np.array(allstrikes[-1]) - int(tmin/Paras.dt)
              Data.cadence_ref = Paras.cadence_ref
 
-         Data.strikes, Data.strike_certs = find_strike_times_rounds(Paras, Data, Audio, final = True, doplots = 2) #Finds strike times in integer space
+         Data.strikes, Data.strike_certs = find_strike_times_rounds(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
                    
          if len(Data.strikes) > 0:
              pass
@@ -230,11 +226,17 @@ def find_final_strikes(Paras, Audio):
          Paras.cadence_ref = np.mean(Paras.allcadences[-nrows_count:])
          Paras.allstrikes = np.array(allstrikes)
          
-         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(Audio.signal)/Audio.fs - Paras.ringing_start*Paras.dt)
+         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs - Paras.ringing_start*Paras.dt)
          st.analysis_sublog.progress(progress_fraction, text = 'Complete until time %d seconds, after %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          #st.analysis_sublog.write('Complete until time %d seconds with %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
-
-     return np.array(allstrikes).T, np.array(allcerts).T
+         
+         st.session_state.allstrikes = np.array(allstrikes).T
+         st.session_state.allcerts = np.array(allcerts).T
+     
+     del allstrikes; del allcerts
+     Data = None
+     
+     return 
      
 def save_strikes(Paras):
     #Saves as a pandas thingummy like the strikeometer does
@@ -244,7 +246,7 @@ def save_strikes(Paras):
     yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
     orders = []
     
-    if not st.session_state.handstroke_first:
+    if  st.session_state.handstroke_first:
         for row in range(len(st.session_state.allstrikes[0])):
             order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], yvalues), reverse = False)])
             certs = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], st.session_state.allcerts[:,row]), reverse = False)])
@@ -262,7 +264,9 @@ def save_strikes(Paras):
             allbells = allbells + order.tolist()
             orders.append(order)
             
-    allstrikes = 1000*np.array(allstrikes)*Paras.dt
+    allstrikes = 1000*np.array(allstrikes)*0.01
+    
+    #st.write('saved', allstrikes[:12])
     allbells = np.array(allbells)
     allcerts_save = np.array(allcerts_save)
     orders = np.array(orders)

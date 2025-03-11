@@ -56,21 +56,21 @@ def dealwith_upload():
                 #Present as an option on the side.
                 if "Bell No" not in raw_data.columns or "Actual Time" not in raw_data.columns:
                     isfine = False
-                st.write(raw_data.columns)
+                #st.write(raw_data.columns)
                 strike_data = ["Unknown Tower", int(len(raw_data)/np.max(raw_data["Bell No"]))]
             except:
                 st.error('Cannot interpret %s as readable data' % uploaded_file.name)
                 uploaded_files.pop(uploaded_files.index(uploaded_file))
                 isfine = False
             
-            st.write(isfine, "Bell No" not in raw_data.columns, "Actual Time " not in raw_data.columns)
+            #st.write(isfine, "Bell No" not in raw_data.columns, "Actual Time " not in raw_data.columns)
             if isfine:
                 if strike_data not in st.session_state.cached_data:
                     st.session_state.cached_data.append(strike_data)
                     st.session_state.cached_strikes.append([])
                     st.session_state.cached_certs.append([])
                     st.session_state.cached_rawdata.append(raw_data)
-                    st.write(strike_data)
+                    #st.write(strike_data)
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
            
     if len(uploaded_files) > 0:
@@ -125,7 +125,10 @@ uploaded_files = st.sidebar.file_uploader(
     "Choose a .csv file", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
 
 dealwith_upload()
-    
+
+if len(titles) > 0 and st.session_state.current_touch < 0:
+      st.session_state.current_touch = len(titles) - 1  
+
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
@@ -156,10 +159,10 @@ if st.session_state.current_touch >= 0:
         allstrikes = []
         yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
         orders = []
-        for row in range(len(st.session_state.allstrikes[0])):
-            order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], yvalues), reverse = False)])
-            certs = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], st.session_state.allcerts[:,row]), reverse = False)])
-            allstrikes = allstrikes + sorted((st.session_state.allstrikes[:,row]).tolist())
+        for row in range(len(st.session_state.cached_strikes[st.session_state.current_touch][0])):
+            order = np.array([val for _, val in sorted(zip(st.session_state.cached_strikes[st.session_state.current_touch][:,row], yvalues), reverse = False)])
+            certs = np.array([val for _, val in sorted(zip(st.session_state.cached_strikes[st.session_state.current_touch][:,row], st.session_state.cached_certs[st.session_state.current_touch][:,row]), reverse = False)])
+            allstrikes = allstrikes + sorted((st.session_state.cached_strikes[st.session_state.current_touch][:,row]).tolist())
             allcerts_save = allcerts_save + certs.tolist()
             allbells = allbells + order.tolist()
             orders.append(order)
@@ -176,7 +179,11 @@ if st.session_state.current_touch >= 0:
 
         existing_models = []
         
+        #st.write(len(raw_data)//nbells)
+        
+    
     if "Individual Model" not in  raw_data.columns.tolist():
+        #st.write(len(raw_data['Actual Time'])//nbells)
         count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
         ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
         raw_data['Individual Model'] = ideal_times
@@ -184,7 +191,7 @@ if st.session_state.current_touch >= 0:
 
     if "Metronomic Model" not in  raw_data.columns.tolist():
         @st.cache_data
-        def find_metronomic():
+        def find_metronomic(raw_data):
             nrows = int(len(raw_data['Actual Time'])//nbells)
             all_metros = []
             for row in range(nrows):
@@ -196,14 +203,17 @@ if st.session_state.current_touch >= 0:
 
             return all_metros
 
-        all_metros = find_metronomic()
-        raw_data['Metronomic Model'] = all_metros
-        existing_models.append('Metronomic Model')
-
+        all_metros = find_metronomic(raw_data)
+        if len(all_metros) == len(raw_data["Actual Time"]):  #Bodge for a bug.
+            raw_data['Metronomic Model'] = all_metros
+            existing_models.append('Metronomic Model')
+    
+    
     if len(existing_models) > 0:
                 
         selection = st.selectbox("Select striking model:", options = existing_models)   #Can set default for this later?
         
+        #st.write(raw_data["Actual Time"][0:100:12])
         raw_target = np.array(raw_data[selection])
         raw_bells = np.array(raw_data["Bell No"])
         #Plot blue line
@@ -220,7 +230,7 @@ if st.session_state.current_touch >= 0:
             
         remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
         
-        min_include_change, max_include_change = st.slider("Include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
+        min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
 
         
         st.message = st.empty()
@@ -288,6 +298,7 @@ if st.session_state.current_touch >= 0:
                 plt.close()
                 
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(240, nrows)), format = "%d", step = 2)
+            
             plot_blue_line(raw_target, min_plot_change, max_plot_change)
             
         diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]
