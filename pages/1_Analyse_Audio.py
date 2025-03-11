@@ -500,10 +500,10 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         c = find_colour(np.mean(st.session_state.allcerts))
 
         st.analysis_sublog2.write('**%d rows found with average confidence :%s[%.1f%%]**' % (len(st.session_state.allstrikes[0]), c,  100*np.mean(st.session_state.allcerts)))
-        st.write(st.session_state.handstroke_first, len(st.session_state.allstrikes[0]))
-        st.write(st.session_state.allstrikes[:,:2])
-        st.write(st.session_state.allstrikes[:,-2:])
-        st.write(st.session_state.handstroke_first)
+        #st.write(st.session_state.handstroke_first, len(st.session_state.allstrikes[0]))
+        #st.write(st.session_state.allstrikes[:,:2])
+        #st.write(st.session_state.allstrikes[:,-2:])
+        #st.write(st.session_state.handstroke_first)
         #Judge if these frequencies are fine
         goodenough = True
         if np.mean(st.session_state.allcerts) < 0.95:
@@ -526,7 +526,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 st.session_state.already_saved = True
                 st.rerun()
 
-        st.write(st.session_state.allstrikes[:,1:].shape, st.session_state.handstroke_first)
+        #st.write(st.session_state.allstrikes[:,1:].shape, st.session_state.handstroke_first)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         if st.button("Save this striking data to the cache for analysis"):#, disabled = st.session_state.incache):
             #st.write(st.session_state.handstroke_first)
@@ -534,20 +534,20 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 st.session_state.tower_name = "Unknown Tower"
                 
             if st.session_state.handstroke_first:
-                st.write('HANDSTROKE FIRST')
+                #st.write('HANDSTROKE FIRST')
 
                 st.session_state.cached_strikes.append(st.session_state.allstrikes)
                 st.session_state.cached_certs.append(st.session_state.allcerts)
                 st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
                 st.session_state.cached_rawdata.append([])
             else:
-                st.write('BACKSTROKE FIRST')
+                #st.write('BACKSTROKE FIRST')
                 st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
                 st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
                 st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]) - 1])
                 st.session_state.cached_rawdata.append([])
             
-            st.write('cached', len(st.session_state.cached_strikes[-1][0,:]))
+            #st.write('cached', len(st.session_state.cached_strikes[-1][0,:]))
             time.sleep(5.0)
             #Remove the large things from memory
             st.session_state.trimmed_signal = None

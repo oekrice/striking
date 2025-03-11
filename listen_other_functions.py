@@ -112,7 +112,7 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
     #Find all peaks to begin with
     #Run through each set of rounds 
     handstroke = Data.handstroke_first
-    st.write('Test', handstroke, st.session_state.handstroke_first, len(Paras.allstrikes))
+    #st.write('Test', handstroke, st.session_state.handstroke_first, len(Paras.allstrikes))
     next_end = 0
     
     count = 0

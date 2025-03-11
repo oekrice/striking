@@ -128,8 +128,8 @@ def do_reinforcement(Paras, Data):
                     
             else:
                 if st.session_state.reinforce_frequency_data is not None:
-                    st.write(st.session_state.reinforce_frequency_data[:])
-                    st.write(Data.freq_data[:])
+                    #st.write(st.session_state.reinforce_frequency_data[:])
+                    #st.write(Data.freq_data[:])
                     for bell in range(Paras.nbells):
                         #Check individually against the reference
                         if st.session_state.reinforce_frequency_data[4+bell] < Data.freq_data[4+bell]:
