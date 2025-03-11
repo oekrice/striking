@@ -64,7 +64,7 @@ def find_predicted_gaps(all_ideal_gaps, nbells, nrows, ngaps):
 
     return all_gaps
 
-#@st.cache_data
+@st.cache_data
 def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
 
     alltimes = np.array(alltimes)
