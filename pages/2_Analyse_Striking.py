@@ -297,7 +297,7 @@ if st.session_state.current_touch >= 0:
                 plt.clf()
                 plt.close()
                 
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(240, nrows)), format = "%d", step = 2)
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(500, nrows)), format = "%d", step = 2)
             
             plot_blue_line(raw_target, min_plot_change, max_plot_change)
             

@@ -528,7 +528,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
 
         #st.write(st.session_state.allstrikes[:,1:].shape, st.session_state.handstroke_first)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
-        if st.button("Save this striking data to the cache for analysis"):#, disabled = st.session_state.incache):
+        if st.button("Save this striking data to the cache for analysis", disabled = st.session_state.incache):
             #st.write(st.session_state.handstroke_first)
             if st.session_state.tower_name is None:
                 st.session_state.tower_name = "Unknown Tower"
