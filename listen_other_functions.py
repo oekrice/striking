@@ -10,7 +10,6 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 import time
-import matplotlib.pyplot as plt
 
 def find_colour(value):
     #For prettiness purposes

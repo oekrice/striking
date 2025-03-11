@@ -9,10 +9,8 @@ import streamlit as st
 import os
 from scipy.io import wavfile
 import numpy as np
-import wave
 from scipy.fftpack import fft
 from scipy.ndimage import gaussian_filter1d
-import gc
 
 class audio_data():
     #Does the initial audio normalisation things

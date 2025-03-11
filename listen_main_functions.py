@@ -7,12 +7,10 @@ Created on Sat Mar  8 10:43:48 2025
 import streamlit as st
 
 import numpy as np
-import os
 import time
 import pandas as pd
 from listen_classes import data
 
-from scipy.fftpack import fft
 from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
 
 
