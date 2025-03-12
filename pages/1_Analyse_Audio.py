@@ -341,10 +341,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         return
         
     st.write("Audio parameters:")
-    if not st.session_state.trim_flag:
-        tmax = len(st.session_state.audio_signal)/st.session_state.fs
-    else:
-        tmax = len(st.session_state.trimmed_signal)/st.session_state.fs
+    tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
     overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
     

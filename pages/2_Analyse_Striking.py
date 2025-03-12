@@ -436,7 +436,7 @@ if st.session_state.current_touch >= 0:
         with st.expander("View Blue Line"):
 
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
-            view_numbers = st.checkbox("View Bell Numbers")
+            view_numbers = st.checkbox("View Bell Numbers", value = False)
             options = ["Bell %d" % bell for bell in range(1,nbells+1)]
             highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
             plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells, view_numbers = view_numbers)
