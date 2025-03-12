@@ -319,7 +319,7 @@ if st.session_state.current_touch >= 0:
             
             #Either plot lines or nmbers -- but guides will matter for that...
             dotext = True
-            
+
             #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
             fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 30))
             for plot in range(nplotsk):
@@ -330,12 +330,13 @@ if st.session_state.current_touch >= 0:
                     ax = axs1[plot]
                 else:
                     ax = axs1
+                maxrow = int(len(raw_target_plot)/nbells)
                 for bell in range(1,nbells+1):#nbells):
-                    
+
                     if bell in highlight_bells:
                         points = []  ; changes = []
                         bellstrikes = np.where(raw_bells == bell)[0]
-                        for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1):
+                        for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
                             ys = np.arange(1,nbells+1)
@@ -353,7 +354,7 @@ if st.session_state.current_touch >= 0:
                     else:
                         points = []  ; changes = []
                         bellstrikes = np.where(raw_bells == bell)[0]
-                        for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1):
+                        for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
                             ys = np.arange(1,nbells+1)
@@ -454,6 +455,7 @@ if st.session_state.current_touch >= 0:
                 ncols = int((nbells-1e-6)/nrows) + 1
                 if nrows*ncols < nbells:
                     ncols += 1
+                st.write(nrows, ncols, nbells)
                 fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
                 for bell in range(1,nbells+1):#nbells):
                     #Extract data for this bell
@@ -489,7 +491,7 @@ if st.session_state.current_touch >= 0:
                         errors[errors < minlim] = 0.0
         
                     allerrors += np.sum(errors)/count
-                    ax = axs2[(bell-1)//4, (bell-1)%4]
+                    ax = axs2[(bell-1)//ncols, (bell-1)%ncols]
     
                     ax.set_title('Bell %d' % bell)
                     bin_bounds = np.linspace(-x_range, x_range, nbins+1)
