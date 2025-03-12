@@ -445,71 +445,71 @@ if st.session_state.current_touch >= 0:
             
 
         with st.expander("View Histograms"):
-    
-    
+
+            @st.cache_data
+            def plot_histograms(errors, x_range, nbins):
+
+                for plot_id in range(3):
+                    #Everything, then handstrokes, then backstrokes
+                    nrows = nbells//4
+                    ncols = int((nbells-1e-6)/nrows) + 1
+                    if nrows*ncols < nbells:
+                        ncols += 1
+                    fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
+                    for bell in range(1,nbells+1):#nbells):
+                        #Extract data for this bell
+                        bellstrikes = np.where(raw_bells == bell)[0]
+
+                        bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
+                        bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
+
+                        if len(bellstrikes) < 2:
+                            st.error('Increase range -- stats are all wrong')
+                            st.stop()
+
+                        errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+
+                        #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
+                        maxlim = cadence*0.75
+                        minlim = -cadence*0.75
+
+                        #Trim for the appropriate stroke
+                        if plot_id == 1:
+                            errors = errors[::2]
+                        if plot_id == 2:
+                            errors = errors[1::2]
+
+                        count = len(errors)
+
+                        if remove_mistakes:
+                            #Adjust stats to disregard these properly
+                            count -= np.sum(errors > maxlim)
+                            count -= np.sum(errors < minlim)
+
+                            errors[errors > maxlim] = 0.0
+                            errors[errors < minlim] = 0.0
+
+                        ax = axs2[(bell-1)//ncols, (bell-1)%ncols]
+
+                        ax.set_title('Bell %d' % bell)
+                        bin_bounds = np.linspace(-x_range, x_range, nbins+1)
+                        n, bins, _ = ax.hist(errors, bins = bin_bounds)
+
+                        curve = gaussian_filter1d(n, sigma = nbins/20)
+                        ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
+                        ax.set_xlim(-x_range, x_range)
+                        ax.set_ylim(0,np.max(n))
+                        ax.plot([0,0],[0,max(n)], linewidth = 2)
+                        ax.set_yticks([])
+                    plt.suptitle(titles[plot_id])
+                    plt.tight_layout()
+                    st.pyplot(fig2)
+                    plt.clf()
+                    plt.close()
+
             x_range = st.slider("Histogram x range:", min_value = 0, max_value = 250, value= 150, format = "%dms")
             nbins = st.slider("Number of histogram bins", min_value = 0, max_value = 100, value= 50, format = "%d", step = 1)
-    
-            for plot_id in range(3):
-                #Everything, then handstrokes, then backstrokes
-                nrows = nbells//4
-                ncols = int((nbells-1e-6)/nrows) + 1
-                if nrows*ncols < nbells:
-                    ncols += 1
-                st.write(nrows, ncols, nbells)
-                fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
-                for bell in range(1,nbells+1):#nbells):
-                    #Extract data for this bell
-                    bellstrikes = np.where(raw_bells == bell)[0]
-    
-                    bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
-                    bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
-                    
-                    if len(bellstrikes) < 2:
-                        st.error('Increase range -- stats are all wrong')
-                        st.stop()
-                        
-                    errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
-    
-                    #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
-                    maxlim = cadence*0.75
-                    minlim = -cadence*0.75
-    
-                    #Trim for the appropriate stroke
-                    if plot_id == 1:
-                        errors = errors[::2]
-                    if plot_id == 2:
-                        errors = errors[1::2]
-                        
-                    count = len(errors)
-    
-                    if remove_mistakes:
-                        #Adjust stats to disregard these properly
-                        count -= np.sum(errors > maxlim)
-                        count -= np.sum(errors < minlim)
-    
-                        errors[errors > maxlim] = 0.0
-                        errors[errors < minlim] = 0.0
-        
-                    allerrors += np.sum(errors)/count
-                    ax = axs2[(bell-1)//ncols, (bell-1)%ncols]
-    
-                    ax.set_title('Bell %d' % bell)
-                    bin_bounds = np.linspace(-x_range, x_range, nbins+1)
-                    n, bins, _ = ax.hist(errors, bins = bin_bounds)
-    
-                    curve = gaussian_filter1d(n, sigma = nbins/20)
-                    ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
-                    ax.set_xlim(-x_range, x_range)
-                    ax.set_ylim(0,np.max(n))
-                    ax.plot([0,0],[0,max(n)], linewidth = 2)
-                    ax.set_yticks([])
-                plt.suptitle(titles[plot_id])
-                plt.tight_layout()
-                st.pyplot(fig2)
-                plt.clf()
-                plt.close()
 
-
+            plot_histograms(errors,x_range,nbins)
 
     
