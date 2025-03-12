@@ -178,7 +178,7 @@ if st.session_state.tower_selected:
     st.write("Ring of ", str(nbells_max), "with", str(len(bell_names)), "bells to choose from:")
     
     nrows = len(bell_names)//11 + 1
-    per_row = len(bell_names)//nrows 
+    per_row = int((len(bell_names)-1e-6)//nrows) + 1 
     mincheck = len(bell_names)-1; maxcheck = 0
 
     nbells_save = 0; max_bell = 0
