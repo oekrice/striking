@@ -293,7 +293,7 @@ if st.session_state.current_touch >= 0:
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
         @st.cache_data
-        def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells):
+        def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
             
             highlight_bells = [int(highlight_bells[val][5:]) for val in range(len(highlight_bells))]
             raw_actuals = np.array(raw_data["Actual Time"])
@@ -317,24 +317,35 @@ if st.session_state.current_touch >= 0:
                 nplotsk = max(2, nrows_plot//rows_per_plot + 1)
             rows_per_plot = int(nrows_plot/nplotsk) + 2
             
+            #Either plot lines or nmbers -- but guides will matter for that...
+            dotext = True
+            
             #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
             fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 30))
             for plot in range(nplotsk):
+                if dotext:
+                    xtexts = []; ytexts = []; stexts = []
+                
                 if nplotsk > 1:
                     ax = axs1[plot]
                 else:
                     ax = axs1
                 for bell in range(1,nbells+1):#nbells):
+                    
                     if bell in highlight_bells:
                         points = []  ; changes = []
                         bellstrikes = np.where(raw_bells == bell)[0]
-                        for row in range(min_plot_change, max_plot_change):
+                        for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
                             ys = np.arange(1,nbells+1)
                             f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
                             rat = float(f(raw_actuals[bellstrikes][row]))
                             points.append(rat); changes.append(row)
+                            
+                            if view_numbers:
+                                ax.text(rat, row, str(bell), horizontalalignment = 'center', verticalalignment = 'center')
+
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
                         else:
@@ -342,21 +353,28 @@ if st.session_state.current_touch >= 0:
                     else:
                         points = []  ; changes = []
                         bellstrikes = np.where(raw_bells == bell)[0]
-                        for row in range(min_plot_change, max_plot_change):
+                        for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
                             ys = np.arange(1,nbells+1)
                             f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
                             rat = float(f(raw_actuals[bellstrikes][row]))
                             points.append(rat); changes.append(row)
+                            if view_numbers:
+                                ax.text(rat, row, str(bell), horizontalalignment = 'center', verticalalignment = 'center')
+
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
                         else:
-                            ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
+                            if view_numbers:
+                                ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 0.5)
+                            else:
+                                ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
 
+                        
                     ax.plot((bell)*np.ones(len(points)), changes, c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
                     
-                row_guides = [np.column_stack([np.arange(-1,nbells+3), row*np.ones(nbells+4)]) for row in range(min_plot_change, max_plot_change)]
+                row_guides = [np.column_stack([np.arange(-1,nbells+3), row*np.ones(nbells+4)]) for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1)]
                 #for row in range(min_plot_change, max_plot_change):
                 #    ax.plot(np.arange(-1,nbells+3), row*np.ones(nbells+4), c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
                 line_collection = LineCollection(row_guides, color = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
@@ -378,47 +396,50 @@ if st.session_state.current_touch >= 0:
   
         #Bar Chart
         with st.expander("View Error Bar Charts"):
-            fig3, axs3 = plt.subplots(3, figsize = (12,7))
-            bar_width = 0.3
-    
-            data_titles = ['Avg. Error', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
-    
-            x = np.arange(nbells)
-            for plot_id in range(3):
-                ax = axs3[plot_id]
-    
-                xmin = np.min(alldiags[plot_id,:,:])*0.9
-                xmax = np.max(alldiags[plot_id,:,:])*1.1
-                
-    
-                rects0 = ax.bar(x-bar_width*1,alldiags[plot_id,0,:],bar_width,label = titles[0], color='lightgray')
-                ax.bar_label(rects0, padding = 3, fmt = '%d')
-    
-                rects1 = ax.bar(x-bar_width*0,alldiags[plot_id,1,:],bar_width,label = titles[1], color='red')
-                ax.bar_label(rects1, padding = 3, fmt = '%d')
-    
-                rects2 = ax.bar(x+bar_width*1.0,alldiags[plot_id,2,:],bar_width,label = titles[2], color='blue')
-                ax.bar_label(rects2, padding = 3, fmt = '%d')
-    
-                ax.set_xticks(np.arange(nbells), np.arange(1,nbells+1))
-                ax.set_title(data_titles[plot_id])
-                if plot_id > 0:
-                    ax.set_ylim(xmin, xmax)
-                if plot_id == 0:
-                    ax.legend()
-    
-            plt.tight_layout()
-            st.pyplot(fig3)
-            plt.clf()
-            plt.close()
-            
+            @st.cache_data
+            def plot_bar_charts(alldiags):
+                fig3, axs3 = plt.subplots(3, figsize = (12,7))
+                bar_width = 0.3
+        
+                data_titles = ['Avg. Error', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
+        
+                x = np.arange(nbells)
+                for plot_id in range(3):
+                    ax = axs3[plot_id]
+        
+                    xmin = np.min(alldiags[plot_id,:,:])*0.9
+                    xmax = np.max(alldiags[plot_id,:,:])*1.1
+                    
+        
+                    rects0 = ax.bar(x-bar_width*1,alldiags[plot_id,0,:],bar_width,label = titles[0], color='lightgray')
+                    ax.bar_label(rects0, padding = 3, fmt = '%d')
+        
+                    rects1 = ax.bar(x-bar_width*0,alldiags[plot_id,1,:],bar_width,label = titles[1], color='red')
+                    ax.bar_label(rects1, padding = 3, fmt = '%d')
+        
+                    rects2 = ax.bar(x+bar_width*1.0,alldiags[plot_id,2,:],bar_width,label = titles[2], color='blue')
+                    ax.bar_label(rects2, padding = 3, fmt = '%d')
+        
+                    ax.set_xticks(np.arange(nbells), np.arange(1,nbells+1))
+                    ax.set_title(data_titles[plot_id])
+                    if plot_id > 0:
+                        ax.set_ylim(xmin, xmax)
+                    if plot_id == 0:
+                        ax.legend()
+        
+                plt.tight_layout()
+                st.pyplot(fig3)
+                plt.clf()
+                plt.close()
+            plot_bar_charts(alldiags)
                 
         with st.expander("View Blue Line"):
 
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
+            view_numbers = st.checkbox("View Bell Numbers")
             options = ["Bell %d" % bell for bell in range(1,nbells+1)]
             highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
-            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells)
+            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells, view_numbers = view_numbers)
             
 
         with st.expander("View Histograms"):
