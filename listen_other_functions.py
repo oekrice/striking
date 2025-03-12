@@ -628,7 +628,7 @@ def find_first_strikes(Paras, Data):
     tenor_big_peaks = sorted(tenor_big_peaks)
                         
     if len(tenor_big_peaks) < Paras.nrounds_min:
-        st.error('Reliable tenor strikes not found within the required time... Try changing start time?')
+        st.error('Reliable tenor strikes not found within the required time... Try cutting out audio at the start or increasing rounds time?')
         st.session_state.reinforce_status = 0
         time.sleep(2.0)
         st.rerun()

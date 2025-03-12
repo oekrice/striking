@@ -20,7 +20,7 @@ from strike_model import find_ideal_times
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
-
+from matplotlib.collections import LineCollection
 import os
 
 cmap = plt.cm.gnuplot2
@@ -242,6 +242,56 @@ if st.session_state.current_touch >= 0:
         #Blue Line
         st.blueline = st.empty()
         
+        #Do stats now
+        alldiags = np.zeros((3,3,nbells))   #Type, stroke, bell
+        allerrors = []
+        diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]
+        cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)
+
+        for plot_id in range(3):
+            for bell in range(1,nbells+1):#nbells):
+    
+                bellstrikes = np.where(raw_bells == bell)[0]
+    
+                bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
+                bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
+                
+                if len(bellstrikes) < 2:
+                    st.error('Increase range -- stats are all wrong')
+                    st.stop()
+                    
+                errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+    
+                #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
+                maxlim = cadence*0.75
+                minlim = -cadence*0.75
+    
+                #Trim for the appropriate stroke
+                if plot_id == 1:
+                    errors = errors[::2]
+                if plot_id == 2:
+                    errors = errors[1::2]
+                    
+                count = len(errors)
+    
+                if remove_mistakes:
+                    #Adjust stats to disregard these properly
+                    count -= np.sum(errors > maxlim)
+                    count -= np.sum(errors < minlim)
+    
+                    errors[errors > maxlim] = 0.0
+                    errors[errors < minlim] = 0.0
+    
+    
+                #Diagnostics
+                alldiags[0,plot_id,bell-1] = np.sum(errors)/count
+                alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
+                alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
+                
+        titles = ['All blows', 'Handstrokes', 'Backstrokes']
+          
+        st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
+
         @st.cache_data
         def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells):
             
@@ -305,8 +355,12 @@ if st.session_state.current_touch >= 0:
                             ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
 
                     ax.plot((bell)*np.ones(len(points)), changes, c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
-                for row in range(min_plot_change, max_plot_change):
-                    ax.plot(np.arange(-1,nbells+3), row*np.ones(nbells+4), c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+                    
+                row_guides = [np.column_stack([np.arange(-1,nbells+3), row*np.ones(nbells+4)]) for row in range(min_plot_change, max_plot_change)]
+                #for row in range(min_plot_change, max_plot_change):
+                #    ax.plot(np.arange(-1,nbells+3), row*np.ones(nbells+4), c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+                line_collection = LineCollection(row_guides, color = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+                ax.add_collection(line_collection)
                 
                 plt.gca().invert_yaxis()
                 ax.set_ylim((plot+1)*rows_per_plot + min_plot_change, plot*rows_per_plot+ min_plot_change )
@@ -320,95 +374,8 @@ if st.session_state.current_touch >= 0:
             st.pyplot(fig1)
             plt.clf()
             plt.close()
-            
-        with st.expander("View Blue Line"):
-
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(500, nrows)), format = "%d", step = 2)
-            options = ["Bell %d" % bell for bell in range(1,nbells+1)]
-            highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
-            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells)
-            
-            
-        diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]
-        cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)
-            
-        with st.expander("View Histograms"):
-    
-            alldiags = np.zeros((3,3,nbells))   #Type, stroke, bell
-    
-            titles = ['All blows', 'Handstrokes', 'Backstrokes']
-    
-            x_range = st.slider("Histogram x range:", min_value = 0, max_value = 250, value= 150, format = "%dms")
-            nbins = st.slider("Number of histogram bins", min_value = 0, max_value = 100, value= 50, format = "%d", step = 1)
-    
-            for plot_id in range(3):
-                #Everything, then handstrokes, then backstrokes
-                nrows = nbells//4
-                ncols = int((nbells-1e-6)/nrows) + 1
-                if nrows*ncols < nbells:
-                    ncols += 1
-                fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
-                allerrors = []
-                for bell in range(1,nbells+1):#nbells):
-                    #Extract data for this bell
-                    bellstrikes = np.where(raw_bells == bell)[0]
-    
-                    bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
-                    bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
-                    
-                    if len(bellstrikes) < 2:
-                        st.error('Increase range -- stats are all wrong')
-                        st.stop()
-                        
-                    errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
-    
-                    #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
-                    maxlim = cadence*0.75
-                    minlim = -cadence*0.75
-    
-                    #Trim for the appropriate stroke
-                    if plot_id == 1:
-                        errors = errors[::2]
-                    if plot_id == 2:
-                        errors = errors[1::2]
-                        
-                    count = len(errors)
-    
-                    if remove_mistakes:
-                        #Adjust stats to disregard these properly
-                        count -= np.sum(errors > maxlim)
-                        count -= np.sum(errors < minlim)
-    
-                        errors[errors > maxlim] = 0.0
-                        errors[errors < minlim] = 0.0
-    
-    
-                    #Diagnostics
-                    alldiags[0,plot_id,bell-1] = np.sum(errors)/count
-                    alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
-                    alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
-    
-                    allerrors += np.sum(errors)/count
-                    ax = axs2[(bell-1)//4, (bell-1)%4]
-    
-                    ax.set_title('Bell %d' % bell)
-                    bin_bounds = np.linspace(-x_range, x_range, nbins+1)
-                    n, bins, _ = ax.hist(errors, bins = bin_bounds)
-    
-                    curve = gaussian_filter1d(n, sigma = nbins/20)
-                    ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
-                    ax.set_xlim(-x_range, x_range)
-                    ax.set_ylim(0,np.max(n))
-                    ax.plot([0,0],[0,max(n)], linewidth = 2)
-                    ax.set_yticks([])
-                plt.suptitle(titles[plot_id])
-                plt.tight_layout()
-                st.pyplot(fig2)
-                plt.clf()
-                plt.close()
-
-        st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
-
+         
+  
         #Bar Chart
         with st.expander("View Error Bar Charts"):
             fig3, axs3 = plt.subplots(3, figsize = (12,7))
@@ -444,4 +411,81 @@ if st.session_state.current_touch >= 0:
             st.pyplot(fig3)
             plt.clf()
             plt.close()
+            
+                
+        with st.expander("View Blue Line"):
+
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
+            options = ["Bell %d" % bell for bell in range(1,nbells+1)]
+            highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
+            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells)
+            
+
+        with st.expander("View Histograms"):
+    
+    
+            x_range = st.slider("Histogram x range:", min_value = 0, max_value = 250, value= 150, format = "%dms")
+            nbins = st.slider("Number of histogram bins", min_value = 0, max_value = 100, value= 50, format = "%d", step = 1)
+    
+            for plot_id in range(3):
+                #Everything, then handstrokes, then backstrokes
+                nrows = nbells//4
+                ncols = int((nbells-1e-6)/nrows) + 1
+                if nrows*ncols < nbells:
+                    ncols += 1
+                fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
+                for bell in range(1,nbells+1):#nbells):
+                    #Extract data for this bell
+                    bellstrikes = np.where(raw_bells == bell)[0]
+    
+                    bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
+                    bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
+                    
+                    if len(bellstrikes) < 2:
+                        st.error('Increase range -- stats are all wrong')
+                        st.stop()
+                        
+                    errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+    
+                    #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
+                    maxlim = cadence*0.75
+                    minlim = -cadence*0.75
+    
+                    #Trim for the appropriate stroke
+                    if plot_id == 1:
+                        errors = errors[::2]
+                    if plot_id == 2:
+                        errors = errors[1::2]
+                        
+                    count = len(errors)
+    
+                    if remove_mistakes:
+                        #Adjust stats to disregard these properly
+                        count -= np.sum(errors > maxlim)
+                        count -= np.sum(errors < minlim)
+    
+                        errors[errors > maxlim] = 0.0
+                        errors[errors < minlim] = 0.0
+        
+                    allerrors += np.sum(errors)/count
+                    ax = axs2[(bell-1)//4, (bell-1)%4]
+    
+                    ax.set_title('Bell %d' % bell)
+                    bin_bounds = np.linspace(-x_range, x_range, nbins+1)
+                    n, bins, _ = ax.hist(errors, bins = bin_bounds)
+    
+                    curve = gaussian_filter1d(n, sigma = nbins/20)
+                    ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
+                    ax.set_xlim(-x_range, x_range)
+                    ax.set_ylim(0,np.max(n))
+                    ax.plot([0,0],[0,max(n)], linewidth = 2)
+                    ax.set_yticks([])
+                plt.suptitle(titles[plot_id])
+                plt.tight_layout()
+                st.pyplot(fig2)
+                plt.clf()
+                plt.close()
+
+
+
     
