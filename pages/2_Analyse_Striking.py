@@ -451,7 +451,7 @@ if st.session_state.current_touch >= 0:
 
                 for plot_id in range(3):
                     #Everything, then handstrokes, then backstrokes
-                    nrows = nbells//4
+                    nrows = nbells//3
                     ncols = int((nbells-1e-6)/nrows) + 1
                     if nrows*ncols < nbells:
                         ncols += 1
