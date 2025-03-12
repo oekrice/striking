@@ -315,13 +315,14 @@ if st.session_state.current_touch >= 0:
                 nplotsk = max(3, nrows_plot//rows_per_plot + 1)
             else:
                 nplotsk = max(2, nrows_plot//rows_per_plot + 1)
+            nplotsk = min(nplotsk, 3)
             rows_per_plot = int(nrows_plot/nplotsk) + 2
             
             #Either plot lines or nmbers -- but guides will matter for that...
             dotext = True
 
             #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
-            fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 30))
+            fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 100))
             for plot in range(nplotsk):
                 if dotext:
                     xtexts = []; ytexts = []; stexts = []
