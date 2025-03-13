@@ -254,6 +254,8 @@ if st.session_state.current_touch >= 0:
         diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]
         cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)
 
+        time_errors = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
+        
         for plot_id in range(3):
             for bell in range(1,nbells+1):#nbells):
     
@@ -273,6 +275,10 @@ if st.session_state.current_touch >= 0:
                 maxlim = cadence*0.75
                 minlim = -cadence*0.75
     
+                time_errors[bell-1, :] = errors
+                if remove_confidence:
+                    time_errors[bell-1, confs < 0.9] = 0.0
+
                 #Trim for the appropriate stroke
                 if plot_id == 1:
                     errors = errors[::2]
@@ -286,6 +292,7 @@ if st.session_state.current_touch >= 0:
                     errors[confs < 0.9] = 0.0
                     count -= np.sum(confs < 0.9)
 
+                                        
                 if remove_mistakes:
                     #Adjust stats to disregard these properly
                     count -= np.sum(errors > maxlim)
@@ -298,13 +305,110 @@ if st.session_state.current_touch >= 0:
                 alldiags[0,plot_id,bell-1] = np.sum(errors)/count
                 alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
                 alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
-                
+            
         titles = ['All blows', 'Handstrokes', 'Backstrokes']
           
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
         #Want error through time for each bell, and do as a snazzy plot?
+        @st.cache_data
+        def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth):
+            #Just do both strokes to start with because easy
+            fig5, ax5 = plt.subplots(1, figsize = (10,5))
+            all_xs = np.arange(min_plot_change, max_plot_change)
+            hand_xs = np.arange(min_plot_change, max_plot_change, 2)
+            back_xs = np.arange(min_plot_change + 1, max_plot_change, 2)
+            #Just calculate everything. Doesn't take long...
+            if absvalues == "Absolute Error":
+                time_errors = np.abs(time_errors[:,min_plot_change:max_plot_change])
+            else:  
+                time_errors = time_errors[:,min_plot_change:max_plot_change]
+            
+            all_ys = time_errors[:,:]
+            hand_ys = time_errors[:,::2]
+            back_ys = time_errors[:,1::2]
+            
+            if smooth:
+                all_ys = gaussian_filter1d(all_ys, 6, axis = 1)
+                hand_ys = gaussian_filter1d(hand_ys, 3, axis = 1)
+                back_ys = gaussian_filter1d(back_ys, 3, axis = 1)
+                
+            avg_ys = np.mean(all_ys, axis = 0)
+            hand_avg_ys = np.mean(hand_ys, axis = 0)
+            back_avg_ys = np.mean(back_ys, axis = 0)
+            
+            if len(strokes_plot) > 1:
+                mode = 2  #Multiple strokes, one bell
+            else:
+                mode = 1  #Multiple bells, one stroke
+            
+            for bell in highlight_bells:
+                for stroke in strokes_plot:
+                    if bell == "Average":
+                        if stroke == "Both Strokes":
+                            if mode == 2:
+                                ax5.plot(all_xs, avg_ys, c = 'gray', label = 'Both Strokes')
+                            else:
+                                ax5.plot(all_xs, avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                        if stroke == "Handstrokes":
+                            if mode == 2:
+                                ax5.plot(hand_xs, hand_avg_ys, c = 'red', label = 'Handstrokes')
+                            else:
+                                ax5.plot(hand_xs, hand_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                        if stroke == "Backstrokes":
+                            if mode == 2:
+                                ax5.plot(back_xs, back_avg_ys, c = 'green', label = 'Backstrokes')
+                            else:
+                                ax5.plot(back_xs, back_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                    else:
+                        if stroke == "Both Strokes":
+                            if mode == 2:
+                                ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = 'gray', label = 'Both Strokes')
+                            else:
+                                ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+                        if stroke == "Handstrokes":
+                            if mode == 2:
+                                ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = 'red', label = 'Handstrokes')
+                            else:
+                                ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+                        if stroke == "Backstrokes":
+                            if mode == 2:
+                                ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = 'green', label = 'Backstrokes')
+                            else:
+                                ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+            
+            plt.xlabel('Change Number')
+            plt.ylabel('Error (ms)')
+            plt.legend()
+            plt.tight_layout()
+            st.pyplot(fig5)
+            plt.clf()
+            plt.close()
 
+            return
+
+        with st.expander("View Bell Errors Through Time"):
+
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 3452456)
+            
+            absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
+            options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
+            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 29348)
+            
+            smooth = st.checkbox("Smooth data?", value = False)
+                    
+            strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
+            if len(highlight_bells) == 1:
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 12378)
+            elif len(highlight_bells) > 1:
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 12378)
+                strokes_plot = [strokes_plot]
+            else:
+                strokes_plot = None
+                
+            if len(highlight_bells) > 0 and strokes_plot is not None:
+                    plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth)
+        
         @st.cache_data
         def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
             
