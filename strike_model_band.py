@@ -6,9 +6,10 @@ from scipy.ndimage import gaussian_filter1d
 from scipy import stats
 from scipy.optimize import minimize_scalar, curve_fit
 import streamlit as st
-      
-@st.cache_data      
-def find_ideal_hgap(cut_init, gap_init, row, nbells):
+import time
+
+@st.cache_data
+def find_ideal_hgap_band(cut_init, gap_init, row, nbells):
     #Finds ideal handstroke gap for two rows (given in cut_init)
     def find_r(gap):
         cut = np.array(cut_init)
@@ -23,7 +24,7 @@ def find_ideal_hgap(cut_init, gap_init, row, nbells):
 #I think this is the easiest way to do it, and quickest. Then go through again with a priori data
 
 @st.cache_data
-def find_all_gaps(alltimes, nbells, nrows):
+def find_all_gaps_band(alltimes, nbells, nrows):
     all_gaps = np.zeros(nrows) #Handstroke gaps BEFORE each row. Backstrokes will just be zero
     gap_init = (alltimes[nbells*2-1] - alltimes[0])/(nbells*2)
     all_gaps[0] = gap_init
@@ -33,7 +34,7 @@ def find_all_gaps(alltimes, nbells, nrows):
         end   = (row+2)*nbells
         cut = np.array(alltimes[start:end])   #Contains 24 blows with a backstroke change and handstroke change
         #Find ideal handstroke gap
-        gap = find_ideal_hgap(cut, gap_init, row, nbells)
+        gap = find_ideal_hgap_band(cut, gap_init, row, nbells)
 
         cut[nbells:] = cut[nbells:] - gap
         all_gaps[row+1] = gap
@@ -42,41 +43,38 @@ def find_all_gaps(alltimes, nbells, nrows):
     return all_gaps
 
 @st.cache_data
-def find_predicted_gaps(all_ideal_gaps, nbells, nrows, ngaps):
-    #ONLY using gaps from previous rows, predict the 'best' amount of handstroke gap.
+def find_predicted_gaps_band(all_ideal_gaps, nbells, nrows, ngaps):
+    #Ussing data before AND after, find the ideal handstroke gap times
     #Perhaps fit a quadratic to the previous few, if possible
     def f(x,a,b,c):
         return a*x**2 + b*x + c
 
     #print('Finding best possible handstroke gaps in the moment')
     all_gaps = np.zeros(nrows)
-    minfits = 4
-    nfits = ngaps #Number of handstroke rows to establish the rhythm from
+    nfits = ngaps #Number of handstroke rows to establish the rhythm from.
+    #Given doing before and after, can always do the curve fit? That's a lot neater
+    nfits = max(nfits, 4)
+    #st.line_chart(all_ideal_gaps[::2])
     for row in range(0,nrows,2):
-        if row == 0:
-            all_gaps[row] = all_ideal_gaps[0]
-        elif row < minfits*2:  #Take the mean of these
-            all_gaps[row] = np.mean(all_ideal_gaps[:row])*2
-        else:
-            alldata = all_ideal_gaps[max(row-2*nfits,0):row:2]
-            popt, pcov = curve_fit(f, np.arange(len(alldata)), alldata)
-            all_gaps[row] = f(len(alldata), *popt)
-
-            #plt.plot(all_ideal_gaps[max(row-nfits,0):row:2])
-            #plt.show()
+        back = min(row, nfits)
+        forward = min(len(all_ideal_gaps)-row, nfits)
+        alldata = all_ideal_gaps[row-back:row+forward:2]
+        popt, pcov = curve_fit(f, np.arange(len(alldata)), alldata)
+        all_gaps[row] = f(back//2, *popt)
+    #st.line_chart(all_gaps[::2])
 
     return all_gaps
 
 @st.cache_data
-def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
+def find_ideal_times_band(alltimes, nbells, ncount = 24, ngaps = 6):
 
     alltimes = np.array(alltimes)
 
     nrows = int(len(alltimes)/nbells)
 
-    all_ideal_gaps = find_all_gaps(alltimes, nbells, nrows)
+    all_ideal_gaps = find_all_gaps_band(alltimes, nbells, nrows)
 
-    all_predicted_gaps = find_predicted_gaps(all_ideal_gaps, nbells, nrows, ngaps = ngaps)
+    all_predicted_gaps = find_predicted_gaps_band(all_ideal_gaps, nbells, nrows, ngaps = ngaps)
 
     #print('Handstroke gaps determined...')
     #Actually finds the ideal strike time of each bell, based on the predicted handstroke gaps and the preceding strikes (up to a point to be determined.)
@@ -87,13 +85,14 @@ def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
     def f2(x,a,b,c):
         return a*x**2 + b*x + c
 
-    def adjust_times(data, row_number, n_adjust,position):
+    def adjust_times(data, row_number, n_adjust, position, cut_start_distance):
         #Remove the effect of the handstroke gaps -- keep the individual times the same but rewrite the preceding few as necessary, essentially assuming everything before comes earlier
         first_change = max(0,row_number - n_adjust)
-        count = 0
+        last_change = min(row_number + n_adjust, nrows)
+        count = 0   #Retrofit previous changes
         for row_change in range(row_number,first_change,-1):
             #Figure out which ones to retrofit
-            limit = count*nbells + position
+            limit = count*nbells + position - cut_start_distance
             #print(row_change, first_change, position, all_predicted_gaps[row_change], limit)
             count += 1
             #print(data)
@@ -105,10 +104,29 @@ def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
                 data[:] = data[:] + all_predicted_gaps[row_change]
             elif limit < len(data):
                 data[:-limit] = data[:-limit] + all_predicted_gaps[row_change]
+                
+        count = 0   #Retrofit next few changes
+        for row_change in range(row_number+1,last_change,1):
+            #Figure out which ones to retrofit
+            limit = count*nbells + (nbells - position) + cut_start_distance
+            #st.write(limit, row_position)
+            #print(row_change, first_change, position, all_predicted_gaps[row_change], limit)
+            count += 1
+            #print(data)
+            #print(all_predicted_gaps[row_change])
+            #print(data[1:] - data[:-1])
+            #print('a',data)
+
+            if limit == 0:
+                data[:] = data[:] - all_predicted_gaps[row_change]
+            elif limit < len(data):
+                data[limit:] = data[limit:] - all_predicted_gaps[row_change]
+           
+        
             #print('b',data)
         return data
 
-    nback = ncount  
+    nback = int(ncount//2)  
     all_ideals = np.zeros(nrows*nbells)
     n_adjust = int(nback/nbells)
 
@@ -118,31 +136,24 @@ def find_ideal_times(alltimes, nbells, ncount = 24, ngaps = 6):
     #print('Finding individual strikes')
 
     for strike in range(len(all_ideals)):
-    #for strike in range(0,1000):
         row_position = strike%(nbells)  #Row position up to nbells
         row_number = strike//nbells
-        if strike == 0 or strike == 1:  #First strikes are naturally perfect
-            all_ideals[strike] = int(alltimes[strike])
+    
+        back = max(0, strike - nback)
+        forward = min(len(alltimes), strike+nback)
+        
+        #Is always enough for quadratic now
+        
+        data = np.array(alltimes[back:forward])
 
-        elif strike < nbells:  #Not enough preceding data, assume a linear interpolation from preceding
-            data = np.array(alltimes[:strike])
-            data = adjust_times(data, row_number, n_adjust,row_position)  #Adjust to take into account handstroke gaps
-            basis = np.arange(len(data)) - len(data) + row_position
+        data = adjust_times(data, row_number, n_adjust, row_position, strike-back)  #Adjust to take into account handstroke gaps
 
-            popt, pcov = curve_fit(f1, basis, data)
-            all_ideals[strike] = int(f1(row_position, *popt))
-
-        else:  #Is enough, try a quadratic one
-            data = np.array(alltimes[max(0,strike-nback):strike])
-            data = adjust_times(data, row_number, n_adjust,row_position)  #Adjust to take into account handstroke gaps
-            basis = np.arange(len(data)) - len(data) + row_position
-            popt, pcov = curve_fit(f2, basis, data)
-            all_ideals[strike] = int(f2(row_position, *popt))
-    #plt.plot(alltimes)
-    #errors = (alltimes - all_ideals)
-    #plt.plot(errors[:])
-    #plt.show()
-    #print('Ideal times determined')
+        basis = np.arange(back, forward)
+        popt, pcov = curve_fit(f2, basis, data)
+        all_ideals[strike] = int(f2(strike, *popt))
+        
+        
+        
     return all_ideals
 
 #all_ideal_times = find_ideal_times(alltimes)

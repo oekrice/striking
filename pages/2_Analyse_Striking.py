@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 
 from strike_model import find_ideal_times
+from strike_model_band import find_ideal_times_band
+
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
@@ -198,6 +200,15 @@ if st.session_state.current_touch >= 0:
         raw_data['Individual Model'] = ideal_times
         existing_models.append('Individual Model')
 
+    
+    if "Team Model" not in  raw_data.columns.tolist():
+        #st.write(len(raw_data['Actual Time'])//nbells)
+        count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
+        ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
+        raw_data['Team Model'] = ideal_times
+        existing_models.append('Team Model')
+    
+    
     if "Metronomic Model" not in  raw_data.columns.tolist():
         @st.cache_data
         def find_metronomic(raw_data):
@@ -220,7 +231,7 @@ if st.session_state.current_touch >= 0:
     
     if len(existing_models) > 0:
                 
-        selection = st.selectbox("Select striking model:", options = existing_models)   #Can set default for this later?
+        selection = st.selectbox("Select striking model:", options = existing_models, index = existing_models.index("Team Model"))   #Can set default for this later?
         
         #st.write(raw_data["Actual Time"][0:100:12])
         raw_target = np.array(raw_data[selection])
@@ -229,18 +240,25 @@ if st.session_state.current_touch >= 0:
         nstrikes = len(raw_actuals)
         nrows = int(nstrikes//nbells)
     
-        if selection == "Individual Model":
-            rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-            st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
-            st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
-            ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
-            raw_data['Individual Model'] = ideal_times
-
-            
-        remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
-        remove_confidence = st.checkbox("Remove not-confident strike times from the stats.", value = False)
-
-        min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
+        with st.expander("View Options"):
+            if selection == "Individual Model":
+                rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
+                st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
+                ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
+                raw_data['Individual Model'] = ideal_times
+    
+            if selection == "Team Model":
+                rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
+                st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
+                ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
+                raw_data['Team Model'] = ideal_times
+                
+            remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
+            remove_confidence = st.checkbox("Remove not-confident strike times from the stats.", value = True)
+    
+            min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
 
         
         st.message = st.empty()
@@ -395,7 +413,7 @@ if st.session_state.current_touch >= 0:
             options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
             highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 29348)
             
-            smooth = st.checkbox("Smooth data?", value = False)
+            smooth = st.checkbox("Smooth data?", value = True)
                     
             strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
             if len(highlight_bells) == 1:
