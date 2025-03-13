@@ -31,7 +31,7 @@ def run():
 
     st.markdown(
         """
-        # This is a title
+        # Title
         This is some text. Click on things to the left to see what happens.
         """
     )
