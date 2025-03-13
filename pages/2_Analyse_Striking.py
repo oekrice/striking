@@ -281,6 +281,8 @@ if st.session_state.current_touch >= 0:
                 bellstrikes = np.where(raw_bells == bell)[0]
 
                 errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+                confs = np.array(raw_data["Confidence"][bellstrikes])
+                
                 time_errors[bell-1, :] = errors
                 if remove_confidence:
                     time_errors[bell-1, confs < 0.9] = 0.0
