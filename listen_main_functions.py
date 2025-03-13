@@ -150,9 +150,9 @@ def do_reinforcement(Paras, Data):
             
         if st.session_state.reinforce_frequency_data is not None:
             #Determine colours:
-            toprint = Data.freq_data[2]
+            toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
-            st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*st.session_state.reinforce_frequency_data[2]))
+            st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*toprint))
 
     return Data
 

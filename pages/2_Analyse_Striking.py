@@ -156,12 +156,17 @@ if st.session_state.current_touch >= 0:
         raw_actuals = raw_data["Actual Time"]
         
         nbells = np.max(raw_data["Bell No"])
+        
+        if "Confidence" not in  raw_data.columns.tolist():
+            #st.write(len(raw_data['Actual Time'])//nbells)
+            raw_data['Confidence'] = np.ones(len(raw_data["Actual Time"]))
+
     else:        
         #I think it would be easiest to just plonk this into a dataframe and treat it like an imported one, given I've already written code for that
         allbells = []
         allcerts_save = []
         allstrikes = []
-        yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
+        yvalues = np.arange(len(st.session_state.cached_strikes[st.session_state.current_touch][:,0])) + 1
         orders = []
         for row in range(len(st.session_state.cached_strikes[st.session_state.current_touch][0])):
             order = np.array([val for _, val in sorted(zip(st.session_state.cached_strikes[st.session_state.current_touch][:,row], yvalues), reverse = False)])
@@ -184,7 +189,7 @@ if st.session_state.current_touch >= 0:
         existing_models = []
         
         #st.write(len(raw_data)//nbells)
-        
+    
     
     if "Individual Model" not in  raw_data.columns.tolist():
         #st.write(len(raw_data['Actual Time'])//nbells)
@@ -233,7 +238,8 @@ if st.session_state.current_touch >= 0:
 
             
         remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
-        
+        remove_confidence = st.checkbox("Remove not-confident strike times from the stats.", value = False)
+
         min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
 
         
@@ -255,13 +261,14 @@ if st.session_state.current_touch >= 0:
     
                 bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
                 bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
-                
+                   
                 if len(bellstrikes) < 2:
                     st.error('Increase range -- stats are all wrong')
                     st.stop()
                     
                 errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
-    
+                confs = np.array(raw_data["Confidence"][bellstrikes])
+                
                 #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
                 maxlim = cadence*0.75
                 minlim = -cadence*0.75
@@ -269,11 +276,16 @@ if st.session_state.current_touch >= 0:
                 #Trim for the appropriate stroke
                 if plot_id == 1:
                     errors = errors[::2]
+                    confs = confs[::2]
                 if plot_id == 2:
                     errors = errors[1::2]
-                    
+                    confs = confs[1::2]
                 count = len(errors)
     
+                if remove_confidence:
+                    errors[confs < 0.9] = 0.0
+                    count -= np.sum(confs < 0.9)
+
                 if remove_mistakes:
                     #Adjust stats to disregard these properly
                     count -= np.sum(errors > maxlim)
@@ -281,8 +293,7 @@ if st.session_state.current_touch >= 0:
     
                     errors[errors > maxlim] = 0.0
                     errors[errors < minlim] = 0.0
-    
-    
+
                 #Diagnostics
                 alldiags[0,plot_id,bell-1] = np.sum(errors)/count
                 alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
@@ -292,9 +303,12 @@ if st.session_state.current_touch >= 0:
           
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
+        #Want error through time for each bell, and do as a snazzy plot?
+
         @st.cache_data
         def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
             
+            bell_names = ['1','2','3','4','5','6','7','8','9','0','E','T','A','B','C','D']
             highlight_bells = [int(highlight_bells[val][5:]) for val in range(len(highlight_bells))]
             raw_actuals = np.array(raw_data["Actual Time"])
     
@@ -346,7 +360,7 @@ if st.session_state.current_touch >= 0:
                             points.append(rat); changes.append(row)
                             
                             if view_numbers:
-                                ax.text(rat, row, str(bell), horizontalalignment = 'center', verticalalignment = 'center')
+                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
 
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
@@ -363,7 +377,7 @@ if st.session_state.current_touch >= 0:
                             rat = float(f(raw_actuals[bellstrikes][row]))
                             points.append(rat); changes.append(row)
                             if view_numbers:
-                                ax.text(rat, row, str(bell), horizontalalignment = 'center', verticalalignment = 'center')
+                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
 
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
@@ -395,7 +409,6 @@ if st.session_state.current_touch >= 0:
             plt.clf()
             plt.close()
          
-  
         #Bar Chart
         with st.expander("View Error Bar Charts"):
             @st.cache_data
@@ -451,7 +464,7 @@ if st.session_state.current_touch >= 0:
 
                 for plot_id in range(3):
                     #Everything, then handstrokes, then backstrokes
-                    nrows = nbells//3
+                    nrows = max(2,(nbells)//3)
                     ncols = int((nbells-1e-6)/nrows) + 1
                     if nrows*ncols < nbells:
                         ncols += 1
@@ -512,4 +525,76 @@ if st.session_state.current_touch >= 0:
 
             plot_histograms(errors,x_range,nbins)
 
+        with st.expander("View Box Plots"):
+            
+            @st.cache_data
+            def plot_boxes(raw_data):
+                fig4, axs4 = plt.subplots(3, figsize = (10,7))
+
+                for plot_id in range(3):
+                    #Everything, then handstrokes, then backstrokes
+
+                    ax = axs4[plot_id]
+
+                    
+                    for bell in range(1,nbells+1):#nbells):
+                        #Extract data for this bell
+                        belldata = raw_data.loc[raw_data['Bell No'] == bell]
+
+                        errors = np.array(belldata['Actual Time'] - belldata[selection])
+
+                        #Trim for the appropriate stroke
+                        if plot_id == 1:
+                            errors = errors[::2]
+                        if plot_id == 2:
+                            errors = errors[1::2]
+
+                        #Box plot data
+                        ax.boxplot(errors,positions = [bell], sym = 'x', widths = 0.35, zorder = 1)
+                    #ax.axhline(0.0, c = 'black', linestyle = 'dashed')
+
+                    ax.set_ylim(-150,150)
+                    ax.set_title(titles[plot_id])
+
+                plt.tight_layout()
+                st.pyplot(fig4)
+                plt.clf()
+                plt.close()
+            
+            plot_boxes(raw_data)
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
     
