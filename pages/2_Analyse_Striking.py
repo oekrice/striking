@@ -273,12 +273,18 @@ if st.session_state.current_touch >= 0:
         cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)
 
         time_errors = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
+
         
         for plot_id in range(3):
             for bell in range(1,nbells+1):#nbells):
-    
+                
                 bellstrikes = np.where(raw_bells == bell)[0]
-    
+
+                errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+                time_errors[bell-1, :] = errors
+                if remove_confidence:
+                    time_errors[bell-1, confs < 0.9] = 0.0
+
                 bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
                 bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
                    
@@ -293,9 +299,7 @@ if st.session_state.current_touch >= 0:
                 maxlim = cadence*0.75
                 minlim = -cadence*0.75
     
-                time_errors[bell-1, :] = errors
-                if remove_confidence:
-                    time_errors[bell-1, confs < 0.9] = 0.0
+
 
                 #Trim for the appropriate stroke
                 if plot_id == 1:
