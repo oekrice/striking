@@ -356,21 +356,14 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
         Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
         
 
-        #st.quality_log.write('Current frequency match: :%s[%.1f %%]' % (c, 100*toprint))
-
-        #Want to prioritise rows which are nicely spaced -- minimum distance to a strike either side
-        #if not final:
-        #    print('Average confidence for reinforcement on peaks alone: %.1f' % (100*np.mean(allconfs[1:])), '%')
-        #else:
-        #    print('Average confidence in this range: %.1f' % (100*np.mean(allconfs)), '%')
-        #    print('Minimum confidence in this range: %.1f' % (100*np.min(allconfs)), '%')
-
-
     if len(allstrikes) == 0:
         Paras.ringing_finished = True
 
         return [], []
 
+
+    
+    
     spacings = 1e6*np.ones((len(allstrikes), Paras.nbells, 2))
     yvalues = np.arange(Paras.nbells)
         

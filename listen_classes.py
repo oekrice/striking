@@ -185,8 +185,8 @@ class data():
      
         self.find_transform_derivatives(Paras)
         
-        print('__________________________________________________________________________________________')
-        print('Calculating transform in range', cut_min_int/st.session_state.fs, 'to', cut_max_int/st.session_state.fs, 'seconds...')
+        #print('__________________________________________________________________________________________')
+        #print('Calculating transform in range', cut_min_int/st.session_state.fs, 'to', cut_max_int/st.session_state.fs, 'seconds...')
         
         self.test_frequencies = self.nominals    #This is the case initially
         self.frequency_profile = np.identity(Paras.nbells)   #Each bell corresponds to its nominal frequency alone -- this will later be updated.

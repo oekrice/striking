@@ -77,6 +77,24 @@ def do_reinforcement(Paras, Data):
                 
         strikes, strike_certs = find_strike_times_rounds(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
     
+        #Check and fix handstrokes if necessary
+        diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
+        diff2s = strikes[:,2::2] - strikes[:,1:-1:2]
+    
+        #Estalish if the strokes might be the wrong way around... Look at diffs as in initial rounds.
+        #st.write('Initial diffs', diff1s, diff2s)
+        kback = min(len(diff2s[0]), 8)
+        if np.mean(diff1s[:kback,:]) < np.mean(diff2s[:kback,:]):
+            handstroke_first = True
+        else:
+            handstroke_first = False
+    
+        #print('a', st.session_state.handstroke_first, handstroke_first, Data.handstroke_first)
+    
+        st.session_state.handstroke_first = handstroke_first
+        Data.handstroke_first = handstroke_first
+        #print('b', st.session_state.handstroke_first, handstroke_first, Data.handstroke_first)
+
         #Filter these strikes for the best rows, to then be used for reinforcement
         best_strikes = []; best_certs = []; allcerts = []; row_ids = []
         #Pick the ones that suit each bell in turn --but make sure to weight!
@@ -156,7 +174,7 @@ def do_reinforcement(Paras, Data):
 
     return Data
 
-def find_final_strikes(Paras):
+def find_final_strikes(Paras, nested = False):
     
      #Create new data files in turn -- will be more effeicient ways but meh...
      tmin = 0.0
@@ -171,6 +189,7 @@ def find_final_strikes(Paras):
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
      st.analysis_sublog.progress(0, text = 'Initial rhythm established, finding all strikes')
 
+     counter = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
          
          if tmax >= Paras.overall_tmax - 1.0:  #Last one
@@ -186,6 +205,7 @@ def find_final_strikes(Paras):
              
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
+         print('c', st.session_state.handstroke_first, Data.handstroke_first)
          if len(allstrikes) == 0:  #Look for changes after this time
              Data.handstroke_first = st.session_state.handstroke_first
          else:
@@ -216,6 +236,24 @@ def find_final_strikes(Paras):
                  allcerts.append(Data.strike_certs[:,row].tolist())
                  Paras.allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
                  
+         if counter == 0 and not nested:
+             #print('First transform test:')
+             diff1s = Data.strikes[:,1::2] - Data.strikes[:,0:-1:2]
+             diff2s = Data.strikes[:,2::2] - Data.strikes[:,1:-1:2]
+             
+             kback = len(diff2s[0])
+             if np.mean(diff1s[:]) < np.mean(diff2s[:]):
+                 handstroke_first = True
+             else:
+                 handstroke_first = False
+             #print(handstroke_first, st.session_state.handstroke_first)
+             if handstroke_first != st.session_state.handstroke_first:
+                 #print('Wrong stroke! Running nested to fix')
+                 st.session_state.handstroke_first = handstroke_first
+                 find_final_strikes(Paras, nested = True)
+                 return
+             
+             
          tmin = min(allstrikes[-1])*Paras.dt - 5.0
          tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
              
@@ -231,6 +269,8 @@ def find_final_strikes(Paras):
          st.session_state.allstrikes = np.array(allstrikes).T
          st.session_state.allcerts = np.array(allcerts).T
      
+         counter += 1
+         
      del allstrikes; del allcerts
      Data = None
      

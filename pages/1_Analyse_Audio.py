@@ -144,6 +144,7 @@ def read_bell_data():
     return nominal_import
 
 nominal_data = read_bell_data()
+freq_filename = None
 
 tower_names = nominal_data["Tower Name"].tolist()
 
@@ -509,7 +510,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             goodenough = False
         
         #If it's good, give an option to save out so it can be used next time
-        if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough:
+        if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough and freq_filename is not None:
             
             st.save_option = st.empty()
             st.save_button = st.empty()
