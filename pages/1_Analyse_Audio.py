@@ -31,7 +31,7 @@ st.write(
     """
     This page is to find strike times from uploaded (or perhaps live at some point...) audio.
     1. Select the tower and bells being rung.
-    2. Upload the audio file. Ringing must start withing 1 minute of the start of the (trimmed) audio, and must begin in rounds (ish).   
+    2. Upload the audio file. Ringing must start within 1 minute of the start of the (trimmed) audio, and must begin in rounds (ish).   
     3. Choose whether to use existing frequency profiles or learn new ones.
     4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
     5. Once decent frequencies are found, you can run the main bit which will find strike times throughout.
@@ -67,7 +67,7 @@ if 'found_new_freqs' not in st.session_state:
 if 'use_existing_freqs' not in st.session_state:
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
 if 'already_saved' not in st.session_state:
-    st.session_state.already_saved = False   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.already_saved = False  
 if 'good_frequencies_selected' not in st.session_state:
     st.session_state.good_frequencies_selected = False   #Decent frequencies are selected (either preloaded or calculated now)
 if 'analysis_status' not in st.session_state:
@@ -75,36 +75,36 @@ if 'analysis_status' not in st.session_state:
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 if 'trim_flag' not in st.session_state:
-    st.session_state.trim_flag = False   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.trim_flag = False   
 
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
-    st.session_state.reinforce_test_frequencies = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.reinforce_test_frequencies = None   
 if 'reinforce_frequency_profile' not in st.session_state:
-    st.session_state.reinforce_frequency_profile = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.reinforce_frequency_profile = None  
 if 'reinforce_frequency_data' not in st.session_state:
-    st.session_state.reinforce_frequency_data = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.reinforce_frequency_data = None  
  
     
 #Final frequency data for use
 if 'final_freqs' not in st.session_state:
-    st.session_state.final_freqs = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.final_freqs = None   
 if 'final_freqprobs' not in st.session_state:
-    st.session_state.final_freqprobs = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.final_freqprobs = None   
     
 if 'allstrikes' not in st.session_state:
-    st.session_state.allstrikes = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.allstrikes = None  
 if 'allcerts' not in st.session_state:
-    st.session_state.allcerts = None   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.allcerts = None  
    
 if 'cached_strikes' not in st.session_state:
-    st.session_state.cached_strikes = []  #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.cached_strikes = [] 
 if 'cached_certs' not in st.session_state:
-    st.session_state.cached_certs = []  #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.cached_certs = [] 
 if 'cached_data' not in st.session_state:
-    st.session_state.cached_data = []   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.cached_data = []   
 if 'cached_rawdata' not in st.session_state:
-    st.session_state.cached_rawdata = []   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.cached_rawdata = []  
 if 'incache' not in st.session_state:
     st.session_state.incache = False   
 
@@ -297,7 +297,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
 
     #st.write(st.session_state.audio_signal is not None)
 
-    raw_file = st.file_uploader("Upload ringing audio for analysis. Will add recording function at some point", on_change = reset_on_upload, key = st.session_state.uploader_key)
+    raw_file = st.file_uploader("Upload ringing audio for analysis, or record directly (can't then use that audio again if it goes wrong)", on_change = reset_on_upload, key = st.session_state.uploader_key)
            
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     
@@ -318,7 +318,6 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
         st.write('Imported audio length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
 
-        
     if ['uploaded_file'] in st.session_state:
         del st.session_state['uploaded_file']
 
@@ -515,55 +514,55 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.save_option = st.empty()
             st.save_button = st.empty()
 
-            st.save_option.write('Save these frequency profiles for future use? They will be available to all users until the app crashed next.')
+            st.save_option.write('Save these bell frequency profiles for future use? They will be available to all users until the app crashes.')
     
-            if st.save_button.button("Save frequency profiles", disabled = st.session_state.already_saved):
+            if st.save_button.button("Save bell frequency profiles", disabled = st.session_state.already_saved):
                 np.save('%s%s_freqs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_test_frequencies)
                 np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
                 np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
                 st.session_state.already_saved = True
                 st.rerun()
+        if st.session_state.tower_name is None:
+            st.session_state.tower_name = "Unknown Tower"
 
-        #st.write(st.session_state.allstrikes[:,1:].shape, st.session_state.handstroke_first)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
-        if st.button("Save this striking data to the cache for analysis", disabled = st.session_state.incache):
-            #st.write(st.session_state.handstroke_first)
-            if st.session_state.tower_name is None:
-                st.session_state.tower_name = "Unknown Tower"
-                
-            if st.session_state.handstroke_first:
-                #st.write('HANDSTROKE FIRST')
+        if not st.session_state.incache:
+            if st.button("Save this striking data to the cache for analysis"):
+                #st.write(st.session_state.handstroke_first)
+                    
+                if st.session_state.handstroke_first:
+                    #st.write('HANDSTROKE FIRST')
+                    st.session_state.cached_strikes.append(st.session_state.allstrikes)
+                    st.session_state.cached_certs.append(st.session_state.allcerts)
+                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                    st.session_state.cached_rawdata.append([])
+                    st.session_state.touch_length = len(st.session_state.allstrikes[0])
+                else:
+                    #st.write('BACKSTROKE FIRST')
+                    st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
+                    st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
+                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                    st.session_state.cached_rawdata.append([])
+                    st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
+                #Remove the large things from memory
+                st.session_state.trimmed_signal = None
+                st.session_state.audio_signal = None
+                Paras = None
+                Data = None
+                st.session_state.incache = True
+                st.rerun()
+        else:
+            st.page_link("pages/2_Analyse_Striking.py", label = "Analyse this striking", icon = "📈")
 
-                st.session_state.cached_strikes.append(st.session_state.allstrikes)
-                st.session_state.cached_certs.append(st.session_state.allcerts)
-                st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
-                st.session_state.cached_rawdata.append([])
-            else:
-                #st.write('BACKSTROKE FIRST')
-                st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
-                st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
-                st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]) - 1])
-                st.session_state.cached_rawdata.append([])
-            
-            #st.write('cached', len(st.session_state.cached_strikes[-1][0,:]))
-            time.sleep(5.0)
-            #Remove the large things from memory
-            st.session_state.trimmed_signal = None
-            st.session_state.audio_signal = None
-            Paras = None
-            Data = None
-            st.session_state.incache = True
-            st.rerun()
-            
         if len(st.session_state.cached_strikes) == 1:
-            st.write('%d set of striking data currently saved - view using the tab on the left' % len(st.session_state.cached_strikes))
+            st.write('%d set of striking data currently in the cache - view using the tab on the left or the link above' % len(st.session_state.cached_strikes))
         elif len(st.session_state.cached_strikes) > 1:
-            st.write('%d sets of striking data currently saved - view using the tab on the left' % len(st.session_state.cached_strikes))
+            st.write('%d sets of striking data currently in the cache - view using the tab on the left or the link above' % len(st.session_state.cached_strikes))
         
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         #Create strike data in the right format (like the Strikeometer)
         striking_df, orders = save_strikes(Paras)
-        
+        striking_df.attrs = {"Tower Name": st.session_state.tower_name, "Touch Length": st.session_state.touch_length, "File Name": st.session_state.audio_filename}
         @st.cache_data
         def convert_for_download(df):
             return df.to_csv().encode("utf-8")
@@ -571,7 +570,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         csv = convert_for_download(striking_df)
         st.download_button("Download raw timing data to device as .csv", csv, file_name = st.session_state.audio_filename + '.csv', mime="text/csv")
 
-        if st.button("View all rows and detection confidences"):
+        with st.expander("View all rows and detection confidences"):
             for ri, row in enumerate(orders):
                 rowconf = st.session_state.allcerts[:,ri]
                 string = ''

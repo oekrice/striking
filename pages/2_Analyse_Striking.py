@@ -65,7 +65,6 @@ def dealwith_upload():
                 uploaded_files.pop(uploaded_files.index(uploaded_file))
                 isfine = False
             
-            #st.write(isfine, "Bell No" not in raw_data.columns, "Actual Time " not in raw_data.columns)
             if isfine:
                 if strike_data not in st.session_state.cached_data:
                     st.session_state.cached_data.append(strike_data)

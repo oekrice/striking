@@ -205,7 +205,6 @@ def find_final_strikes(Paras, nested = False):
              
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
-         print('c', st.session_state.handstroke_first, Data.handstroke_first)
          if len(allstrikes) == 0:  #Look for changes after this time
              Data.handstroke_first = st.session_state.handstroke_first
          else:
