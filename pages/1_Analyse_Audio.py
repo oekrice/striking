@@ -24,7 +24,7 @@ from listen_main_functions import establish_initial_rhythm, do_reinforcement, fi
 from listen_other_functions import find_colour
 
 
-st.set_page_config(page_title="Analyse Audio", page_icon="📈")
+st.set_page_config(page_title="Analyse Audio", page_icon="🎤")
 st.markdown("# Analyse Audio")
 #st.sidebar.header("Analyse Striking")
 st.markdown(

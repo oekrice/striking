@@ -651,8 +651,8 @@ if st.session_state.current_touch >= 0:
                     plt.clf()
                     plt.close()
 
-            x_range = st.slider("Histogram x range:", min_value = 0, max_value = 250, value= 150, format = "%dms")
-            nbins = st.slider("Number of histogram bins", min_value = 0, max_value = 100, value= 50, format = "%d", step = 1)
+            x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")
+            nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= 50, format = "%d", step = 1)
 
             plot_histograms(errors,x_range,nbins)
 
