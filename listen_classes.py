@@ -7,6 +7,7 @@ Created on Fri Mar  7 21:53:04 2025
 import streamlit as st
 
 import os
+import re
 from scipy.io import wavfile
 import numpy as np
 from scipy.fftpack import fft
@@ -18,17 +19,20 @@ class audio_data():
         
         upload_success = False
         
-        raw_file.name = raw_file.name.replace(" ", "_")
-        raw_file.name = raw_file.name.replace("'", "")
+        raw_file.name, ext = os.path.splitext(raw_file.name)
+        raw_file.name = re.sub(r'[^\w\-]', '_', raw_file.name)
+        raw_file.name = raw_file.name + ext
+        print(raw_file.name)
+
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
         f.close()
-        
-        if raw_file.name[-4:] != '.wav' and doprints:
+    
+        if ext != '.wav' and doprints:
             st.write('Uploaded file is not a .wav - attempting to convert it.')
         
-        if raw_file.name[-4:] != '.wav':
+        if ext != '.wav':
             new_fname = './tmp/' + raw_file.name[:-4] + '.wav'
 
             #Convert this to a wav

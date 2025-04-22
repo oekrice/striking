@@ -59,7 +59,7 @@ def dealwith_upload():
                 if "Bell No" not in raw_data.columns or "Actual Time" not in raw_data.columns:
                     isfine = False
                 #st.write(raw_data.columns)
-                strike_data = ["Unknown Tower", int(len(raw_data)/np.max(raw_data["Bell No"]))]
+                strike_data = ["Unknown Tower", int(len(raw_data)/np.max(raw_data["Bell No"])), uploaded_file.name[:-4]]
             except:
                 st.error('Cannot interpret %s as readable data' % uploaded_file.name)
                 uploaded_files.pop(uploaded_files.index(uploaded_file))
@@ -88,7 +88,7 @@ if not os.path.exists('./striking_data/'):
 
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("# Analyse Striking")
-st.sidebar.header("Choose a Touch:")
+
 st.write(
     """This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab or from an uploaded .csv."""
 )
@@ -110,32 +110,37 @@ if "rhythm_variation_time" not in st.session_state:
 if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 10
     
-titles = []
+touch_titles = []
+raw_titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = st.session_state.cached_data[i][0] + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
-    if st.sidebar.button(title, key = i):
-        st.session_state.current_touch = i
-        selected_title = title
-    titles.append(title)
-#Give option to upload things
-st.sidebar.write("**Upload timing data from device:**")
+    title = '"' + st.session_state.cached_data[i][2] + '"' + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    touch_titles.append(title)
+    raw_titles.append(st.session_state.cached_data[i][2])
 
-uploaded_files = st.sidebar.file_uploader(
-    "Choose a .csv file", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
+uploaded_files = st.file_uploader(
+    "Upload timing data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
 
 dealwith_upload()
 
-if len(titles) > 0 and st.session_state.current_touch < 0:
-      st.session_state.current_touch = len(titles) - 1  
+if len(touch_titles) == 0:
+    st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Audio page')
+    st.stop()
+
+selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
+st.session_state.current_touch = touch_titles.index(selection)
+selected_title = selection
+
+if len(touch_titles) > 0 and st.session_state.current_touch < 0:
+      st.session_state.current_touch = len(touch_titles) - 1  
 
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
-    st.write('**Analysing ringing from %s**' % titles[st.session_state.current_touch])
+    st.write('**Analysing ringing from file %s**' % touch_titles[st.session_state.current_touch])
 
-if len(titles) == 0:
+if len(touch_titles) == 0:
     st.session_state.current_touch = -1
     
 
@@ -410,28 +415,6 @@ if st.session_state.current_touch >= 0:
 
             return
 
-        with st.expander("View Bell Errors Through Time"):
-
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 3452456)
-            
-            absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
-            options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
-            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 29348)
-            
-            smooth = st.checkbox("Smooth data?", value = True)
-                    
-            strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
-            if len(highlight_bells) == 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 12378)
-            elif len(highlight_bells) > 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 12378)
-                strokes_plot = [strokes_plot]
-            else:
-                strokes_plot = None
-                
-            if len(highlight_bells) > 0 and strokes_plot is not None:
-                    plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth)
-        
         @st.cache_data
         def plot_blue_line(raw_target_plot, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
             
@@ -536,6 +519,36 @@ if st.session_state.current_touch >= 0:
             plt.clf()
             plt.close()
          
+        with st.expander("View Blue Line"):
+
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
+            view_numbers = st.checkbox("View Bell Numbers", value = False)
+            options = ["Bell %d" % bell for bell in range(1,nbells+1)]
+            highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
+            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells, view_numbers = view_numbers)
+
+        with st.expander("View Bell Errors Through Time"):
+
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 3452456)
+            
+            absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
+            options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
+            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 29348)
+            
+            smooth = st.checkbox("Smooth data?", value = True)
+                    
+            strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
+            if len(highlight_bells) == 1:
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 12378)
+            elif len(highlight_bells) > 1:
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 12378)
+                strokes_plot = [strokes_plot]
+            else:
+                strokes_plot = None
+                
+            if len(highlight_bells) > 0 and strokes_plot is not None:
+                    plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth)
+        
         #Bar Chart
         with st.expander("View Error Bar Charts"):
             @st.cache_data
@@ -573,16 +586,7 @@ if st.session_state.current_touch >= 0:
                 st.pyplot(fig3)
                 plt.clf()
                 plt.close()
-            plot_bar_charts(alldiags)
-                
-        with st.expander("View Blue Line"):
-
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
-            view_numbers = st.checkbox("View Bell Numbers", value = False)
-            options = ["Bell %d" % bell for bell in range(1,nbells+1)]
-            highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
-            plot_blue_line(raw_target, min_plot_change, max_plot_change, highlight_bells, view_numbers = view_numbers)
-            
+            plot_bar_charts(alldiags)            
 
         with st.expander("View Histograms"):
 
@@ -690,7 +694,14 @@ if st.session_state.current_touch >= 0:
             
             plot_boxes(raw_data)
 
-            
+        @st.cache_data
+        def convert_for_download(df):
+            return df.to_csv().encode("utf-8")
+
+        csv = convert_for_download(raw_data)
+        if st.session_state.current_touch > -1 and len(raw_titles) > 0:
+            st.download_button("Download analysis to device as .csv", csv, file_name = raw_titles[st.session_state.current_touch] + '.csv', mime="text/csv")
+
             
             
             

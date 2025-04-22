@@ -54,7 +54,7 @@ def run():
         As you might expect, the audio input must be reasonably clear -- if you can't pick out all the bells most of the time then this probably won't manage it. Some towers just work better than others. Any audio which works for Hakwear *should* be OK here though.\\
         The algorithm is designed to look for good, open handstroke ringing. Analysing bad ringing can be quite amusing but once the rhythm is lost that's very difficult for it to figure out. \\
         This site is very limited by how much memory I can use for free. So please just use this for short touches... If someone fancies paying for a better server, do let me know.
-                
+        The basis of detecting the initial rhythm is the tenor. If the tenor is not being rhythmic or is particularly oddstruck then it probably work. Also if there is a partiaurly harmonic bell louder than the tenor this can cause problems.
                 
                 ''')
 

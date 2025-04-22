@@ -27,14 +27,15 @@ from listen_other_functions import find_colour
 st.set_page_config(page_title="Analyse Audio", page_icon="📈")
 st.markdown("# Analyse Audio")
 #st.sidebar.header("Analyse Striking")
-st.write(
+st.markdown(
     """
     This page is to find strike times from uploaded (or perhaps live at some point...) audio.
     1. Select the tower and bells being rung.
     2. Upload the audio file. Ringing must start within 1 minute of the start of the (trimmed) audio, and must begin in rounds (ish).   
     3. Choose whether to use existing frequency profiles or learn new ones.
     4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
-    5. Once decent frequencies are found, you can run the main bit which will find strike times throughout.
+    5. Once decent frequencies are found, you can run the main bit which will find strike times throughout. 
+    **If this doesn't work but you think the audio is good enough, try randomly fiddling with the parameters. Increasing the time for rounds/frequency analysis sometimes works, as does cutting out random amounts of audio from the start.**
     6. This can then be either saved to the cache for analysis on the other tab, or downloaded as a .csv for use later.   
     """
 )
@@ -345,7 +346,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
 
     overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
     
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(30.0), format = "%ds")
+    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(45.0), format = "%ds")
     
     if st.session_state.use_existing_freqs < 0:
         reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 45.0, max_value = min(90.0, tmax), step = 1., value=(60.0), format = "%ds")
@@ -534,14 +535,14 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     #st.write('HANDSTROKE FIRST')
                     st.session_state.cached_strikes.append(st.session_state.allstrikes)
                     st.session_state.cached_certs.append(st.session_state.allcerts)
-                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename])
                     st.session_state.cached_rawdata.append([])
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])
                 else:
                     #st.write('BACKSTROKE FIRST')
                     st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
                     st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
-                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0])])
+                    st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename])
                     st.session_state.cached_rawdata.append([])
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
                 #Remove the large things from memory
@@ -562,7 +563,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         #Create strike data in the right format (like the Strikeometer)
         striking_df, orders = save_strikes(Paras)
-        striking_df.attrs = {"Tower Name": st.session_state.tower_name, "Touch Length": st.session_state.touch_length, "File Name": st.session_state.audio_filename}
+        #striking_df.attrs = {"Tower Name": st.session_state.tower_name, "Touch Length": st.session_state.touch_length, "File Name": st.session_state.audio_filename}
         @st.cache_data
         def convert_for_download(df):
             return df.to_csv().encode("utf-8")
