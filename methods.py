@@ -16,8 +16,10 @@ import re
 #6. Check method database
 #7. Deal with touches etc. and print out a composition?
 
-raw_data = pd.read_csv('./striking_data/burley.csv')
+#raw_data = pd.read_csv('./striking_data/burley.csv')
 #raw_data = pd.read_csv('./striking_data/brancepeth_cambridge.csv')
+raw_data = pd.read_csv('./striking_data/stockton_max.csv')
+
 method_data = pd.read_csv('./method_data/clean_methods.csv')
 
 nbells = np.max(raw_data["Bell No"])
@@ -29,6 +31,7 @@ def find_all_rows(raw_data):
 
     for ri in range(nrows):
         allrows[ri] = raw_data["Bell No"][ri*nbells:(ri+1)*nbells]
+    
     return allrows.astype('int')
 
 def find_method_time(all_rows):
@@ -36,25 +39,32 @@ def find_method_time(all_rows):
     change = False
     rounds_time = 0
     notrounds_time = 0
-    current_best = 0
+    current_best = 0; current_start = 0
     start = 0
     end  = 0
+    isrounds = np.zeros(len(all_rows))
+
     for ri, row in enumerate(all_rows):
-        if np.all(row == np.arange(nbells) + 1):
-            change = False
-            rounds_time += 1
-            if rounds_time > 2:
-                notrounds_time = 0
+        if (sum(a == b for a, b in zip(row, np.arange(nbells) + 1))/nbells) > 0.9:   #This change is very close to rounds
+            isrounds[ri] = 1.0
         else:
-            change = True
-            notrounds_time += 1
-            if notrounds_time > 2:
-                rounds_time = 0
-            if current_best < notrounds_time:
-                current_best = notrounds_time
-                start = ri - current_best
-                end = ri
+            isrounds[ri] = 0.0
+    #Remove single blips
+    for i in range(1,len(isrounds) - 1):
+        if isrounds[i] != isrounds[i+1] and isrounds[i] != isrounds[i-1]:
+            isrounds[i] = not(isrounds[i])
+
+    current_best = 0; current_run = 0
+    for i in range(1, len(isrounds)):
+        if isrounds[i] == 0:
+            current_run += 1
+        else:
+            current_run = 0
+        if current_run > current_best:
+            start = i - current_run
+            end = i
     return start, end + 1
+
 all_rows = find_all_rows(raw_data)
 start_row, end_row = find_method_time(all_rows)
 
@@ -125,7 +135,7 @@ def find_method_types(trimmed_rows):
                 elif code == 'P':
                     start_index = start_index + (treble_stage + 1)*2
                 else:
-                    return []
+                    return 'X'
         return treble_data
     
     def determine_methods(trimmed_rows, hunt_types):
@@ -224,9 +234,16 @@ def find_method_types(trimmed_rows):
 
             print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
                 
+            
         #Look for spliced leads (may as well always do this)
         current_start = 0
         for li, type in enumerate(hunt_types[:]):
+            if type[0] == 'P':
+                current_end = current_start + (type[1] + 1)*2 + 1
+                lead_length =  (type[1] + 1)*2 
+            if type[0] == 'T':
+                current_end = current_start + (type[1] + 1)*4 + 1
+                lead_length =  (type[1] + 1)*4
 
             findnewdata = False
             if li == 0:
@@ -251,6 +268,8 @@ def find_method_types(trimmed_rows):
             print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
 
     hunt_types = determine_hunt_types(trimmed_rows)
+
+    #At this point check for Stedman or Grandsire
     print(len(hunt_types), 'leads found', hunt_types)
 
     methods = determine_methods(trimmed_rows, hunt_types)

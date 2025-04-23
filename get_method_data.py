@@ -29,7 +29,7 @@ def get_interior(place_notation):
         if next_dot < 0:
             next_dot = 10000000
         if next_dash < 0:
-            next_dash = 1000000
+            next_dash = 10000000
         if next_dot == 0:
             flipped = '.' + flipped
             start += 1
