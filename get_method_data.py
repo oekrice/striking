@@ -16,38 +16,74 @@ method_sets = root.findall('.//mx:methodSet', ns)
 
 def get_interior(place_notation):
     #Gets rid of the lead end and just flips the place notation backwards. All these methods are palindromic so that's fine
-    firstbit = place_notation.rsplit(',', 1)[0]
-    last_dash = place_notation.rfind('-')
-    last_dot = place_notation.rfind('.')
-    cut_index = max(last_dash, last_dot) 
-    toflip = place_notation[:cut_index+1] 
-    flipped = ''
-    start = 0
-    while start < len(toflip):
-        next_dot = toflip[start:].find('.')
-        next_dash = toflip[start:].find('-')
-        if next_dot < 0:
-            next_dot = 10000000
-        if next_dash < 0:
-            next_dash = 10000000
-        if next_dot == 0:
-            flipped = '.' + flipped
-            start += 1
-        elif next_dash == 0:
-            flipped = '-' + flipped
-            start += 1
+    split = place_notation.rsplit(',', 1)
+    if len(split[0]) > len(split[-1]):
+        #This is single-hunt
+        firstbit = place_notation.rsplit(',', 1)[0]
+        last_dash = place_notation.rfind('-')
+        last_dot = place_notation.rfind('.')
+        cut_index = max(last_dash, last_dot) 
+        toflip = place_notation[:cut_index+1] 
+        flipped = ''
+        start = 0
+        while start < len(toflip):
+            next_dot = toflip[start:].find('.')
+            next_dash = toflip[start:].find('-')
+            if next_dot < 0:
+                next_dot = 10000000
+            if next_dash < 0:
+                next_dash = 10000000
+            if next_dot == 0:
+                flipped = '.' + flipped
+                start += 1
+            elif next_dash == 0:
+                flipped = '-' + flipped
+                start += 1
+            else:
+                flipped = toflip[start:start+min(next_dot, next_dash)] + flipped
+                start += min(next_dot, next_dash)
+
+
+        complete = firstbit + flipped
+        leadend = place_notation.rsplit(',', 1)[1]
+
+        if complete[-1] == '-':
+            return complete + leadend
         else:
-            flipped = toflip[start:start+min(next_dot, next_dash)] + flipped
-            start += min(next_dot, next_dash)
-
-
-    complete = firstbit + flipped
-    leadend = place_notation.rsplit(',', 1)[1]
-
-    if complete[-1] == '-':
-        return complete + leadend
+            return complete + '.' + leadend
     else:
-        return complete + '.' + leadend
+        #This is double-hunt
+        firstbit = place_notation.rsplit(',', 1)[-1]
+        last_dash = place_notation.rfind('-')
+        last_dot = place_notation.rfind('.')
+        cut_index = max(last_dash, last_dot) 
+        toflip = firstbit[:cut_index+1] 
+        flipped = ''
+        start = 0
+        while start < toflip.rfind(".") + 1:
+            next_dot = toflip[start:].find('.')
+            next_dash = toflip[start:].find('-')
+            if next_dot < 0:
+                next_dot = 10000000
+            if next_dash < 0:
+                next_dash = 10000000
+            if next_dot == 0:
+                flipped = '.' + flipped
+                start += 1
+            elif next_dash == 0:
+                flipped = '-' + flipped
+                start += 1
+            else:
+                flipped = toflip[start:start+min(next_dot, next_dash)] + flipped
+                start += min(next_dot, next_dash)
+
+        complete = firstbit + flipped
+        leadend = place_notation.rsplit(',', 1)[0]
+
+        if complete[0] == '-':
+            return leadend + complete
+        else:        
+            return leadend + '.' + complete
 
 for method_set in method_sets:
     props = method_set.find('mx:properties', ns)
@@ -65,9 +101,49 @@ for method_set in method_sets:
     elif attr.get('plain'):
         treble_type = 'P'
 
-    if props.find('mx:numberOfHunts', ns).text != '1':
+    nhunts = props.find('mx:numberOfHunts', ns).text
+    if not (nhunts == '1' or nhunts == '2'):
         continue
 
+    def tostring(place):
+        if place < 9:
+            return str(place + 1)
+        if place == 9:
+            return '0'
+        if place == 10:
+            return 'E'
+        if place == 11:
+            return 'T'
+        if place == 12:
+            return 'A'
+        if place == 13:
+            return 'B'
+        if place == 14:
+            return 'C'
+        if place == 15:
+            return 'D'
+        if place > 15:
+            return 'X'
+
+    def check_leadend(notation, stage, nhunts):
+        #Return true if the lead end is a normal one
+        if nhunts == '1':
+            leadend = notation.rsplit(',', 1)[-1]
+            if leadend == '12'or leadend == '1' + tostring(int(stage)-1) or leadend == '12' + tostring(int(stage)-1):
+                return True
+            else:
+                return False
+
+        elif nhunts == '2':
+            leadend = notation.rsplit(',', 1)[0]
+            if leadend == '3':
+                return True
+            else:
+                return False
+        else:
+            return False
+
+        
     methods = method_set.findall('mx:method', ns)
 
     for method in methods:
@@ -79,9 +155,15 @@ for method_set in method_sets:
             continue
         if method.find('mx:notation', ns) is None:
             continue
+        #Remove methods which don't have a 12 or 1n lead end, as that can be confusing with bobs
+        #print(check_leadend(method.find('mx:notation', ns).text, stage, nhunts))
+        if not check_leadend(method.find('mx:notation', ns).text, stage, nhunts):
+            continue
 
+        
         interior_notation = get_interior(method.find('mx:notation', ns).text)
         method_data.append({'Name': method.find('mx:title', ns).text, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': method.find('mx:notation', ns).text, 'Type': treble_type, 'Interior Notation': interior_notation})
 
 df = pd.DataFrame(method_data)
-df.to_csv('method_data/clean_methods.csv', index=False)
+df.to_csv('method_data/clean_methods.csv', index=False, mode = 'w')
+print('Method data converted and saved')

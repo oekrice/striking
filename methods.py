@@ -18,7 +18,13 @@ import re
 
 #raw_data = pd.read_csv('./striking_data/burley.csv')
 #raw_data = pd.read_csv('./striking_data/brancepeth_cambridge.csv')
-raw_data = pd.read_csv('./striking_data/stockton_max.csv')
+#raw_data = pd.read_csv('./striking_data/stockton_max.csv')
+#raw_data = pd.read_csv('./striking_data/brancepeth_grandsire.csv')
+#raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
+#raw_data = pd.read_csv('./striking_data/Little_Bob_Nics.csv')
+#raw_data = pd.read_csv('./striking_data/St_Clements_nics.csv')
+raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
+
 
 method_data = pd.read_csv('./method_data/clean_methods.csv')
 
@@ -136,6 +142,7 @@ def find_method_types(trimmed_rows):
                     start_index = start_index + (treble_stage + 1)*2
                 else:
                     return 'X'
+                
         return treble_data
     
     def determine_methods(trimmed_rows, hunt_types):
@@ -167,7 +174,7 @@ def find_method_types(trimmed_rows):
             #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
             def appendstring(notation, places):
 
-                if len(places) < 2:
+                if len(places) < 1:
                     notation = notation + '-'
                 else:
                     if len(notation) > 0:
@@ -178,6 +185,13 @@ def find_method_types(trimmed_rows):
                 return notation
 
             notation = ''
+            #Need a check here for bells which are stationary throughout (i.e. tenor behind)
+            nworking = nbells
+            for bell in range(nbells-1, -1, -1):
+                count = np.sum(lead_rows[:,bell] == bell + 1)/len(lead_rows)
+                if count > 0.75:
+                    nworking -= 1
+            lead_rows = lead_rows[:,:nworking]
             for ri in range(len(lead_rows)-1):
                 places = np.where(lead_rows[ri] == lead_rows[ri+1])[0]
                 notation = appendstring(notation, places)
@@ -202,6 +216,7 @@ def find_method_types(trimmed_rows):
 
         all_notations = []
         current_start = 0
+        pbest = 0
         for li, type in enumerate(hunt_types[:]):
             #Look for all the same method
             if type[0] == 'P':
@@ -232,12 +247,14 @@ def find_method_types(trimmed_rows):
                     bestmatch = match
                     pbest = pi
 
+
             print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
                 
             
         #Look for spliced leads (may as well always do this)
         current_start = 0
         for li, type in enumerate(hunt_types[:]):
+            pbest = 0
             if type[0] == 'P':
                 current_end = current_start + (type[1] + 1)*2 + 1
                 lead_length =  (type[1] + 1)*2 
