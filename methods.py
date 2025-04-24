@@ -145,150 +145,291 @@ def find_method_types(trimmed_rows):
                 
         return treble_data
     
-    def determine_methods(trimmed_rows, hunt_types):
-        #Now have the number of leads and all the rows.
-        #Need to generate place notation and compare against those in the database, for each lead.
-        #Can be sped up by assuming it isn't spliced and then checking the rest
+    hunt_types = determine_hunt_types(trimmed_rows)
+    return hunt_types
 
-        def tostring(place):
-            if place < 9:
-                return str(place + 1)
-            if place == 9:
-                return '0'
-            if place == 10:
-                return 'E'
-            if place == 11:
-                return 'T'
-            if place == 12:
-                return 'A'
-            if place == 13:
-                return 'B'
-            if place == 14:
-                return 'C'
-            if place == 15:
-                return 'D'
-            if place > 15:
-                return 'X'
-            
-        def find_place_notation(lead_rows):
-            #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
-            def appendstring(notation, places):
+def determine_methods(trimmed_rows, hunt_types):
+    #Now have the number of leads and all the rows.
+    #Need to generate place notation and compare against those in the database, for each lead.
+    #Can be sped up by assuming it isn't spliced and then checking the rest
 
-                if len(places) < 1:
-                    notation = notation + '-'
-                else:
-                    if len(notation) > 0:
-                        if notation[-1] != '-':
-                            notation = notation + '.'
-                    for i in range(len(places)):
-                        notation = notation + tostring(places[i])   #This needs updating for higher than 10
-                return notation
-
-            notation = ''
-            #Need a check here for bells which are stationary throughout (i.e. tenor behind)
-            nworking = nbells
-            for bell in range(nbells-1, -1, -1):
-                count = np.sum(lead_rows[:,bell] == bell + 1)/len(lead_rows)
-                if count > 0.75:
-                    nworking -= 1
-            lead_rows = lead_rows[:,:nworking]
-            for ri in range(len(lead_rows)-1):
-                places = np.where(lead_rows[ri] == lead_rows[ri+1])[0]
-                notation = appendstring(notation, places)
-            return notation
+    #Returns two bits -- with method IDs and probabilities. Can leave the rest to be sorted out
+    def tostring(place):
+        if place < 9:
+            return str(place + 1)
+        if place == 9:
+            return '0'
+        if place == 10:
+            return 'E'
+        if place == 11:
+            return 'T'
+        if place == 12:
+            return 'A'
+        if place == 13:
+            return 'B'
+        if place == 14:
+            return 'C'
+        if place == 15:
+            return 'D'
+        if place > 15:
+            return 'X'
         
-        def determine_match(string1, string2):
-            #Run through strings to see which is best. Bit awkward and horrid but meh. 
-            split1 = re.split(r'(-)|\.', string1)
-            split1 = [i for i in split1 if i != '.']
-            split1 = [i for i in split1 if i not in (None, '')]
-            split2 = re.split(r'(-)|\.', string2)
-            split2 = [i for i in split2 if i != '.']
-            split2 = [i for i in split2 if i not in (None, '')]
-            match = sum(a == b for a, b in zip(split1, split2))/len(split1)
-            return match
+    def find_place_notation(lead_rows):
+        #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
+        def appendstring(notation, places):
 
-        if  all(item == hunt_types[0] for item in hunt_types):
-            #This could theoretically be a single method, so try and look for one
-            sametype = True
-        else:
-            sametype = False
+            if len(places) < 1:
+                notation = notation + '-'
+            else:
+                if len(notation) > 0:
+                    if notation[-1] != '-':
+                        notation = notation + '.'
+                for i in range(len(places)):
+                    notation = notation + tostring(places[i])   #This needs updating for higher than 10
+            return notation
 
-        all_notations = []
-        current_start = 0
+        notation = ''
+        #Need a check here for bells which are stationary throughout (i.e. tenor behind)
+        nworking = nbells
+        for bell in range(nbells-1, -1, -1):
+            count = np.sum(lead_rows[:,bell] == bell + 1)/len(lead_rows)
+            if count > 0.75:
+                nworking -= 1
+        lead_rows = lead_rows[:,:nworking]
+        for ri in range(len(lead_rows)-1):
+            places = np.where(lead_rows[ri] == lead_rows[ri+1])[0]
+            notation = appendstring(notation, places)
+        return notation
+    
+    def determine_match(string1, string2):
+        #Run through strings to see which is best. Bit awkward and horrid but meh. 
+        split1 = re.split(r'(-)|\.', string1)
+        split1 = [i for i in split1 if i != '.']
+        split1 = [i for i in split1 if i not in (None, '')]
+        split2 = re.split(r'(-)|\.', string2)
+        split2 = [i for i in split2 if i != '.']
+        split2 = [i for i in split2 if i not in (None, '')]
+        match = sum(a == b for a, b in zip(split1, split2))/len(split1)
+        return match
+
+    if  all(item == hunt_types[0] for item in hunt_types):
+        #This could theoretically be a single method, so try and look for one
+        sametype = True
+    else:
+        sametype = False
+
+    all_notations = []
+    current_start = 0
+    pbest = 0
+    for li, type in enumerate(hunt_types[:]):
+        #Look for all the same method
+        if type[0] == 'P':
+            current_end = current_start + (type[1] + 1)*2 + 1
+            lead_length =  (type[1] + 1)*2 
+        if type[0] == 'T':
+            current_end = current_start + (type[1] + 1)*4 + 1
+            lead_length =  (type[1] + 1)*4
+        bestmatch = 0.
+        lead_rows = trimmed_rows[current_start:current_end]
+        current_start = current_end - 1 
+        all_notations.append(find_place_notation(lead_rows))
+
+    if sametype:
+        possible_methods = method_data[method_data['Lead Length'] == lead_length]
+        possible_methods = possible_methods[possible_methods['Type'] == type[0]]
+        possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
+        possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
+        
+        bestmatch = 0.
+        for pi, poss in enumerate(possible_notations):
+            match = 0
+            for li, type in enumerate(hunt_types[:]):
+                place_notation = all_notations[li]
+                match += determine_match(place_notation, poss)
+            match = match/len(hunt_types)
+            if match > bestmatch:
+                bestmatch = match
+                pbest = pi
+
+
+        #print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
+        notspliced = [possible_methods.iloc[pbest]['Name'],  bestmatch]
+    else:
+        notspliced = None
+        
+    #Look for spliced leads (may as well always do this)
+    current_start = 0
+    spliced = []
+    for li, type in enumerate(hunt_types[:]):
         pbest = 0
-        for li, type in enumerate(hunt_types[:]):
-            #Look for all the same method
-            if type[0] == 'P':
-                current_end = current_start + (type[1] + 1)*2 + 1
-                lead_length =  (type[1] + 1)*2 
-            if type[0] == 'T':
-                current_end = current_start + (type[1] + 1)*4 + 1
-                lead_length =  (type[1] + 1)*4
-            bestmatch = 0.
-            lead_rows = trimmed_rows[current_start:current_end]
-            current_start = current_end - 1 
-            all_notations.append(find_place_notation(lead_rows))
+        if type[0] == 'P':
+            current_end = current_start + (type[1] + 1)*2 + 1
+            lead_length =  (type[1] + 1)*2 
+        if type[0] == 'T':
+            current_end = current_start + (type[1] + 1)*4 + 1
+            lead_length =  (type[1] + 1)*4
 
-        if sametype:
+        findnewdata = False
+        if li == 0:
+            findnewdata = True
+        else:
+            if hunt_types[li] != hunt_types[li-1]:
+                findnewdata = True
+
+        if findnewdata:
             possible_methods = method_data[method_data['Lead Length'] == lead_length]
             possible_methods = possible_methods[possible_methods['Type'] == type[0]]
             possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
             possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
-            
-            bestmatch = 0.
-            for pi, poss in enumerate(possible_notations):
-                match = 0
-                for li, type in enumerate(hunt_types[:]):
-                    place_notation = all_notations[li]
-                    match += determine_match(place_notation, poss)
-                match = match/len(hunt_types)
-                if match > bestmatch:
-                    bestmatch = match
-                    pbest = pi
 
+        place_notation = all_notations[li]
+        bestmatch = 0.
+        for pi, poss in enumerate(possible_notations):
+            match = determine_match(place_notation, poss)
+            if match > bestmatch:
+                bestmatch = match
+                pbest = pi
+        #print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
+        spliced.append([possible_methods.iloc[pbest]['Name'], bestmatch])
+    return hunt_types, notspliced, spliced
 
-            print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
-                
-            
-        #Look for spliced leads (may as well always do this)
-        current_start = 0
-        for li, type in enumerate(hunt_types[:]):
-            pbest = 0
-            if type[0] == 'P':
-                current_end = current_start + (type[1] + 1)*2 + 1
-                lead_length =  (type[1] + 1)*2 
-            if type[0] == 'T':
-                current_end = current_start + (type[1] + 1)*4 + 1
-                lead_length =  (type[1] + 1)*4
-
-            findnewdata = False
-            if li == 0:
-                findnewdata = True
+def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
+    #Finds the best match composition for trimmed_rows. Will check not spliced and spliced and see which is best
+    #Obvioulsy one would expect spliced to be best, but not if the ringing is terrible
+    #Will need to add a Stedman flag at some point...
+    def generate_rows(first_change, place_notation):
+        #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
+        row_number = 0
+        pn_index = 0
+        go = True
+        notation_list = re.split(r'(\-|\.)', place_notation)
+        notation_list = [i for i in notation_list if i not in ['','.']]
+        newrows = [first_change]
+        for i, swap in enumerate(notation_list):
+            nextrow = newrows[-1].copy()
+            if swap == '-':  #Swap all places
+                nextrow[::2] = newrows[-1][1::2]
+                nextrow[1::2] = newrows[-1][::2]
             else:
-                if hunt_types[li] != hunt_types[li-1]:
-                    findnewdata = True
+                place = 0; not_place = 0
+                while place < len(first_change):
+                    if not_place < len(swap):
+                        if swap[not_place] == str(place + 1):   #This one is the same
+                            nextrow[place] = newrows[-1][place]
+                            place += 1; not_place += 1
+                        else:
+                            nextrow[place] = newrows[-1].copy()[place + 1]
+                            nextrow[place + 1] = newrows[-1].copy()[place]
+                            place += 2
+                    else:   #This one is not -- change it
+                        nextrow[place] = newrows[-1].copy()[place + 1]
+                        nextrow[place + 1] = newrows[-1].copy()[place]
+                        place += 2
 
-            if findnewdata:
-                possible_methods = method_data[method_data['Lead Length'] == lead_length]
-                possible_methods = possible_methods[possible_methods['Type'] == type[0]]
-                possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
-                possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
+            newrows.append(nextrow)
+        return np.array(newrows)
 
-            place_notation = all_notations[li]
-            bestmatch = 0.
-            for pi, poss in enumerate(possible_notations):
-                match = determine_match(place_notation, poss)
-                if match > bestmatch:
-                    bestmatch = match
-                    pbest = pi
-            print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
+    def find_leadend_options(previous_change):
+        #Outputs options, with PP BB SS near and far (should be 6 or thereabouts)
+        nbells = len(previous_change)
+        notation_list = ['12', '1' + str(nbells), '14', '1' + str(nbells - 2), '1234', '1' + str(nbells - 2) + str(nbells - 1) + str(nbells)]
+        options = []
+        for i, swap in enumerate(notation_list):
+            nextrow = previous_change.copy()
+            if swap == '-':  #Swap all places
+                nextrow[::2] = previous_change[1::2]
+                nextrow[1::2] = previous_change[::2]
+            else:
+                place = 0; not_place = 0
+                while place < len(previous_change):
+                    if not_place < len(swap):
+                        if swap[not_place] == str(place + 1):   #This one is the same
+                            nextrow[place] = previous_change[place]
+                            place += 1; not_place += 1
+                        else:
+                            nextrow[place] = previous_change.copy()[place + 1]
+                            nextrow[place + 1] = previous_change.copy()[place]
+                            place += 2
+                    else:   #This one is not -- change it
+                        nextrow[place] = previous_change.copy()[place + 1]
+                        nextrow[place + 1] = previous_change.copy()[place]
+                        place += 2
 
-    hunt_types = determine_hunt_types(trimmed_rows)
+            options.append(nextrow)
+        return np.array(options)
 
-    #At this point check for Stedman or Grandsire
-    print(len(hunt_types), 'leads found', hunt_types)
+    def compare_set(target_rows, test_rows):
+        same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
+        return same_count/np.size(target_rows)
+    #Not spliced first
+    current_start = 0
+    lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
+    for li, type in enumerate(hunt_types[:]):
+        if type[0] == 'P':
+            current_end = current_start + (type[1] + 1)*2 + 1
+            lead_length =  (type[1] + 1)*2 
+        if type[0] == 'T':
+            current_end = current_start + (type[1] + 1)*4 + 1
+            lead_length =  (type[1] + 1)*4
 
-    methods = determine_methods(trimmed_rows, hunt_types)
+        #Find rows to match
+        target_rows = trimmed_rows[current_start:current_end]
+        notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
 
-find_method_types(trimmed_rows)
+        if li > 0:
+            #Find options for new lead end
+            lead_end_options = find_leadend_options(test_rows[-2])
+            option_quality = []
+            for i in range(len(lead_end_options)):
+                test_rows = generate_rows(lead_end_options[i], notation)
+                option_quality.append(compare_set(target_rows, test_rows))
+        else:
+            #print(methods_notspliced[0])
+            test_rows = generate_rows(lead_end_options[0], notation)
+
+        current_start = current_end - 1 
+
+    #Then spliced
+    current_start = 0
+    lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
+    for li, type in enumerate(hunt_types[:]):
+        if type[0] == 'P':
+            current_end = current_start + (type[1] + 1)*2 + 1
+            lead_length =  (type[1] + 1)*2 
+        if type[0] == 'T':
+            current_end = current_start + (type[1] + 1)*4 + 1
+            lead_length =  (type[1] + 1)*4
+
+        #Find rows to match
+        target_rows = trimmed_rows[current_start:current_end]
+
+        if li > 0:
+            #Find options for new lead end
+            lead_end_options = find_leadend_options(test_rows[-2])
+            option_quality = []
+            print(lead_end_options)
+            for i in range(len(lead_end_options)):
+                test_rows = generate_rows(lead_end_options[i], notation)
+                option_quality.append(compare_set(target_rows, test_rows))
+        else:
+            #print(methods_notspliced[0])
+            notation = method_data[method_data['Name'] == methods_spliced[li][0]]['Interior Notation'].values[0]
+            test_rows = generate_rows(lead_end_options[0], notation)
+
+            print(compare_set(target_rows, test_rows))
+
+        current_start = current_end - 1 
+
+hunt_types = find_method_types(trimmed_rows)
+
+#At this point check for Stedman or Grandsire
+#print(len(hunt_types), 'leads found', hunt_types)
+
+hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
+
+print('Not Spliced options')
+print(methods_notspliced)
+print('Spliced options')
+print(methods_spliced)
+
+find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
