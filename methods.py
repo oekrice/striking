@@ -20,10 +20,10 @@ import re
 #raw_data = pd.read_csv('./striking_data/brancepeth_cambridge.csv')
 #raw_data = pd.read_csv('./striking_data/stockton_max.csv')
 #raw_data = pd.read_csv('./striking_data/brancepeth_grandsire.csv')
-raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
+#raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
 #raw_data = pd.read_csv('./striking_data/Little_Bob_Nics.csv')
 #raw_data = pd.read_csv('./striking_data/St_Clements_nics.csv')
-#raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
+raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
 
 
 method_data = pd.read_csv('./method_data/clean_methods.csv')
@@ -379,6 +379,39 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             options.append(nextrow)
         return np.array(options)
 
+    def find_leadend_options_twin(existing_changes, stage, notation):
+        #This is for methods like grandsire, where the call comes into effect one earlier
+        nbells = len(existing_changes[-1])
+        #Keep with six options for ease
+        notation_list = [[tostring_direct(stage),'1'], [tostring_direct(stage),'1'], ['3','1'],['3','1'], ['3','123'], ['3','123']]
+        options = []
+        for notation_test in notation_list:
+            newrows = [existing_changes[-3]]
+            for i, swap in enumerate(notation_test):
+                nextrow = newrows[-1].copy()
+                if swap == '-':  #Swap all places
+                    nextrow[::2] = newrows[-1][1::2]
+                    nextrow[1::2] = newrows[-1][::2]
+                else:
+                    place = 0; not_place = 0
+                    while place < len(newrows[-1]) - 1:
+                        if not_place < len(swap):
+                            if swap[not_place] == tostring_direct(place + 1):   #This one is the same
+                                nextrow[place] = newrows[-1][place]
+                                place += 1; not_place += 1
+                            else:
+                                nextrow[place] = newrows[-1].copy()[place + 1]
+                                nextrow[place + 1] = newrows[-1].copy()[place]
+                                place += 2
+                        else:   #This one is not -- change it
+                            nextrow[place] = newrows[-1].copy()[place + 1]
+                            nextrow[place + 1] = newrows[-1].copy()[place]
+                            place += 2
+
+                newrows.append(nextrow)
+            options.append(newrows[-1])
+        return np.array(options)
+
     def compare_set(target_rows, test_rows):
         same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
         return same_count/np.size(target_rows)
@@ -404,7 +437,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
                 if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
                     lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
                 else:
-                    print('More than one hunt bell... Not done this yet')
+                    lead_end_options = find_leadend_options_twin(allrows_single, method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0], notation)
                 option_quality = []
                 for i in range(len(lead_end_options)):
                     test_rows = generate_rows(lead_end_options[i], notation)
@@ -423,7 +456,11 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             current_start = current_end - 1 
         
         #Then finish off by seeing if this can come into rounds with a call?
-        lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+        if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
+            lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+        else:
+            lead_end_options = find_leadend_options_twin(allrows_single, method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0],notation )
+
         option_quality = []
         for i in range(len(lead_end_options)):
             same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
@@ -457,7 +494,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             if method_data[method_data['Name'] == methods_spliced[li][0]]['Hunt Number'].values[0] == 1:
                 lead_end_options = find_leadend_options_single(allrows_spliced[-2], method_data[method_data['Name'] == methods_spliced[li][0]]['Stage'].values[0])
             else:
-                print('More than one hunt bell... Not done this yet')
+                lead_end_options = find_leadend_options_twin(allrows_spliced, method_data[method_data['Name'] == methods_spliced[li][0]]['Stage'].values[0],notation )
 
             option_quality = []
             for i in range(len(lead_end_options)):
@@ -480,7 +517,11 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         current_start = current_end - 1 
 
     #Then finish off by seeing if this can come into rounds with a call?
-    lead_end_options = find_leadend_options_single(allrows_spliced[-2], method_data[method_data['Name'] == methods_spliced[li][0]]['Stage'].values[0])
+    if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
+        lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+    else:
+        lead_end_options = find_leadend_options_twin(allrows_single, method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0],notation )
+
     option_quality = []
     for i in range(len(lead_end_options)):
         same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
@@ -549,9 +590,7 @@ def check_lead_ends(methods, calls):
 
 hunt_types = find_method_types(trimmed_rows)
 
-#At this point check for Stedman or Grandsire
-#print(len(hunt_types), 'leads found', hunt_types)
-
+#At this point check for Stedman
 hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
 
 spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
@@ -563,7 +602,7 @@ else:
 print('Methods:', methods)
 print('Calls:', calls)
 
-if True:#spliced_flag:
+if spliced_flag:
     methods = check_lead_ends(methods, calls) 
 
 print('Methods check:', methods)
