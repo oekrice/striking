@@ -20,10 +20,10 @@ import re
 #raw_data = pd.read_csv('./striking_data/brancepeth_cambridge.csv')
 #raw_data = pd.read_csv('./striking_data/stockton_max.csv')
 #raw_data = pd.read_csv('./striking_data/brancepeth_grandsire.csv')
-#raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
+raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
 #raw_data = pd.read_csv('./striking_data/Little_Bob_Nics.csv')
 #raw_data = pd.read_csv('./striking_data/St_Clements_nics.csv')
-raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
+#raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
 
 
 method_data = pd.read_csv('./method_data/clean_methods.csv')
@@ -499,7 +499,6 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
 
 def check_lead_ends(methods, calls):
     #Checks the plain leads against the method in the previous section, in case of a ballsed-up lead end (common enough to care about I think)
-
     for mi, method in enumerate(methods):
         if calls[mi] > 1:
             #Is a bob. Just go with it and keep the same. It's probably fine. Or could check against the previous methods? Yeah.
@@ -514,6 +513,7 @@ def check_lead_ends(methods, calls):
                     continue
                 methods[mi][0] = methods[mi-1][0]
         else:
+
             stage = method_data[method_data['Name'] == method[0]]['Stage'].values[0]
 
             if stage == nbells:
@@ -524,6 +524,8 @@ def check_lead_ends(methods, calls):
             nots = method_data[method_data['Name'] == method[0]]['Place Notation'].values[0]
             method_lead_end = nots.rsplit(',', 1)[-1]
 
+            if calls[mi] == 1 and method[0][:9] == 'Plain Bob':
+                methods[mi][0] = 'Plain Hunt'
             #Determine if a swap is needed
             if method_lead_end == notation_list[0]:
                 lead_type = 0
@@ -542,7 +544,6 @@ def check_lead_ends(methods, calls):
                 if len(method_data[method_data['Place Notation'] == target_notation]['Name'].values) > 0:
                     method = method_data[method_data['Place Notation'] == target_notation]['Name'].values[0]
                     methods[mi][0] = method
-            print(calls[mi], lead_type)
 
     return methods
 
@@ -558,11 +559,11 @@ spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspli
 if spliced_flag:
     methods = methods_spliced
 else:
-    methods = methods_notspliced
+    methods = [methods_notspliced]
 print('Methods:', methods)
 print('Calls:', calls)
 
-if spliced_flag:
+if True:#spliced_flag:
     methods = check_lead_ends(methods, calls) 
 
 print('Methods check:', methods)
