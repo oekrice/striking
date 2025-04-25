@@ -105,6 +105,9 @@ for method_set in method_sets:
     if not (nhunts == '1' or nhunts == '2'):
         continue
 
+    if not (nhunts == '1' or nhunts == '2'):
+        continue
+
     def tostring(place):
         if place < 9:
             return str(place + 1)
@@ -162,7 +165,7 @@ for method_set in method_sets:
 
         
         interior_notation = get_interior(method.find('mx:notation', ns).text)
-        method_data.append({'Name': method.find('mx:title', ns).text, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': method.find('mx:notation', ns).text, 'Type': treble_type, 'Interior Notation': interior_notation})
+        method_data.append({'Name': method.find('mx:title', ns).text, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': method.find('mx:notation', ns).text, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
 
 df = pd.DataFrame(method_data)
 df.to_csv('method_data/clean_methods.csv', index=False, mode = 'w')

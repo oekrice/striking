@@ -293,15 +293,33 @@ def determine_methods(trimmed_rows, hunt_types):
         spliced.append([possible_methods.iloc[pbest]['Name'], bestmatch])
     return hunt_types, notspliced, spliced
 
+def tostring_direct(place):
+    #Returns the direct string of a place. Used sometimes...
+    if place < 10:
+        return str(place)
+    if place == 10:
+        return '0'
+    if place == 11:
+        return 'E'
+    if place == 12:
+        return 'T'
+    if place == 13:
+        return 'A'
+    if place == 14:
+        return 'B'
+    if place == 15:
+        return 'C'
+    if place == 16:
+        return 'D'
+    if place > 15:
+        return 'X'
+
 def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
     #Finds the best match composition for trimmed_rows. Will check not spliced and spliced and see which is best
     #Obvioulsy one would expect spliced to be best, but not if the ringing is terrible
     #Will need to add a Stedman flag at some point...
     def generate_rows(first_change, place_notation):
         #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
-        row_number = 0
-        pn_index = 0
-        go = True
         notation_list = re.split(r'(\-|\.)', place_notation)
         notation_list = [i for i in notation_list if i not in ['','.']]
         newrows = [first_change]
@@ -312,9 +330,9 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
                 nextrow[1::2] = newrows[-1][::2]
             else:
                 place = 0; not_place = 0
-                while place < len(first_change):
+                while place < len(first_change) - 1:
                     if not_place < len(swap):
-                        if swap[not_place] == str(place + 1):   #This one is the same
+                        if swap[not_place] == tostring_direct(place + 1):   #This one is the same
                             nextrow[place] = newrows[-1][place]
                             place += 1; not_place += 1
                         else:
@@ -325,14 +343,17 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
                         nextrow[place] = newrows[-1].copy()[place + 1]
                         nextrow[place + 1] = newrows[-1].copy()[place]
                         place += 2
-
             newrows.append(nextrow)
         return np.array(newrows)
 
-    def find_leadend_options(previous_change):
+    def find_leadend_options_single(previous_change, stage):
+        #This one is for single-hunt methods where the call affects one change at the lead end itself
         #Outputs options, with PP BB SS near and far (should be 6 or thereabouts)
         nbells = len(previous_change)
-        notation_list = ['12', '1' + str(nbells), '14', '1' + str(nbells - 2), '1234', '1' + str(nbells - 2) + str(nbells - 1) + str(nbells)]
+        if stage == nbells:
+            notation_list = ['12', '1' + tostring_direct(nbells), '14', '1' + tostring_direct(nbells - 2), '1234', '1' + tostring_direct(nbells - 2) + tostring_direct(nbells - 1) + tostring_direct(nbells)]
+        else:
+            notation_list = ['12' + tostring_direct(nbells - 1), '1', '14' + tostring_direct(nbells - 1), '1' + tostring_direct(nbells - 2) + tostring_direct(nbells - 1), '1234' + tostring_direct(nbells - 1), '1' + tostring_direct(nbells - 2) + tostring_direct(nbells - 1) + tostring_direct(nbells)]
         options = []
         for i, swap in enumerate(notation_list):
             nextrow = previous_change.copy()
@@ -341,9 +362,9 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
                 nextrow[1::2] = previous_change[::2]
             else:
                 place = 0; not_place = 0
-                while place < len(previous_change):
+                while place < len(previous_change) - 1:
                     if not_place < len(swap):
-                        if swap[not_place] == str(place + 1):   #This one is the same
+                        if swap[not_place] == tostring_direct(place + 1):   #This one is the same
                             nextrow[place] = previous_change[place]
                             place += 1; not_place += 1
                         else:
@@ -362,36 +383,63 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
         return same_count/np.size(target_rows)
     #Not spliced first
-    current_start = 0
-    lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
-    for li, type in enumerate(hunt_types[:]):
-        if type[0] == 'P':
-            current_end = current_start + (type[1] + 1)*2 + 1
-            lead_length =  (type[1] + 1)*2 
-        if type[0] == 'T':
-            current_end = current_start + (type[1] + 1)*4 + 1
-            lead_length =  (type[1] + 1)*4
+    if methods_notspliced is not None:
+        current_start = 0
+        lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
+        best_calls_single = []; qualities_single = []
+        for li, type in enumerate(hunt_types[:]):
+            if type[0] == 'P':
+                current_end = current_start + (type[1] + 1)*2 + 1
+                lead_length =  (type[1] + 1)*2 
+            if type[0] == 'T':
+                current_end = current_start + (type[1] + 1)*4 + 1
+                lead_length =  (type[1] + 1)*4
 
-        #Find rows to match
-        target_rows = trimmed_rows[current_start:current_end]
-        notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
+            #Find rows to match
+            target_rows = trimmed_rows[current_start:current_end]
+            notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
 
-        if li > 0:
-            #Find options for new lead end
-            lead_end_options = find_leadend_options(test_rows[-2])
-            option_quality = []
-            for i in range(len(lead_end_options)):
-                test_rows = generate_rows(lead_end_options[i], notation)
-                option_quality.append(compare_set(target_rows, test_rows))
-        else:
-            #print(methods_notspliced[0])
-            test_rows = generate_rows(lead_end_options[0], notation)
+            if li > 0:
+                #Find options for new lead end
+                if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
+                    lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+                else:
+                    print('More than one hunt bell... Not done this yet')
+                option_quality = []
+                for i in range(len(lead_end_options)):
+                    test_rows = generate_rows(lead_end_options[i], notation)
+                    option_quality.append(compare_set(target_rows, test_rows))
+                best_call = np.where(option_quality == np.max(option_quality))[0][0]
+                best_calls_single.append(best_call)
+                qualities_single.append(np.max(option_quality))
+                new_rows = generate_rows(lead_end_options[best_call], notation)
+                allrows_single = np.concatenate((allrows_single[:-1], new_rows), axis = 0)
+            else:
+                #Starting from rounds, one assumes
+                test_rows = generate_rows(lead_end_options[0], notation)
+                allrows_single = test_rows
+                option_quality = compare_set(target_rows, test_rows)
+                qualities_single.append(option_quality)
+            current_start = current_end - 1 
+        
+        #Then finish off by seeing if this can come into rounds with a call?
+        lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+        option_quality = []
+        for i in range(len(lead_end_options)):
+            same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
+            option_quality.append(same_count/np.size(trimmed_rows[current_start]))
+        best_call = np.where(option_quality == np.max(option_quality))[0][0]
+        best_calls_single.append(best_call)
 
-        current_start = current_end - 1 
-
+        best_calls_single = np.array(best_calls_single); qualities_single = np.array(qualities_single)
+    else:
+        best_calls_single = None
+        qualities_single = None
+        
     #Then spliced
     current_start = 0
     lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
+    best_calls_spliced = []; qualities_spliced = []
     for li, type in enumerate(hunt_types[:]):
         if type[0] == 'P':
             current_end = current_start + (type[1] + 1)*2 + 1
@@ -402,23 +450,101 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
 
         #Find rows to match
         target_rows = trimmed_rows[current_start:current_end]
+        notation = method_data[method_data['Name'] == methods_spliced[li][0]]['Interior Notation'].values[0]
 
         if li > 0:
             #Find options for new lead end
-            lead_end_options = find_leadend_options(test_rows[-2])
+            if method_data[method_data['Name'] == methods_spliced[li][0]]['Hunt Number'].values[0] == 1:
+                lead_end_options = find_leadend_options_single(allrows_spliced[-2], method_data[method_data['Name'] == methods_spliced[li][0]]['Stage'].values[0])
+            else:
+                print('More than one hunt bell... Not done this yet')
+
             option_quality = []
-            print(lead_end_options)
             for i in range(len(lead_end_options)):
                 test_rows = generate_rows(lead_end_options[i], notation)
                 option_quality.append(compare_set(target_rows, test_rows))
+            best_call = np.where(option_quality == np.max(option_quality))[0][0]
+            best_calls_spliced.append(best_call)
+            qualities_spliced.append(np.max(option_quality))
+            new_rows = generate_rows(lead_end_options[best_call], notation)
+            allrows_spliced = np.concatenate((allrows_spliced[:-1], new_rows), axis = 0)
+
         else:
             #print(methods_notspliced[0])
             notation = method_data[method_data['Name'] == methods_spliced[li][0]]['Interior Notation'].values[0]
             test_rows = generate_rows(lead_end_options[0], notation)
-
-            print(compare_set(target_rows, test_rows))
+            option_quality = compare_set(target_rows, test_rows)
+            allrows_spliced = test_rows
+            qualities_spliced.append(option_quality)
 
         current_start = current_end - 1 
+
+    #Then finish off by seeing if this can come into rounds with a call?
+    lead_end_options = find_leadend_options_single(allrows_spliced[-2], method_data[method_data['Name'] == methods_spliced[li][0]]['Stage'].values[0])
+    option_quality = []
+    for i in range(len(lead_end_options)):
+        same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
+        option_quality.append(same_count/np.size(trimmed_rows[current_start]))
+    best_call = np.where(option_quality == np.max(option_quality))[0][0]
+    best_calls_spliced.append(best_call)
+    best_calls_spliced = np.array(best_calls_spliced); qualities_spliced = np.array(qualities_spliced)
+    
+    if qualities_single is not None:
+        if np.sum(qualities_spliced) > np.sum(qualities_single):
+            return True, best_calls_spliced
+        else:
+            return False, best_calls_single
+    else:
+        return True, best_calls_spliced
+
+def check_lead_ends(methods, calls):
+    #Checks the plain leads against the method in the previous section, in case of a ballsed-up lead end (common enough to care about I think)
+
+    for mi, method in enumerate(methods):
+        if calls[mi] > 1:
+            #Is a bob. Just go with it and keep the same. It's probably fine. Or could check against the previous methods? Yeah.
+            if mi > 0:
+                not_old = method_data[method_data['Name'] == methods[mi-1][0]]['Place Notation'].values[0]
+                not_new = method_data[method_data['Name'] == method[0]]['Place Notation'].values[0]
+                if not_old == not_new:  #Is the same
+                    continue
+                not_old = not_old.rsplit(',', 1)[0]
+                not_new = not_new.rsplit(',', 1)[0]
+                if not_old != not_new:  #Is not -- could have spurious switch
+                    continue
+                methods[mi][0] = methods[mi-1][0]
+        else:
+            stage = method_data[method_data['Name'] == method[0]]['Stage'].values[0]
+
+            if stage == nbells:
+                notation_list = ['12', '1' + tostring_direct(nbells)]
+            else:
+                notation_list = ['12' + tostring_direct(nbells - 1), '1']
+
+            nots = method_data[method_data['Name'] == method[0]]['Place Notation'].values[0]
+            method_lead_end = nots.rsplit(',', 1)[-1]
+
+            #Determine if a swap is needed
+            if method_lead_end == notation_list[0]:
+                lead_type = 0
+            elif method_lead_end == notation_list[1]:
+                lead_type = 1
+            else:
+                lead_type = -1
+
+            if lead_type == 1 and calls[mi] == 0:
+                target_notation = nots.rsplit(',', 1)[0] + ',' + notation_list[1]
+                if len(method_data[method_data['Place Notation'] == target_notation]['Name'].values) > 0:
+                    method = method_data[method_data['Place Notation'] == target_notation]['Name'].values[0]
+                    methods[mi][0] = method
+            elif calls[mi] == 0 and lead_type == 1:
+                target_notation = nots.rsplit(',', 1)[0] + ',' + notation_list[0]
+                if len(method_data[method_data['Place Notation'] == target_notation]['Name'].values) > 0:
+                    method = method_data[method_data['Place Notation'] == target_notation]['Name'].values[0]
+                    methods[mi][0] = method
+            print(calls[mi], lead_type)
+
+    return methods
 
 hunt_types = find_method_types(trimmed_rows)
 
@@ -427,9 +553,16 @@ hunt_types = find_method_types(trimmed_rows)
 
 hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
 
-print('Not Spliced options')
-print(methods_notspliced)
-print('Spliced options')
-print(methods_spliced)
+spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
 
-find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+if spliced_flag:
+    methods = methods_spliced
+else:
+    methods = methods_notspliced
+print('Methods:', methods)
+print('Calls:', calls)
+
+if spliced_flag:
+    methods = check_lead_ends(methods, calls) 
+
+print('Methods check:', methods)
