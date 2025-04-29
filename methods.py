@@ -23,8 +23,10 @@ import re
 #raw_data = pd.read_csv('./striking_data/PB7_Brancepeth.csv')
 #raw_data = pd.read_csv('./striking_data/Little_Bob_Nics.csv')
 #raw_data = pd.read_csv('./striking_data/St_Clements_nics.csv')
-raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
-
+#raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
+#raw_data = pd.read_csv('./striking_data/stedman_nics.csv')
+#raw_data = pd.read_csv('./striking_data/Ossies_stedman.csv')
+#raw_data = pd.read_csv('./striking_data/leeds2.csv')
 
 method_data = pd.read_csv('./method_data/clean_methods.csv')
 
@@ -76,16 +78,63 @@ start_row, end_row = find_method_time(all_rows)
 
 trimmed_rows = all_rows[start_row:end_row+1]   #Includes all the changes we care about, rounds EITHER END inclusive
 
+def tostring(place):
+    if place < 9:
+        return str(place + 1)
+    if place == 9:
+        return '0'
+    if place == 10:
+        return 'E'
+    if place == 11:
+        return 'T'
+    if place == 12:
+        return 'A'
+    if place == 13:
+        return 'B'
+    if place == 14:
+        return 'C'
+    if place == 15:
+        return 'D'
+    if place > 15:
+        return 'X'
+        
+def find_place_notation(lead_rows):
+    #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
+    def appendstring(notation, places):
+
+        if len(places) < 1:
+            notation = notation + '-'
+        else:
+            if len(notation) > 0:
+                if notation[-1] != '-':
+                    notation = notation + '.'
+            for i in range(len(places)):
+                notation = notation + tostring(places[i])   #This needs updating for higher than 10
+        return notation
+
+    notation = ''
+    #Need a check here for bells which are stationary throughout (i.e. tenor behind)
+    nworking = nbells
+    for bell in range(nbells-1, -1, -1):
+        count = np.sum(lead_rows[:,bell] == bell + 1)/len(lead_rows)
+        if count > 0.75:
+            nworking -= 1
+    lead_rows = lead_rows[:,:nworking]
+    for ri in range(len(lead_rows)-1):
+        places = np.where(lead_rows[ri] == lead_rows[ri+1])[0]
+        notation = appendstring(notation, places)
+    return notation
+    
 #Find method types. Codes: P, T, S, X. Plain hunt, treble bob, stedman, respectively. X for can't figure it out
 
 def find_method_types(trimmed_rows):
+
     #Attempts to determine treble type. Want to be able to do spliced Plain/Little etc. ideally but that may be tricky.
     def treble_position(trimmed_rows):
         positions = np.zeros(len(trimmed_rows))
         for ri, row in enumerate(trimmed_rows):
             positions[ri] = int(np.where(row == 1)[0][0])
         return positions
-    #print(treble_position(trimmed_rows))
 
     def generate_treble_paths():
         #Create all treble hunt positions from 3 to 16. Both plain and treble bob if even.
@@ -105,47 +154,83 @@ def find_method_types(trimmed_rows):
     treble_path = treble_position(trimmed_rows)
     hunt_paths, bob_paths = generate_treble_paths()
 
+    def check_for_all_stedman(rows):
+        #Checks if the whole thing is Stedman, or if there is just a six of stemdan-like (if more than doubles)
+        if len(rows) < 6:
+            return False, 0
+        else:
+            notation = find_place_notation(rows)
+            split_notation = notation.split(".")
+            max_treble = 0
+            for swap in split_notation:
+                if len(swap) == 1:
+                    max_treble = max(max_treble, tonumber(swap))
+
+            if split_notation.count('1') > 0.3*len(split_notation) and split_notation.count('3') > 0.3*len(split_notation):
+                return True, max_treble
+            else:
+                return False, 0
+
     def determine_hunt_types(trimmed_rows):
         #Compares the treble positions against the hunt and bob paths and returns the most likely. Hopefully should be obvious...
         start_index = 0
         go = True
         treble_data = []
-        while go:
-            bestmatch = 0.
-            for pi, path in enumerate(hunt_paths):
-                if path is None:
-                    continue
-                if start_index + len(path) > len(treble_path):
-                    continue
-                match = sum(a == b for a, b in zip(treble_path[start_index:start_index + len(path)], path))/len(path)
-                if match > bestmatch:
-                    bestmatch = match
-                    code = 'P'
-                    treble_stage = pi
-            for pi, path in enumerate(bob_paths):
-                if path is None:
-                    continue
-                if start_index + len(path) > len(treble_path):
-                    continue
-                match = sum(a == b for a, b in zip(treble_path[start_index:start_index + len(path)], path))/len(path)
-                if match > bestmatch:
-                    bestmatch = match
-                    code = 'T'
-                    treble_stage = pi
-            if bestmatch < 0.6:   #This is very conservative... May well allow a lot of rubbish through but oh well
-                go = False
-            else:
-                treble_data.append([code, treble_stage])
-                if code == 'T':
-                    start_index = start_index + (treble_stage + 1)*4
-                elif code == 'P':
-                    start_index = start_index + (treble_stage + 1)*2
+        is_all_stedman, max_treble = check_for_all_stedman(trimmed_rows)
+        if is_all_stedman:
+            treble_data = [["S", max_treble - 1]]
+
+        if not is_all_stedman:
+            while go:
+                bestmatch = 0.
+                for pi, path in enumerate(hunt_paths):
+                    if path is None:
+                        continue
+                    if start_index + len(path) > len(treble_path):
+                        continue
+                    match = sum(a == b for a, b in zip(treble_path[start_index:start_index + len(path)], path))/len(path)
+                    if match > bestmatch:
+                        bestmatch = match
+                        code = 'P'
+                        treble_stage = pi
+                for pi, path in enumerate(bob_paths):
+                    if path is None:
+                        continue
+                    if start_index + len(path) > len(treble_path):
+                        continue
+                    match = sum(a == b for a, b in zip(treble_path[start_index:start_index + len(path)], path))/len(path)
+                    if match > bestmatch:
+                        bestmatch = match
+                        code = 'T'
+                        treble_stage = pi
+                if bestmatch < 0.6:   #This is very conservative... May well allow a lot of rubbish through but oh well
+                    #Check for a stedman here? Worth a go. Don't have any spliced to test against though
+                    if len(trimmed_rows[start_index:]) < 6:
+                        notation = find_place_notation(trimmed_rows[start_index:start_index + 7])
+                        split_notation = notation.split(".")
+                        max_treble = 0
+                        if split_notation.count('1') == 2 and split_notation.count('3') == 2:
+                            start_index = start_index + 6
+                            for swap in split_notation:
+                                if len(swap) == 1:
+                                    max_treble = max(max_treble, int(swap))
+                            treble_data.append(["S", max_treble - 1])
+
+                    go = False
+
                 else:
-                    return 'X'
+                    treble_data.append([code, treble_stage])
+                    if code == 'T':
+                        start_index = start_index + (treble_stage + 1)*4
+                    elif code == 'P':
+                        start_index = start_index + (treble_stage + 1)*2
+                    else:
+                        return 'X'
                 
         return treble_data
     
     hunt_types = determine_hunt_types(trimmed_rows)
+    print('Hunt types', hunt_types)
     return hunt_types
 
 def determine_methods(trimmed_rows, hunt_types):
@@ -154,53 +239,8 @@ def determine_methods(trimmed_rows, hunt_types):
     #Can be sped up by assuming it isn't spliced and then checking the rest
 
     #Returns two bits -- with method IDs and probabilities. Can leave the rest to be sorted out
-    def tostring(place):
-        if place < 9:
-            return str(place + 1)
-        if place == 9:
-            return '0'
-        if place == 10:
-            return 'E'
-        if place == 11:
-            return 'T'
-        if place == 12:
-            return 'A'
-        if place == 13:
-            return 'B'
-        if place == 14:
-            return 'C'
-        if place == 15:
-            return 'D'
-        if place > 15:
-            return 'X'
-        
-    def find_place_notation(lead_rows):
-        #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
-        def appendstring(notation, places):
 
-            if len(places) < 1:
-                notation = notation + '-'
-            else:
-                if len(notation) > 0:
-                    if notation[-1] != '-':
-                        notation = notation + '.'
-                for i in range(len(places)):
-                    notation = notation + tostring(places[i])   #This needs updating for higher than 10
-            return notation
 
-        notation = ''
-        #Need a check here for bells which are stationary throughout (i.e. tenor behind)
-        nworking = nbells
-        for bell in range(nbells-1, -1, -1):
-            count = np.sum(lead_rows[:,bell] == bell + 1)/len(lead_rows)
-            if count > 0.75:
-                nworking -= 1
-        lead_rows = lead_rows[:,:nworking]
-        for ri in range(len(lead_rows)-1):
-            places = np.where(lead_rows[ri] == lead_rows[ri+1])[0]
-            notation = appendstring(notation, places)
-        return notation
-    
     def determine_match(string1, string2):
         #Run through strings to see which is best. Bit awkward and horrid but meh. 
         split1 = re.split(r'(-)|\.', string1)
@@ -212,86 +252,141 @@ def determine_methods(trimmed_rows, hunt_types):
         match = sum(a == b for a, b in zip(split1, split2))/len(split1)
         return match
 
-    if  all(item == hunt_types[0] for item in hunt_types):
-        #This could theoretically be a single method, so try and look for one
-        sametype = True
-    else:
-        sametype = False
-
-    all_notations = []
-    current_start = 0
-    pbest = 0
-    for li, type in enumerate(hunt_types[:]):
-        #Look for all the same method
-        if type[0] == 'P':
-            current_end = current_start + (type[1] + 1)*2 + 1
-            lead_length =  (type[1] + 1)*2 
-        if type[0] == 'T':
-            current_end = current_start + (type[1] + 1)*4 + 1
-            lead_length =  (type[1] + 1)*4
-        bestmatch = 0.
-        lead_rows = trimmed_rows[current_start:current_end]
-        current_start = current_end - 1 
-        all_notations.append(find_place_notation(lead_rows))
-
-    if sametype:
-        possible_methods = method_data[method_data['Lead Length'] == lead_length]
-        possible_methods = possible_methods[possible_methods['Type'] == type[0]]
-        possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
-        possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
+    if len(hunt_types) == 1 and hunt_types[0][0] == "S":
+        #This is all stedman, so just do stedman things -- completely different! Determine the pattern of quicks and slows here, but not the composition.
+        #The next section *should* catch stedman quicks and slows like they're normal methods, and just insert into the composition if it's Stedman and Bristol or something
+        #Assuming nobody is stupid enough to spliced Stedman and Erin, the following should work:
+        print('Is entirely stedman, so do Stedman things, including funny starts.')
+        #Determine time of the first quick six (if any). Could be Erin of course
+        if len(trimmed_rows) < 24:   #Fewer than four sixes, stop being silly
+            return [],[],[]
         
+        spliced = []
         bestmatch = 0.
-        for pi, poss in enumerate(possible_notations):
-            match = 0
-            for li, type in enumerate(hunt_types[:]):
-                place_notation = all_notations[li]
-                match += determine_match(place_notation, poss)
-            match = match/len(hunt_types)
-            if match > bestmatch:
-                bestmatch = match
-                pbest = pi
-
-
-        #print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
-        notspliced = [possible_methods.iloc[pbest]['Name'],  bestmatch]
-    else:
-        notspliced = None
+        possible_methods = method_data[method_data['Lead Length'] == 12]
+        possible_methods = possible_methods[possible_methods['Type'] == "S"]
+        possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
+        possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Interior Notation']])
+        for start in range(12):  #Run through the possible start points of the quick six. Normal Stedman start is 9, Erin is 0
+            lead_rows = trimmed_rows[start:start + 13]
+            check_notation = find_place_notation(lead_rows)
+            for pi, poss in enumerate(possible_notations):
+                match = determine_match(check_notation, poss)
+                if match > bestmatch:
+                    bestmatch = match
+                    pbest = pi
+                    startbest = start
         
-    #Look for spliced leads (may as well always do this)
-    current_start = 0
-    spliced = []
-    for li, type in enumerate(hunt_types[:]):
-        pbest = 0
-        if type[0] == 'P':
-            current_end = current_start + (type[1] + 1)*2 + 1
-            lead_length =  (type[1] + 1)*2 
-        if type[0] == 'T':
-            current_end = current_start + (type[1] + 1)*4 + 1
-            lead_length =  (type[1] + 1)*4
+        spliced.append([possible_methods.iloc[pbest]['Name'] + ' ' + str(startbest), bestmatch])
+        
+        return hunt_types, None, spliced
 
-        findnewdata = False
-        if li == 0:
-            findnewdata = True
+    else:
+        if all(item == hunt_types[0] for item in hunt_types):
+            #This could theoretically be a single method, so try and look for one
+            sametype = True
         else:
-            if hunt_types[li] != hunt_types[li-1]:
-                findnewdata = True
+            sametype = False
 
-        if findnewdata:
+        all_notations = []
+        current_start = 0
+        pbest = 0
+        for li, type in enumerate(hunt_types[:]):
+            #Look for all the same method
+            if type[0] == 'P':
+                current_end = current_start + (type[1] + 1)*2 + 1
+                lead_length =  (type[1] + 1)*2 
+            elif type[0] == 'T':
+                current_end = current_start + (type[1] + 1)*4 + 1
+                lead_length =  (type[1] + 1)*4
+            elif type[0] == 'S':
+                current_end = current_start + 6 + 1
+                lead_length =  6
+            bestmatch = 0.
+            lead_rows = trimmed_rows[current_start:current_end]
+            current_start = current_end - 1 
+            all_notations.append(find_place_notation(lead_rows))
+
+        if sametype:
             possible_methods = method_data[method_data['Lead Length'] == lead_length]
             possible_methods = possible_methods[possible_methods['Type'] == type[0]]
             possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
             possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
+            
+            bestmatch = 0.
+            for pi, poss in enumerate(possible_notations):
+                match = 0
+                for li, type in enumerate(hunt_types[:]):
+                    place_notation = all_notations[li]
+                    match += determine_match(place_notation, poss)
+                match = match/len(hunt_types)
+                if match > bestmatch:
+                    bestmatch = match
+                    pbest = pi
 
-        place_notation = all_notations[li]
-        bestmatch = 0.
-        for pi, poss in enumerate(possible_notations):
-            match = determine_match(place_notation, poss)
-            if match > bestmatch:
-                bestmatch = match
-                pbest = pi
-        #print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
-        spliced.append([possible_methods.iloc[pbest]['Name'], bestmatch])
+
+            #print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
+            notspliced = [possible_methods.iloc[pbest]['Name'],  bestmatch]
+        else:
+            notspliced = None
+            
+        #Look for spliced leads (may as well always do this)
+        current_start = 0
+        spliced = []
+        for li, type in enumerate(hunt_types[:]):
+            pbest = 0
+            if type[0] == 'P':
+                current_end = current_start + (type[1] + 1)*2 + 1
+                lead_length =  (type[1] + 1)*2 
+            if type[0] == 'T':
+                current_end = current_start + (type[1] + 1)*4 + 1
+                lead_length =  (type[1] + 1)*4
+
+            findnewdata = False
+            if li == 0:
+                findnewdata = True
+            else:
+                if hunt_types[li] != hunt_types[li-1]:
+                    findnewdata = True
+
+            if findnewdata:
+                possible_methods = method_data[method_data['Lead Length'] == lead_length]
+                possible_methods = possible_methods[possible_methods['Type'] == type[0]]
+                possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
+                possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
+
+            place_notation = all_notations[li]
+            bestmatch = 0.
+            for pi, poss in enumerate(possible_notations):
+                match = determine_match(place_notation, poss)
+                if match > bestmatch:
+                    bestmatch = match
+                    pbest = pi
+            #print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
+            spliced.append([possible_methods.iloc[pbest]['Name'], bestmatch])
+
     return hunt_types, notspliced, spliced
+
+def tonumber(string):
+    if string.isnumeric():
+        if int(string) > 0:
+            return int(string)
+        else:
+            return 10
+    elif string == 'E':
+        return 11
+    elif string == 'T':
+        return 12
+    elif string == 'A':
+        return 13
+    elif string == 'B':
+        return 14
+    elif string == 'C':
+        return 15
+    elif string == 'D':
+        return 16
+    else:
+        raise Exception('Too many bells')
 
 def tostring_direct(place):
     #Returns the direct string of a place. Used sometimes...
@@ -517,10 +612,10 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         current_start = current_end - 1 
 
     #Then finish off by seeing if this can come into rounds with a call?
-    if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
-        lead_end_options = find_leadend_options_single(allrows_single[-2], method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0])
+    if method_data[method_data['Name'] == methods_spliced[-1][0]]['Hunt Number'].values[0] == 1:
+        lead_end_options = find_leadend_options_single(allrows_spliced[-2], method_data[method_data['Name'] == methods_spliced[-1][0]]['Stage'].values[0])
     else:
-        lead_end_options = find_leadend_options_twin(allrows_single, method_data[method_data['Name'] == methods_notspliced[0]]['Stage'].values[0],notation )
+        lead_end_options = find_leadend_options_twin(allrows_spliced, method_data[method_data['Name'] == methods_spliced[-1][0]]['Stage'].values[0],notation )
 
     option_quality = []
     for i in range(len(lead_end_options)):
@@ -590,19 +685,30 @@ def check_lead_ends(methods, calls):
 
 hunt_types = find_method_types(trimmed_rows)
 
-#At this point check for Stedman
-hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
+if len(hunt_types) == 0:
+    methods = []
 
-spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
-
-if spliced_flag:
-    methods = methods_spliced
 else:
-    methods = [methods_notspliced]
-print('Methods:', methods)
-print('Calls:', calls)
+    #At this point check for Stedman
+    hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
 
-if spliced_flag:
-    methods = check_lead_ends(methods, calls) 
+    if len(methods_spliced) == 0:
+        methods = []
+    else:
+        if len(hunt_types) == 1 and hunt_types[0][0] == "S":   #Stedman behaves differently so do need a different thing here entirely. Will do later...
+            spliced_flag, calls = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+        else:
+            spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
 
-print('Methods check:', methods)
+        if spliced_flag:
+            methods = methods_spliced
+        else:
+            methods = [methods_notspliced]
+        print('Methods:', methods)
+        print('Calls:', calls)
+
+        if spliced_flag:
+            #In spliced, check there aren't unnecessary changes of method name due to bobs happening
+            methods = check_lead_ends(methods, calls) 
+
+        print('Methods check:', methods)

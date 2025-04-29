@@ -14,6 +14,59 @@ root = tree.getroot()
 
 method_sets = root.findall('.//mx:methodSet', ns)
 
+def tostring(place):
+    if place < 9:
+        return str(place + 1)
+    if place == 9:
+        return '0'
+    if place == 10:
+        return 'E'
+    if place == 11:
+        return 'T'
+    if place == 12:
+        return 'A'
+    if place == 13:
+        return 'B'
+    if place == 14:
+        return 'C'
+    if place == 15:
+        return 'D'
+    if place > 15:
+        return 'X'
+
+def add_stedmans(method_data):
+    #Doubles first. This looks a bit funny but I'm pretty sure is the best way. 
+    lead_length = 6
+    treble_type = "S"
+    nhunts = 0
+    stage = 5
+    name = "Stedman Doubles QS"
+    interior_notation = '3.1.5.3.1,3'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    name = "Stedman Doubles SQ"
+    interior_notation = '1.3.5.3.1,1'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    name = "Stedman Doubles"
+    interior_notation = '1.3.5.3.1.3.1.3.5.1.3,1'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    titles = ["Triples", "Caters", "Cinques", "Thirteen", "Fifteen"]
+    stages = [7,9,11,13,15]
+    for si, stage in enumerate(stages):
+        title = titles[si]
+        name = "Stedman " + title + " Quick"
+        interior_notation = '1.3.1.3.1,' + tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        name = "Stedman " + title + " Slow"
+        interior_notation = '3.1.3.1.3,' + tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        name = "Stedman " + title
+        interior_notation = '1.3.1.3.1.' + tostring(stage-1) + '.3.1.3.1.3,'+ tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        name = "Erin " + title
+        interior_notation = '1.3.1.3.1.' + tostring(stage-1) + '.1.3.1.3.1,'+ tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    return method_data
+
 def get_interior(place_notation):
     #Gets rid of the lead end and just flips the place notation backwards. All these methods are palindromic so that's fine
     split = place_notation.rsplit(',', 1)
@@ -108,25 +161,6 @@ for method_set in method_sets:
     if not (nhunts == '1' or nhunts == '2'):
         continue
 
-    def tostring(place):
-        if place < 9:
-            return str(place + 1)
-        if place == 9:
-            return '0'
-        if place == 10:
-            return 'E'
-        if place == 11:
-            return 'T'
-        if place == 12:
-            return 'A'
-        if place == 13:
-            return 'B'
-        if place == 14:
-            return 'C'
-        if place == 15:
-            return 'D'
-        if place > 15:
-            return 'X'
 
     def check_leadend(notation, stage, nhunts):
         #Return true if the lead end is a normal one
@@ -166,6 +200,12 @@ for method_set in method_sets:
         
         interior_notation = get_interior(method.find('mx:notation', ns).text)
         method_data.append({'Name': method.find('mx:title', ns).text, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': method.find('mx:notation', ns).text, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+
+#Add on Stedman things here. As bobs/singles happen at two points best to treat each six separately. Have Stedman Slow Triples, Stedman Quick Caters etc.
+#Doubles is special but does actually make more sense as you don't need things to bodge at either end
+method_data = add_stedmans(method_data)
+
+
 
 df = pd.DataFrame(method_data)
 df.to_csv('method_data/clean_methods.csv', index=False, mode = 'w')
