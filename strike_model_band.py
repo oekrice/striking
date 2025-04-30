@@ -66,7 +66,7 @@ def find_predicted_gaps_band(all_ideal_gaps, nbells, nrows, ngaps):
     return all_gaps
 
 @st.cache_data
-def find_ideal_times_band(alltimes, nbells, ncount = 24, ngaps = 6):
+def find_ideal_times_band(alltimes, nbells, ncount = 24, ngaps = 6, key = -1):
 
     alltimes = np.array(alltimes)
 

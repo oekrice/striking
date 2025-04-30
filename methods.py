@@ -35,12 +35,12 @@ import streamlit as st
 
 def find_all_rows(raw_data):
     #Hopefully this is in a decent enough format
-    nbells = np.max(raw_data["Bell No"])
+    nbells = np.max(raw_data)
     nrows = int(len(raw_data)/nbells)
     allrows = np.zeros((nrows, nbells))
 
     for ri in range(nrows):
-        allrows[ri] = raw_data["Bell No"][ri*nbells:(ri+1)*nbells]
+        allrows[ri] = raw_data[ri*nbells:(ri+1)*nbells]
     
     return allrows.astype('int')
 
@@ -201,7 +201,7 @@ def find_method_types(trimmed_rows):
                         treble_stage = pi
                 if bestmatch < 0.6:   #This is very conservative... May well allow a lot of rubbish through but oh well
                     #Check for a stedman here? Worth a go. Don't have any spliced to test against though
-                    if len(trimmed_rows[start_index:]) < 6:
+                    if len(trimmed_rows[start_index:]) < 6 and len(trimmed_rows[start_index:start_index + 7]) > 4:
                         notation = find_place_notation(trimmed_rows[start_index:start_index + 7])
                         split_notation = notation.split(".")
                         max_treble = 0
@@ -222,7 +222,6 @@ def find_method_types(trimmed_rows):
                         start_index = start_index + (treble_stage + 1)*2
                     else:
                         return 'X'
-                
         return treble_data
     
     hunt_types = determine_hunt_types(trimmed_rows)
@@ -353,6 +352,7 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
             bestmatch = 0.
             for pi, poss in enumerate(possible_notations):
                 match = determine_match(place_notation, poss)
+
                 if match > bestmatch:
                     bestmatch = match
                     pbest = pi
@@ -693,6 +693,8 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             target_rows = trimmed_rows[current_start:current_end]
             notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
 
+            if len(target_rows) <= lead_length:
+                break
             if li > 0:
                 #Find options for new lead end
                 if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 1:
@@ -760,6 +762,8 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         #Find rows to match
         target_rows = trimmed_rows[current_start:current_end]
         notation = method_data[method_data['Name'] == methods_spliced[li][0]]['Interior Notation'].values[0]
+        if len(target_rows) <= lead_length:
+            break
 
         if li > 0:
             #Find options for new lead end
@@ -848,7 +852,7 @@ def check_lead_ends(methods, calls, nbells, method_data):
             method_lead_end = nots.rsplit(',', 1)[-1]
 
             if calls[mi] == 1 and method[0][:9] == 'Plain Bob':
-                methods[mi][0] = 'Plain Hunt'
+                methods[mi][0] = 'Plain Hunt' + ' ' + method[0].rsplit(' ')[-1]
             #Determine if a swap is needed
             if method_lead_end == notation_list[0]:
                 lead_type = 0
@@ -887,7 +891,9 @@ def find_method_things(raw_data):
 
     if len(hunt_types) == 0:
         methods = []
-
+        calls = []
+        allrows = all_rows
+        count = 1.
     else:
         hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types, method_data)
 
@@ -905,7 +911,7 @@ def find_method_things(raw_data):
             else:
                 methods = [methods_notspliced]
 
-            if spliced_flag and len(hunt_types) != 1:
+            if spliced_flag and len(hunt_types) != 1 or methods[0][0][:9] == 'Plain Bob':
                 #In spliced, check there aren't unnecessary changes of method name due to bobs happening
                 methods = check_lead_ends(methods, calls, nbells, method_data) 
             

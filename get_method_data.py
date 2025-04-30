@@ -198,7 +198,7 @@ for method_set in method_sets:
     for method in methods:
         if method.find('mx:symmetry', ns) is None:
             continue
-        if not method.find('mx:symmetry', ns).text == 'palindromic':
+        if not method.find('mx:symmetry', ns).text == 'palindromic' and not method.find('mx:symmetry', ns).text == 'palindromic double rotational':
             continue
         if method.find('mx:title', ns) is None:
             continue

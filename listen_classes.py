@@ -22,7 +22,6 @@ class audio_data():
         raw_file.name, ext = os.path.splitext(raw_file.name)
         raw_file.name = re.sub(r'[^\w\-]', '_', raw_file.name)
         raw_file.name = raw_file.name + ext
-        print(raw_file.name)
 
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 

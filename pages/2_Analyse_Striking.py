@@ -107,7 +107,7 @@ if 'current_touch' not in st.session_state:
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 if "rhythm_variation_time" not in st.session_state:
-    st.session_state.rhythm_variation_time = 48
+    st.session_state.rhythm_variation_time = 4
 if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 10
     
@@ -130,6 +130,10 @@ if len(touch_titles) == 0:
     st.stop()
 
 selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
+
+if selection is None:
+    st.stop()
+
 st.session_state.current_touch = touch_titles.index(selection)
 selected_title = selection
 
@@ -186,7 +190,7 @@ if st.session_state.current_touch >= 0:
         allbells = np.array(allbells)
         allcerts_save = np.array(allcerts_save)
         orders = np.array(orders)
-        
+
         raw_data = pd.DataFrame({'Bell No': allbells, 'Actual Time': allstrikes, 'Confidence': allcerts_save})
 
         raw_actuals = raw_data["Actual Time"]
@@ -199,47 +203,58 @@ if st.session_state.current_touch >= 0:
     st.method_message = st.empty()
     st.method_message.write("Figuring out methods and composition...")
 
-    methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data)
-    nchanges = len(allrows_correct) - 1
-    end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
+    methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
 
-    if len(methods) == 1:   #Single method
-        method_title = methods[0][0]
-        if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
-            method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
-            lead_length = 12
-        else:
-            lead_length = 4*int(hunt_types[0][1] + 1)
+    if len(methods) > 0:
+        nchanges = len(allrows_correct) - 1
+        end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
 
-    else:   #Spliced methods
-        stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
-        stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
-        if len(set(stagetypes)) == 1:
-            method_title = "Spliced " + stagetypes[0]
-        elif len(set(stages)) == 1:
-            method_title = "Spliced " + stages[0]
-        else:
-            method_title = "Spliced"
-        lead_length = 2*int(hunt_types[0][1] + 1)
+        if len(methods) == 1:   #Single method
+            method_title = methods[0][0]
+            if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+                method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+                lead_length = 12
+            else:
+                lead_length = 4*int(hunt_types[0][1] + 1)
 
-    st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+        else:   #Spliced methods
+            stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+            stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+            if len(set(stagetypes)) == 1:
+                method_title = "Spliced " + stagetypes[0]
+            elif len(set(stages)) == 1:
+                method_title = "Spliced " + stages[0]
+            else:
+                method_title = "Spliced"
+            lead_length = 2*int(hunt_types[0][1] + 1)
+
+        st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+    else:
+        st.method_message.write("**No method detected**")
+        start_row = 0; end_row = len(allrows_correct)
+        lead_length = 24
 
     if "Individual Model" not in  raw_data.columns.tolist():
         #st.write(len(raw_data['Actual Time'])//nbells)
-        count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
-        ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
+        count_test = st.session_state.rhythm_variation_time*nbells; gap_test = st.session_state.handstroke_gap_variation_time
+        ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test, key = st.session_state.current_touch)
         raw_data['Individual Model'] = ideal_times
         existing_models.append('Individual Model')
 
-    
     if "Team Model" not in  raw_data.columns.tolist():
         #st.write(len(raw_data['Actual Time'])//nbells)
-        count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
-        ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test)
+        count_test = st.session_state.rhythm_variation_time*nbells; gap_test = st.session_state.handstroke_gap_variation_time
+        ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test, key = st.session_state.current_touch)
         raw_data['Team Model'] = ideal_times
         existing_models.append('Team Model')
     
-    
+    if "Corrected Bells" not in  raw_data.columns.tolist():
+        #Add the correct order the bells should be in, based on the method analysis
+        corrected_order = raw_data["Bell No"].values.copy()  #The original order
+        start_index = start_row*nbells
+        corrected_order[start_index:start_index + np.size(allrows_correct)] = np.ravel(allrows_correct)
+        raw_data["Corrected Bells"] = corrected_order
+        
     if "Metronomic Model" not in  raw_data.columns.tolist():
         @st.cache_data
         def find_metronomic(raw_data):
@@ -259,7 +274,6 @@ if st.session_state.current_touch >= 0:
             raw_data['Metronomic Model'] = all_metros
             existing_models.append('Metronomic Model')
     
-    
     if len(existing_models) > 0:
                 
         selection = st.selectbox("Select striking model:", options = existing_models, index = existing_models.index("Team Model"))   #Can set default for this later?
@@ -267,6 +281,7 @@ if st.session_state.current_touch >= 0:
         #st.write(raw_data["Actual Time"][0:100:12])
         raw_target = np.array(raw_data[selection])
         raw_bells = np.array(raw_data["Bell No"])
+        correct_bells = np.array(raw_data["Corrected Bells"])
         #Plot blue line
         nstrikes = len(raw_actuals)
         nrows = int(nstrikes//nbells)
@@ -275,19 +290,27 @@ if st.session_state.current_touch >= 0:
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
                 st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
-                st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
-                ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
+                st.session_state.rhythm_variation_time = rhythm_variation_time
+                ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
+                if "Individual Model" not in  raw_data.columns.tolist():
+                    existing_models.append('Individual Model')
+
                 raw_data['Individual Model'] = ideal_times
-    
+
             if selection == "Team Model":
+
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
                 st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
-                st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
-                ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
+                st.session_state.rhythm_variation_time = rhythm_variation_time
+                ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
+                if "Team Model" not in  raw_data.columns.tolist():
+                    existing_models.append('Team Model')
+                
                 raw_data['Team Model'] = ideal_times
                 
             remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats?", value = True)
             remove_confidence = st.checkbox("Remove not-confident strike times from the stats?", value = True)
+            use_method_info = st.checkbox("Use presumed composition to identify correct times?", value = True)
     
             min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(start_row+1, end_row), format = "%d", step = 2, key = 300 + st.session_state.current_touch)
 
@@ -306,13 +329,18 @@ if st.session_state.current_touch >= 0:
 
         time_errors = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
 
-        
+
         for plot_id in range(3):
             for bell in range(1,nbells+1):#nbells):
                 
                 bellstrikes = np.where(raw_bells == bell)[0]
+                targetstrikes = np.where(correct_bells == bell)[0]
 
-                errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+                if use_method_info:
+                    errors = np.array(raw_actuals[bellstrikes] - raw_target[targetstrikes])
+                else:
+                    errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+
                 confs = np.array(raw_data["Confidence"][bellstrikes])
                 
                 time_errors[bell-1, :] = errors
@@ -333,8 +361,6 @@ if st.session_state.current_touch >= 0:
                 maxlim = cadence*0.75
                 minlim = -cadence*0.75
     
-
-
                 #Trim for the appropriate stroke
                 if plot_id == 1:
                     errors = errors[::2]
@@ -363,9 +389,17 @@ if st.session_state.current_touch >= 0:
                 alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
             
         titles = ['All blows', 'Handstrokes', 'Backstrokes']
-          
+
+        #print('')
+        #print(use_method_info)
+        #print('Raw Team', np.sum(raw_data['Team Model']))
+        #print('Actuals', np.sum(raw_actuals))
+        #print('Target', np.sum(raw_target))
+        #print('Errors', np.sum(time_errors))
+        #print('SD', np.mean(alldiags[2,2,:]))
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
+        
         #Want error through time for each bell, and do as a snazzy plot?
         @st.cache_data
         def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth):
@@ -470,6 +504,8 @@ if st.session_state.current_touch >= 0:
             nplotsk = min(nplotsk, 3)
             min_rows_per_plot = int(nrows_plot/nplotsk) + 2
             rows_per_plot = int(np.ceil(min_rows_per_plot / lead_length) * lead_length)
+
+            nplotsk = int(np.ceil((nrows_plot-1)/rows_per_plot))
             #Either plot lines or nmbers -- but guides will matter for that...
             dotext = True
 
@@ -729,7 +765,7 @@ if st.session_state.current_touch >= 0:
         csv = convert_for_download(raw_data)
         if st.session_state.current_touch > -1 and len(raw_titles) > 0:
             st.download_button("Download analysis to device as .csv", csv, file_name = raw_titles[st.session_state.current_touch] + '.csv', mime="text/csv")
-
+        
             
             
             

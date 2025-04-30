@@ -344,7 +344,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     st.write("Audio parameters:")
     tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall:", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
+    overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
     
     rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(45.0), format = "%ds")
     
@@ -381,9 +381,9 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             if st.session_state.reinforce_frequency_data is not None:
                 toprint = st.session_state.reinforce_frequency_data[2]
                 c = find_colour(toprint)
-                st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % (c, 100*toprint))
+                st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
             else:
-                st.quality_log.write('Best yet frequency match = :%s[%.1f%%]' % ('red', 0.0))
+                st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % ('red', 0.0))
         
             
             st.current_log.write('Detecting ringing...')
@@ -498,10 +498,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         c = find_colour(np.mean(st.session_state.allcerts))
 
         st.analysis_sublog2.write('**%d rows found with average confidence :%s[%.1f%%]**' % (len(st.session_state.allstrikes[0]), c,  100*np.mean(st.session_state.allcerts)))
-        #st.write(st.session_state.handstroke_first, len(st.session_state.allstrikes[0]))
-        #st.write(st.session_state.allstrikes[:,:2])
-        #st.write(st.session_state.allstrikes[:,-2:])
-        #st.write(st.session_state.handstroke_first)
+
         #Judge if these frequencies are fine
         goodenough = True
         if np.mean(st.session_state.allcerts) < 0.95:
@@ -526,6 +523,43 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         if st.session_state.tower_name is None:
             st.session_state.tower_name = "Unknown Tower"
 
+        allbells = []
+        allstrikes = []
+        yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
+        orders = []
+        for row in range(len(st.session_state.allstrikes[0])):
+            order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,row], yvalues), reverse = False)])
+            allstrikes = allstrikes + sorted((st.session_state.allstrikes[:,row]).tolist())
+            allbells = allbells + order.tolist()
+            orders.append(order)
+        allstrikes = 1000*np.array(allstrikes)*0.01
+        allbells = np.array(allbells)
+        orders = np.array(orders)
+                
+        raw_data = pd.DataFrame({'Bell No': allbells, 'Actual Time': allstrikes})
+        methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data)
+        if len(methods) > 0:
+            nchanges = len(allrows_correct) - 1
+
+            if len(methods) == 1:   #Single method
+                method_title = methods[0][0]
+                if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+                    method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+
+            else:   #Spliced methods
+                stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+                stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+                if len(set(stagetypes)) == 1:
+                    method_title = "Spliced " + stagetypes[0]
+                elif len(set(stages)) == 1:
+                    method_title = "Spliced " + stages[0]
+                else:
+                    method_title = "Spliced"
+                lead_length = 2*int(hunt_types[0][1] + 1)
+            st.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+        else:
+            st.write("**No method detected**")
+            start_row = 0; end_row = len(allrows_correct)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         if not st.session_state.incache:
             if st.button("Save this striking data to the cache for analysis"):
@@ -554,6 +588,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 st.rerun()
         else:
             st.page_link("pages/2_Analyse_Striking.py", label = "Analyse this striking", icon = "📈")
+
 
         if len(st.session_state.cached_strikes) == 1:
             st.write('%d set of striking data currently in the cache - view using the tab on the left or the link above' % len(st.session_state.cached_strikes))
