@@ -310,7 +310,6 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
 
-
     if st.session_state.trimmed_signal is not None:
         st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
         st.write('Trimmed audio length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
@@ -536,8 +535,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         allbells = np.array(allbells)
         orders = np.array(orders)
                 
-        raw_data = pd.DataFrame({'Bell No': allbells, 'Actual Time': allstrikes})
-        methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data)
+        methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(allbells)
         if len(methods) > 0:
             nchanges = len(allrows_correct) - 1
 
