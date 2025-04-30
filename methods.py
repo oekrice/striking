@@ -24,9 +24,12 @@ import re
 #raw_data = pd.read_csv('./striking_data/Little_Bob_Nics.csv')
 #raw_data = pd.read_csv('./striking_data/St_Clements_nics.csv')
 #raw_data = pd.read_csv('./striking_data/Spliced_nics.csv')
+#raw_data = pd.read_csv('./striking_data/Horbury.csv')
 #raw_data = pd.read_csv('./striking_data/stedman_nics.csv')
 #raw_data = pd.read_csv('./striking_data/Ossies_stedman.csv')
+#raw_data = pd.read_csv('./striking_data/swindon_caters.csv')
 #raw_data = pd.read_csv('./striking_data/leeds2.csv')
+#raw_data = pd.read_csv('./striking_data/leeds1.csv')
 
 method_data = pd.read_csv('./method_data/clean_methods.csv')
 
@@ -44,10 +47,7 @@ def find_all_rows(raw_data):
 
 def find_method_time(all_rows):
     #Finds the longest time away from rounds, outputs start and finish
-    change = False
-    rounds_time = 0
-    notrounds_time = 0
-    current_best = 0; current_start = 0
+    current_best = 0
     start = 0
     end  = 0
     isrounds = np.zeros(len(all_rows))
@@ -240,7 +240,6 @@ def determine_methods(trimmed_rows, hunt_types):
 
     #Returns two bits -- with method IDs and probabilities. Can leave the rest to be sorted out
 
-
     def determine_match(string1, string2):
         #Run through strings to see which is best. Bit awkward and horrid but meh. 
         split1 = re.split(r'(-)|\.', string1)
@@ -256,17 +255,16 @@ def determine_methods(trimmed_rows, hunt_types):
         #This is all stedman, so just do stedman things -- completely different! Determine the pattern of quicks and slows here, but not the composition.
         #The next section *should* catch stedman quicks and slows like they're normal methods, and just insert into the composition if it's Stedman and Bristol or something
         #Assuming nobody is stupid enough to spliced Stedman and Erin, the following should work:
-        print('Is entirely stedman, so do Stedman things, including funny starts.')
         #Determine time of the first quick six (if any). Could be Erin of course
         if len(trimmed_rows) < 24:   #Fewer than four sixes, stop being silly
-            return [],[],[]
+            return None, None, None
         
         spliced = []
         bestmatch = 0.
         possible_methods = method_data[method_data['Lead Length'] == 12]
         possible_methods = possible_methods[possible_methods['Type'] == "S"]
         possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
-        possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Interior Notation']])
+        possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Place Notation']])
         for start in range(12):  #Run through the possible start points of the quick six. Normal Stedman start is 9, Erin is 0
             lead_rows = trimmed_rows[start:start + 13]
             check_notation = find_place_notation(lead_rows)
@@ -277,13 +275,13 @@ def determine_methods(trimmed_rows, hunt_types):
                     pbest = pi
                     startbest = start
         
-        spliced.append([possible_methods.iloc[pbest]['Name'] + ' ' + str(startbest), bestmatch])
+        spliced.append([possible_methods.iloc[pbest]['Name'] + ' Start ' + str(startbest), bestmatch])
         
         return hunt_types, None, spliced
 
     else:
         if all(item == hunt_types[0] for item in hunt_types):
-            #This could theoretically be a single method, so try and look for one
+            #This could theoretically be a single method, so try to look for one
             sametype = True
         else:
             sametype = False
@@ -324,7 +322,6 @@ def determine_methods(trimmed_rows, hunt_types):
                     bestmatch = match
                     pbest = pi
 
-
             #print('Overall', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'])
             notspliced = [possible_methods.iloc[pbest]['Name'],  bestmatch]
         else:
@@ -362,7 +359,6 @@ def determine_methods(trimmed_rows, hunt_types):
                 if match > bestmatch:
                     bestmatch = match
                     pbest = pi
-            #print('Lead', li, round(bestmatch*100, 2), '%  match', possible_methods.iloc[pbest]['Name'], place_notation)
             spliced.append([possible_methods.iloc[pbest]['Name'], bestmatch])
 
     return hunt_types, notspliced, spliced
@@ -408,6 +404,176 @@ def tostring_direct(place):
         return 'D'
     if place > 15:
         return 'X'
+
+def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
+    #Finds a Stedman composition. Fairly self-explanatory. The methods_spliced shows how many blows until the first complete slow six (3 for normal stedman start)
+
+    def generate_rows(first_change, place_notation):
+        #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
+        notation_list = re.split(r'(\-|\.)', place_notation)
+        notation_list = [i for i in notation_list if i not in ['','.']]
+        newrows = [first_change]
+        for i, swap in enumerate(notation_list):
+            nextrow = newrows[-1].copy()
+            if swap == '-':  #Swap all places
+                nextrow[::2] = newrows[-1][1::2]
+                nextrow[1::2] = newrows[-1][::2]
+            else:
+                place = 0; not_place = 0
+                while place < len(first_change) - 1:
+                    if not_place < len(swap):
+                        if swap[not_place] == tostring_direct(place + 1):   #This one is the same
+                            nextrow[place] = newrows[-1][place]
+                            place += 1; not_place += 1
+                        else:
+                            nextrow[place] = newrows[-1].copy()[place + 1]
+                            nextrow[place + 1] = newrows[-1].copy()[place]
+                            place += 2
+                    else:   #This one is not -- change it
+                        nextrow[place] = newrows[-1].copy()[place + 1]
+                        nextrow[place + 1] = newrows[-1].copy()[place]
+                        place += 2
+            newrows.append(nextrow)
+        return np.array(newrows)
+
+    def find_leadend_options_stedman(previous_change, stage):
+        #This one is for single-hunt methods where the call affects one change at the lead end itself
+        #Outputs options, with PP BB SS near and far (should be 6 or thereabouts)
+        nbells = len(previous_change)
+        if nbells > 6:
+            notation_list = [tostring_direct(nbells - 1) + tostring_direct(nbells), tostring_direct(nbells - 3) + tostring_direct(nbells), tostring_direct(nbells - 3) + tostring_direct(nbells - 2) + tostring_direct(nbells - 1) + tostring_direct(nbells)]
+        else:
+            notation_list = ['3', '3', '345']
+        options = []
+        for i, swap in enumerate(notation_list):
+            nextrow = previous_change.copy()
+            if swap == '-':  #Swap all places
+                nextrow[::2] = previous_change[1::2]
+                nextrow[1::2] = previous_change[::2]
+            else:
+                place = 0; not_place = 0
+                while place < len(previous_change) - 1:
+                    if not_place < len(swap):
+                        if swap[not_place] == tostring_direct(place + 1):   #This one is the same
+                            nextrow[place] = previous_change[place]
+                            place += 1; not_place += 1
+                        else:
+                            nextrow[place] = previous_change.copy()[place + 1]
+                            nextrow[place + 1] = previous_change.copy()[place]
+                            place += 2
+                    else:   #This one is not -- change it
+                        nextrow[place] = previous_change.copy()[place + 1]
+                        nextrow[place + 1] = previous_change.copy()[place]
+                        place += 2
+
+            options.append(nextrow)
+        return np.array(options)
+
+    def compare_set(target_rows, test_rows):
+        same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
+        return same_count/np.size(target_rows)
+
+    #Establish first few changes, based on the number (allowing for funny starts)
+    is_erin = methods_spliced[0][0][:4] == "Erin" #If erin, only slow sixes
+    start_offset = int(methods_spliced[0][0].rsplit(' ', 1)[-1])
+    is_quick = False #This should alternate between the sixes if necessary
+    if not is_erin and start_offset > 0 and start_offset < 7:
+        is_quick = True
+
+    if not is_erin:
+        quick_title = methods_spliced[0][0].rsplit(' ',2)[0] + " Quick"
+        slow_title = methods_spliced[0][0].rsplit(' ',2)[0] + " Slow"
+
+        quick_pn = method_data[method_data['Name'] == quick_title]['Interior Notation'].values[0]
+        slow_pn = method_data[method_data['Name'] == slow_title]['Interior Notation'].values[0]
+    else:
+        slow_title = methods_spliced[0][0].rsplit(' ',2)[0] + " Slow"
+        slow_pn = method_data[method_data['Name'] == slow_title]['Interior Notation'].values[0]
+
+    lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
+
+    nchanges_start = (start_offset)%6
+
+    best_calls_spliced = []; qualities_spliced = []
+
+    if start_offset%6 > 0:
+        if is_quick:
+            test_rows = generate_rows(lead_end_options[0], quick_pn[-nchanges_start*2:])
+        else:
+            test_rows = generate_rows(lead_end_options[0], slow_pn[-nchanges_start*2:])
+    else: #Starts at the beginning of the six (probably won't happen as this is a backstroke)
+        if is_quick:
+            test_rows = generate_rows(lead_end_options[0], quick_pn)
+        else:
+            test_rows = generate_rows(lead_end_options[0], slow_pn)
+
+
+    allrows_spliced = test_rows
+    target_rows = trimmed_rows[:len(test_rows)]
+
+    option_quality = compare_set(target_rows, test_rows)
+    qualities_spliced.append(option_quality)
+
+    current_start = len(test_rows) - 1
+    current_end = current_start + 7
+
+    while current_end < len(trimmed_rows) + 1:
+        if not is_erin:
+            is_quick = not is_quick
+        #Find rows to match
+        target_rows = trimmed_rows[current_start:current_end]
+
+        #Find options for new lead end
+        lead_end_options = find_leadend_options_stedman(allrows_spliced[-2], nbells - 1)
+        option_quality = []
+        for i in range(len(lead_end_options)):
+            if is_quick:
+                test_rows = generate_rows(lead_end_options[i], quick_pn[:])
+            else:
+                test_rows = generate_rows(lead_end_options[i], slow_pn[:])
+            option_quality.append(compare_set(target_rows, test_rows))
+        best_call = np.where(option_quality == np.max(option_quality))[0][0]
+        best_calls_spliced.append(best_call)
+        qualities_spliced.append(np.max(option_quality))
+        if is_quick:
+            new_rows = generate_rows(lead_end_options[best_call], quick_pn[:])
+        else:
+            new_rows = generate_rows(lead_end_options[best_call], slow_pn[:])
+        allrows_spliced = np.concatenate((allrows_spliced[:-1], new_rows), axis = 0)
+        current_start = current_end - 1 
+        current_end = current_start + 7
+
+    print(current_start, current_end, len(trimmed_rows) + 1)
+    #Then finish off by seeing if this can come into rounds with a call? Also need to add the extra changes...
+    #Could bother with changes here, but we'll see
+    #Could be any length really
+
+    lead_end_options = find_leadend_options_stedman(allrows_spliced[-2], nbells - 1)
+
+    option_quality = []
+    for i in range(len(lead_end_options)):
+        same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
+        option_quality.append(same_count/np.size(trimmed_rows[current_start]))
+    best_call = np.where(option_quality == np.max(option_quality))[0][0]
+    best_calls_spliced.append(best_call)
+    best_calls_spliced = np.array(best_calls_spliced); qualities_spliced = np.array(qualities_spliced)
+
+    allrows_spliced[-1] = lead_end_options[best_call]
+
+    #Finally, try to make up any last rows if it gets into rounds (if it doesn't work, just leave this out -- things may have fired out etc.)
+    if len(trimmed_rows) > len(allrows_spliced):
+        if not is_erin:
+            is_quick = not is_quick
+        nrows_left = len(trimmed_rows) - len(allrows_spliced)
+        if is_quick:
+            end_rows = generate_rows(allrows_spliced[-1], quick_pn[:])
+        else:
+            end_rows = generate_rows(allrows_spliced[-1], slow_pn[:])
+        if len(end_rows) > nrows_left:
+            if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+                allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
+
+    return True, best_calls_spliced, allrows_spliced
 
 def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
     #Finds the best match composition for trimmed_rows. Will check not spliced and spliced and see which is best
@@ -564,6 +730,17 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         best_calls_single.append(best_call)
 
         best_calls_single = np.array(best_calls_single); qualities_single = np.array(qualities_single)
+        allrows_single[-1] = lead_end_options[best_call]
+
+        #Finally, try to make up any last rows if it gets into rounds (if it doesn't work, just leave this out -- things may have fired out etc.)
+        if len(trimmed_rows) > len(allrows_single):
+            nrows_left = len(trimmed_rows) - len(allrows_single)
+            end_notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
+            end_rows = generate_rows(allrows_single[-1], end_notation)
+            if len(end_rows) > nrows_left:
+                if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+                    allrows_single = np.concatenate((allrows_single[:-1], end_rows[:nrows_left+1]), axis = 0)
+
     else:
         best_calls_single = None
         qualities_single = None
@@ -622,16 +799,26 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
         option_quality.append(same_count/np.size(trimmed_rows[current_start]))
     best_call = np.where(option_quality == np.max(option_quality))[0][0]
+    allrows_spliced[-1] = lead_end_options[best_call]
     best_calls_spliced.append(best_call)
     best_calls_spliced = np.array(best_calls_spliced); qualities_spliced = np.array(qualities_spliced)
     
+    #Finally, try to make up any last rows if it gets into rounds (if it doesn't work, just leave this out -- things may have fired out etc.)
+    if len(trimmed_rows) > len(allrows_spliced):
+        nrows_left = len(trimmed_rows) - len(allrows_spliced)
+        end_notation = method_data[method_data['Name'] == methods_spliced[-1][0]]['Interior Notation'].values[0]
+        end_rows = generate_rows(allrows_spliced[-1], end_notation)
+        if len(end_rows) > nrows_left:
+            if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+                allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
+
     if qualities_single is not None:
         if np.sum(qualities_spliced) > np.sum(qualities_single):
-            return True, best_calls_spliced
+            return True, best_calls_spliced, allrows_spliced
         else:
-            return False, best_calls_single
+            return False, best_calls_single, allrows_single
     else:
-        return True, best_calls_spliced
+        return True, best_calls_spliced, allrows_spliced
 
 def check_lead_ends(methods, calls):
     #Checks the plain leads against the method in the previous section, in case of a ballsed-up lead end (common enough to care about I think)
@@ -689,26 +876,26 @@ if len(hunt_types) == 0:
     methods = []
 
 else:
-    #At this point check for Stedman
     hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
 
+    print(methods_spliced)
     if len(methods_spliced) == 0:
         methods = []
     else:
         if len(hunt_types) == 1 and hunt_types[0][0] == "S":   #Stedman behaves differently so do need a different thing here entirely. Will do later...
-            spliced_flag, calls = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+            spliced_flag, calls, allrows = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
         else:
-            spliced_flag, calls = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+            spliced_flag, calls, allrows = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
 
         if spliced_flag:
             methods = methods_spliced
         else:
             methods = [methods_notspliced]
-        print('Methods:', methods)
-        print('Calls:', calls)
 
-        if spliced_flag:
+        if spliced_flag and len(hunt_types) != 1:
             #In spliced, check there aren't unnecessary changes of method name due to bobs happening
             methods = check_lead_ends(methods, calls) 
 
-        print('Methods check:', methods)
+        print('Methods:', methods)
+        print('Calls:', calls)
+        print('Calculated length', len(trimmed_rows), len(allrows))

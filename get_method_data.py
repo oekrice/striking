@@ -40,31 +40,43 @@ def add_stedmans(method_data):
     treble_type = "S"
     nhunts = 0
     stage = 5
-    name = "Stedman Doubles QS"
-    interior_notation = '3.1.5.3.1,3'
-    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
-    name = "Stedman Doubles SQ"
-    interior_notation = '1.3.5.3.1,1'
-    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    name = "Stedman Doubles Slow"
+    place_notation = '3.1.5.3.1,3'
+    interior_notation = '3.1.5.3.1.3'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    name = "Stedman Doubles Quick"
+    place_notation = '1.3.5.3.1,1'
+    interior_notation = '1.3.5.3.1.1'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
     name = "Stedman Doubles"
-    interior_notation = '1.3.5.3.1.3.1.3.5.1.3,1'
-    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    place_notation = '1.3.5.3.1.3.1.3.5.1.3,1'
+    interior_notation = '1.3.5.3.1.3.1.3.5.1.3.1'
+    method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
     titles = ["Triples", "Caters", "Cinques", "Thirteen", "Fifteen"]
     stages = [7,9,11,13,15]
     for si, stage in enumerate(stages):
         title = titles[si]
         name = "Stedman " + title + " Quick"
-        interior_notation = '1.3.1.3.1,' + tostring(stage-1)
-        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        place_notation = '1.3.1.3.1,' + tostring(stage-1)
+        interior_notation = '1.3.1.3.1.' + tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
         name = "Stedman " + title + " Slow"
-        interior_notation = '3.1.3.1.3,' + tostring(stage-1)
-        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        place_notation = '3.1.3.1.3,' + tostring(stage-1)
+        interior_notation = '3.1.3.1.3.' + tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
         name = "Stedman " + title
-        interior_notation = '1.3.1.3.1.' + tostring(stage-1) + '.3.1.3.1.3,'+ tostring(stage-1)
-        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        place_notation = '3.1.3.1.3.' + tostring(stage-1) + '.1.3.1.3.1,'+ tostring(stage-1)
+        interior_notation = '3.1.3.1.3.' + tostring(stage-1) + '.1.3.1.3.1.'+ tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
         name = "Erin " + title
-        interior_notation = '1.3.1.3.1.' + tostring(stage-1) + '.1.3.1.3.1,'+ tostring(stage-1)
-        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': interior_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        place_notation = '3.1.3.1.3.' + tostring(stage-1) + '.3.1.3.1.3,'+ tostring(stage-1)
+        interior_notation = '3.1.3.1.3.' + tostring(stage-1) + '.3.1.3.1.3.'+ tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+        name = "Erin " + title + " Slow"
+        place_notation = '3.1.3.1.3,' + tostring(stage-1)
+        interior_notation = '3.1.3.1.3.' + tostring(stage-1)
+        method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
+    
     return method_data
 
 def get_interior(place_notation):
