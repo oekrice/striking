@@ -4,6 +4,8 @@
 import pandas as pd
 import numpy as np
 import re 
+import streamlit as st
+
 #This bit for importing the raw data. 
 
 #STEPS:
@@ -31,12 +33,9 @@ import re
 #raw_data = pd.read_csv('./striking_data/leeds2.csv')
 #raw_data = pd.read_csv('./striking_data/leeds1.csv')
 
-method_data = pd.read_csv('./method_data/clean_methods.csv')
-
-nbells = np.max(raw_data["Bell No"])
-
 def find_all_rows(raw_data):
     #Hopefully this is in a decent enough format
+    nbells = np.max(raw_data["Bell No"])
     nrows = int(len(raw_data)/nbells)
     allrows = np.zeros((nrows, nbells))
 
@@ -47,6 +46,7 @@ def find_all_rows(raw_data):
 
 def find_method_time(all_rows):
     #Finds the longest time away from rounds, outputs start and finish
+    nbells = len(all_rows[0])
     current_best = 0
     start = 0
     end  = 0
@@ -73,11 +73,6 @@ def find_method_time(all_rows):
             end = i
     return start, end + 1
 
-all_rows = find_all_rows(raw_data)
-start_row, end_row = find_method_time(all_rows)
-
-trimmed_rows = all_rows[start_row:end_row+1]   #Includes all the changes we care about, rounds EITHER END inclusive
-
 def tostring(place):
     if place < 9:
         return str(place + 1)
@@ -100,6 +95,7 @@ def tostring(place):
         
 def find_place_notation(lead_rows):
     #Given the rows in the lead, determines the 'place notation' for each one. Do want in the spreadhseet format.
+    nbells = len(lead_rows[0])
     def appendstring(notation, places):
 
         if len(places) < 1:
@@ -230,15 +226,16 @@ def find_method_types(trimmed_rows):
         return treble_data
     
     hunt_types = determine_hunt_types(trimmed_rows)
-    print('Hunt types', hunt_types)
+    #print('Hunt types', hunt_types)
     return hunt_types
 
-def determine_methods(trimmed_rows, hunt_types):
+def determine_methods(trimmed_rows, hunt_types, method_data):
     #Now have the number of leads and all the rows.
     #Need to generate place notation and compare against those in the database, for each lead.
     #Can be sped up by assuming it isn't spliced and then checking the rest
 
     #Returns two bits -- with method IDs and probabilities. Can leave the rest to be sorted out
+    nbells = len(trimmed_rows[0])
 
     def determine_match(string1, string2):
         #Run through strings to see which is best. Bit awkward and horrid but meh. 
@@ -405,8 +402,9 @@ def tostring_direct(place):
     if place > 15:
         return 'X'
 
-def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
+def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced, method_data):
     #Finds a Stedman composition. Fairly self-explanatory. The methods_spliced shows how many blows until the first complete slow six (3 for normal stedman start)
+    nbells = len(trimmed_rows[0])
 
     def generate_rows(first_change, place_notation):
         #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
@@ -436,14 +434,17 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
             newrows.append(nextrow)
         return np.array(newrows)
 
-    def find_leadend_options_stedman(previous_change, stage):
+    def find_leadend_options_stedman(previous_change, stage, quick = False):
         #This one is for single-hunt methods where the call affects one change at the lead end itself
         #Outputs options, with PP BB SS near and far (should be 6 or thereabouts)
         nbells = len(previous_change)
         if nbells > 6:
             notation_list = [tostring_direct(nbells - 1) + tostring_direct(nbells), tostring_direct(nbells - 3) + tostring_direct(nbells), tostring_direct(nbells - 3) + tostring_direct(nbells - 2) + tostring_direct(nbells - 1) + tostring_direct(nbells)]
         else:
-            notation_list = ['3', '3', '345']
+            if quick:
+                notation_list = ['3', '3', '345']
+            else:
+                notation_list = ['1', '1', '145']
         options = []
         for i, swap in enumerate(notation_list):
             nextrow = previous_change.copy()
@@ -501,12 +502,11 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
             test_rows = generate_rows(lead_end_options[0], quick_pn[-nchanges_start*2:])
         else:
             test_rows = generate_rows(lead_end_options[0], slow_pn[-nchanges_start*2:])
-    else: #Starts at the beginning of the six (probably won't happen as this is a backstroke)
+    else: #Starts at the beginning of the six (probably won't happen as this is a backstroke, unless doubles)
         if is_quick:
             test_rows = generate_rows(lead_end_options[0], quick_pn)
         else:
             test_rows = generate_rows(lead_end_options[0], slow_pn)
-
 
     allrows_spliced = test_rows
     target_rows = trimmed_rows[:len(test_rows)]
@@ -524,7 +524,7 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
         target_rows = trimmed_rows[current_start:current_end]
 
         #Find options for new lead end
-        lead_end_options = find_leadend_options_stedman(allrows_spliced[-2], nbells - 1)
+        lead_end_options = find_leadend_options_stedman(allrows_spliced[-2], nbells - 1, quick = is_quick)
         option_quality = []
         for i in range(len(lead_end_options)):
             if is_quick:
@@ -543,7 +543,6 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
         current_start = current_end - 1 
         current_end = current_start + 7
 
-    print(current_start, current_end, len(trimmed_rows) + 1)
     #Then finish off by seeing if this can come into rounds with a call? Also need to add the extra changes...
     #Could bother with changes here, but we'll see
     #Could be any length really
@@ -575,10 +574,11 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
 
     return True, best_calls_spliced, allrows_spliced
 
-def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced):
+def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced, method_data):
     #Finds the best match composition for trimmed_rows. Will check not spliced and spliced and see which is best
     #Obvioulsy one would expect spliced to be best, but not if the ringing is terrible
     #Will need to add a Stedman flag at some point...
+    nbells = len(trimmed_rows[0])
     def generate_rows(first_change, place_notation):
         #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
         notation_list = re.split(r'(\-|\.)', place_notation)
@@ -820,7 +820,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
     else:
         return True, best_calls_spliced, allrows_spliced
 
-def check_lead_ends(methods, calls):
+def check_lead_ends(methods, calls, nbells, method_data):
     #Checks the plain leads against the method in the previous section, in case of a ballsed-up lead end (common enough to care about I think)
     for mi, method in enumerate(methods):
         if calls[mi] > 1:
@@ -870,32 +870,51 @@ def check_lead_ends(methods, calls):
 
     return methods
 
-hunt_types = find_method_types(trimmed_rows)
+@st.cache_data
+def find_method_things(raw_data):
+    method_data = pd.read_csv('./method_data/clean_methods.csv')
 
-if len(hunt_types) == 0:
-    methods = []
+    all_rows = find_all_rows(raw_data)
+    nbells = len(all_rows[0])
+    start_row, end_row = find_method_time(all_rows)
 
-else:
-    hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types)
+    if end_row - start_row < 10:  #Is just rounds, probably
+        return [], [], 0, []
+    
+    trimmed_rows = all_rows[start_row:end_row+1]   #Includes all the changes we care about, rounds EITHER END inclusive
 
-    print(methods_spliced)
-    if len(methods_spliced) == 0:
+    hunt_types = find_method_types(trimmed_rows)
+
+    if len(hunt_types) == 0:
         methods = []
+
     else:
-        if len(hunt_types) == 1 and hunt_types[0][0] == "S":   #Stedman behaves differently so do need a different thing here entirely. Will do later...
-            spliced_flag, calls, allrows = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+        hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types, method_data)
+
+        #print(methods_spliced)
+        if len(methods_spliced) == 0:
+            methods = []
         else:
-            spliced_flag, calls, allrows = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced)
+            if len(hunt_types) == 1 and hunt_types[0][0] == "S":   #Stedman behaves differently so do need a different thing here entirely. Will do later...
+                spliced_flag, calls, allrows = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced, method_data)
+            else:
+                spliced_flag, calls, allrows = find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced, method_data)
 
-        if spliced_flag:
-            methods = methods_spliced
-        else:
-            methods = [methods_notspliced]
+            if spliced_flag:
+                methods = methods_spliced
+            else:
+                methods = [methods_notspliced]
 
-        if spliced_flag and len(hunt_types) != 1:
-            #In spliced, check there aren't unnecessary changes of method name due to bobs happening
-            methods = check_lead_ends(methods, calls) 
+            if spliced_flag and len(hunt_types) != 1:
+                #In spliced, check there aren't unnecessary changes of method name due to bobs happening
+                methods = check_lead_ends(methods, calls, nbells, method_data) 
+            
+            #print('Methods:', methods)
+            #print('Calls:', calls)
+            #print('Calculated length', len(trimmed_rows), len(allrows))
+            count = np.sum(trimmed_rows[:len(allrows)] == allrows)/np.size(allrows)
+            #print('Match:', count)
 
-        print('Methods:', methods)
-        print('Calls:', calls)
-        print('Calculated length', len(trimmed_rows), len(allrows))
+    return methods, hunt_types, calls, start_row, allrows, count
+
+#find_method_things(raw_data)

@@ -22,7 +22,7 @@ import time
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
 from listen_other_functions import find_colour
-
+from methods import find_method_things
 
 st.set_page_config(page_title="Analyse Audio", page_icon="🎤")
 st.markdown("# Analyse Audio")

@@ -32,10 +32,10 @@ def run():
         There are two main parts to this: \\
                     1. Analysing a raw audio input to determine the times at which the bells strike. \\
                     2. Displaying this data in a way which is meaningful. \\
-        There already exists software to accomplish this, namely (respectively) Hawkear and Strikeometer. 
+        There already exists software to accomplish this, namely (respectively) HawkEar and Strikeometer. 
                     This new app is designed completely differently from these and is more focused on less technical analysis than the high-quality 12 bell touches people usually focus on with this kind of software. \\
                     Notably, the new method for audio analysis can use (reasonably) noisy ringing chamber audio, and does not require any calibration beforehand. \\
-                    This is not a replacement for or an update to the existing software -- with the same input Hawkear will probably provide more reliable results -- but this does open up this kind of analysis to more everday ringing, and the feedback can hopefully be used to help people improve more generally than just in fancy places. 
+                    This is not a replacement for or an update to the existing software -- with the same input HawkEar will probably provide more reliable results -- but this does open up this kind of analysis to more everday ringing, and the feedback can hopefully be used to help people improve more generally than just in fancy places. 
         ''')
     st.write('### How to use it')
     st.markdown('''
@@ -47,7 +47,7 @@ def run():
                 ''')
     st.page_link("pages/2_Analyse_Striking.py", label = "Analyse Striking", icon = "📈")
     st.markdown('''
-        Which will take this data and display things like the blue line and bar charts of striking errors similarly to the existing strikeometer software. This can also be used to analyse hawkear outputs saved as a .csv file.
+        Which will take this data and display things like the blue line and bar charts of striking errors similarly to the existing strikeometer software. This can also be used to analyse HawkEar outputs saved as a .csv file.
                 ''')
     st.write('### Limitations (more tbc)')
     st.markdown('''

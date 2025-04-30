@@ -18,6 +18,7 @@ import pandas as pd
 
 from strike_model import find_ideal_times
 from strike_model_band import find_ideal_times_band
+from methods import find_method_things
 
 from scipy import interpolate
 import matplotlib.pyplot as plt
@@ -115,7 +116,7 @@ raw_titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = '"' + st.session_state.cached_data[i][2] + '"' + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    title = '"' + st.session_state.cached_data[i][2] + '"'# + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
@@ -138,12 +139,11 @@ if len(touch_titles) > 0 and st.session_state.current_touch < 0:
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
-    st.write('**Analysing ringing from file %s**' % touch_titles[st.session_state.current_touch])
+    st.write('Analysing ringing from file %s' % touch_titles[st.session_state.current_touch])
 
 if len(touch_titles) == 0:
     st.session_state.current_touch = -1
     
-
 if st.session_state.current_touch >= 0:
     #Write in to a local bit to actually do the analysis
     strikes = st.session_state.cached_strikes[st.session_state.current_touch]
@@ -196,7 +196,34 @@ if st.session_state.current_touch >= 0:
         
         #st.write(len(raw_data)//nbells)
     
-    
+    st.method_message = st.empty()
+    st.method_message.write("Figuring out methods and composition...")
+
+    methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data)
+    nchanges = len(allrows_correct) - 1
+    end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
+
+    if len(methods) == 1:   #Single method
+        method_title = methods[0][0]
+        if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+            method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+            lead_length = 12
+        else:
+            lead_length = 4*int(hunt_types[0][1] + 1)
+
+    else:   #Spliced methods
+        stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+        stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+        if len(set(stagetypes)) == 1:
+            method_title = "Spliced " + stagetypes[0]
+        elif len(set(stages)) == 1:
+            method_title = "Spliced " + stages[0]
+        else:
+            method_title = "Spliced"
+        lead_length = 2*int(hunt_types[0][1] + 1)
+
+    st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+
     if "Individual Model" not in  raw_data.columns.tolist():
         #st.write(len(raw_data['Actual Time'])//nbells)
         count_test = st.session_state.rhythm_variation_time; gap_test = st.session_state.handstroke_gap_variation_time
@@ -244,28 +271,29 @@ if st.session_state.current_touch >= 0:
         nstrikes = len(raw_actuals)
         nrows = int(nstrikes//nbells)
     
-        with st.expander("View Options"):
+        with st.expander("Options"):
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
                 ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
                 raw_data['Individual Model'] = ideal_times
     
             if selection == "Team Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time*nbells
                 ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time, ngaps = st.session_state.handstroke_gap_variation_time)
                 raw_data['Team Model'] = ideal_times
                 
-            remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats? (Not foolproof -- I'm working on it)", value = True)
-            remove_confidence = st.checkbox("Remove not-confident strike times from the stats.", value = True)
+            remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats?", value = True)
+            remove_confidence = st.checkbox("Remove not-confident strike times from the stats?", value = True)
     
-            min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2)
+            min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(start_row+1, end_row), format = "%d", step = 2, key = 300 + st.session_state.current_touch)
 
         
         st.message = st.empty()
+
         st.message.write("Calculating stats things...")
         #Blue Line
         st.blueline = st.empty()
@@ -427,7 +455,7 @@ if st.session_state.current_touch >= 0:
             for row in range(nrows):
                 actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
                 target = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                bells =   np.array(raw_bells[row*nbells:(row+1)*nbells])  
+                bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
                 toprint.append(actual-target)
                 orders.append(bells)
                 starts.append(np.min(target))
@@ -440,8 +468,8 @@ if st.session_state.current_touch >= 0:
             else:
                 nplotsk = max(2, nrows_plot//rows_per_plot + 1)
             nplotsk = min(nplotsk, 3)
-            rows_per_plot = int(nrows_plot/nplotsk) + 2
-            
+            min_rows_per_plot = int(nrows_plot/nplotsk) + 2
+            rows_per_plot = int(np.ceil(min_rows_per_plot / lead_length) * lead_length)
             #Either plot lines or nmbers -- but guides will matter for that...
             dotext = True
 
@@ -455,7 +483,7 @@ if st.session_state.current_touch >= 0:
                     ax = axs1[plot]
                 else:
                     ax = axs1
-                maxrow = int(len(raw_target_plot)/nbells)
+                maxrow = max_plot_change
                 for bell in range(1,nbells+1):#nbells):
 
                     if bell in highlight_bells:
@@ -521,7 +549,7 @@ if st.session_state.current_touch >= 0:
          
         with st.expander("View Blue Line"):
 
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, min(150, nrows)), format = "%d", step = 2)
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(start_row, min(300, end_row)), format = "%d", step = 2, key = 400 + st.session_state.current_touch)
             view_numbers = st.checkbox("View Bell Numbers", value = False)
             options = ["Bell %d" % bell for bell in range(1,nbells+1)]
             highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
@@ -529,19 +557,19 @@ if st.session_state.current_touch >= 0:
 
         with st.expander("View Bell Errors Through Time"):
 
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 3452456)
+            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 500 + st.session_state.current_touch)
             
             absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
             options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
-            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 29348)
+            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 600 + st.session_state.current_touch)
             
             smooth = st.checkbox("Smooth data?", value = True)
                     
             strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
             if len(highlight_bells) == 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 12378)
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 700 + st.session_state.current_touch)
             elif len(highlight_bells) > 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 12378)
+                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 800 + st.session_state.current_touch)
                 strokes_plot = [strokes_plot]
             else:
                 strokes_plot = None

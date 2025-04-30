@@ -45,12 +45,12 @@ def add_stedmans(method_data):
     interior_notation = '3.1.5.3.1.3'
     method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
     name = "Stedman Doubles Quick"
-    place_notation = '1.3.5.3.1,1'
-    interior_notation = '1.3.5.3.1.1'
+    place_notation =    '1.3.5.1.3,1'
+    interior_notation = '1.3.5.1.3.1'
     method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
     name = "Stedman Doubles"
-    place_notation = '1.3.5.3.1.3.1.3.5.1.3,1'
-    interior_notation = '1.3.5.3.1.3.1.3.5.1.3.1'
+    place_notation = '3.1.5.3.1.3.1.3.5.1.3,1'
+    interior_notation = '3.1.5.3.1.3.1.3.5.1.3.1'
     method_data.append({'Name': name, 'Stage': stage, 'Lead Length': lead_length*2, 'Place Notation': place_notation, 'Type': treble_type, 'Interior Notation': interior_notation, 'Hunt Number': nhunts})
     titles = ["Triples", "Caters", "Cinques", "Thirteen", "Fifteen"]
     stages = [7,9,11,13,15]
@@ -216,8 +216,6 @@ for method_set in method_sets:
 #Add on Stedman things here. As bobs/singles happen at two points best to treat each six separately. Have Stedman Slow Triples, Stedman Quick Caters etc.
 #Doubles is special but does actually make more sense as you don't need things to bodge at either end
 method_data = add_stedmans(method_data)
-
-
 
 df = pd.DataFrame(method_data)
 df.to_csv('method_data/clean_methods.csv', index=False, mode = 'w')
