@@ -1,16 +1,20 @@
-# Copyright 2018-2022 Streamlit Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+'''
+Copyright (C) 2025 Oliver Rice - All Rights Reserved
+
+Permission is hereby granted to any individual to use and modify this software solely for personal, non-commercial purposes.
+
+You May Not:
+
+ - Distribute, sublicense, or share the software or modified versions in any form.
+
+ - Use the software or any part of it for commercial purposes.
+
+ - Use the software as part of a service, product, or offering to others.
+
+This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors be liable for any claim, damages, or other liability.
+
+If you would like to license or publish this software commerically, please contact oliverricesolar@gmail.com
+'''
 
 import streamlit as st
 from streamlit.logger import get_logger

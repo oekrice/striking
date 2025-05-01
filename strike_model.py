@@ -1,3 +1,21 @@
+'''
+Copyright (C) 2025 Oliver Rice - All Rights Reserved
+
+Permission is hereby granted to any individual to use and modify this software solely for personal, non-commercial purposes.
+
+You May Not:
+
+ - Distribute, sublicense, or share the software or modified versions in any form.
+
+ - Use the software or any part of it for commercial purposes.
+
+ - Use the software as part of a service, product, or offering to others.
+
+This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors be liable for any claim, damages, or other liability.
+
+If you would like to license or publish this software commerically, please contact oliverricesolar@gmail.com
+'''
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
