@@ -535,7 +535,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         allbells = np.array(allbells)
         orders = np.array(orders)
                 
-        methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(allbells)
+        methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(allbells)
         if len(methods) > 0:
             nchanges = len(allrows_correct) - 1
 

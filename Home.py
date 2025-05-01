@@ -24,7 +24,7 @@ def run():
     )
 
     st.write("## Striking Analysis Tools")
-    st.write("Apologies for forgetting the brilliant punny name which has been lost in the mists of time")
+    st.write("Apologies for forgetting the brilliant punny name which has been lost in the mists of time.")
 
     st.write('### What this is')
     st.markdown('''
@@ -47,11 +47,11 @@ def run():
                 ''')
     st.page_link("pages/2_Analyse_Striking.py", label = "Analyse Striking", icon = "📈")
     st.markdown('''
-        Which will take this data and display things like the blue line and bar charts of striking errors similarly to the existing strikeometer software. This can also be used to analyse HawkEar outputs saved as a .csv file.
+        Which will take this data and display things like the blue line and bar charts of striking errors similarly to the existing Strikeometer software. This can also be used to analyse HawkEar outputs saved as a .csv file.
                 ''')
     st.write('### Limitations (more tbc)')
     st.markdown('''
-        As you might expect, the audio input must be reasonably clear -- if you can't pick out all the bells most of the time then this probably won't manage it. Some towers just work better than others. Any audio which works for Hakwear *should* be OK here though.\\
+        As you might expect, the audio input must be reasonably clear -- if you can't pick out all the bells most of the time then this probably won't manage it. Some towers just work better than others. Any audio which works for HawkEar *should* be OK here though.\\
         The algorithm is designed to look for rhythmic, open handstroke ringing. Analysing bad ringing can be quite amusing but once the rhythm is lost that's very difficult for it to figure out. \\
         This site is very limited by how much memory I can use for free. So please just use this for short touches... If someone fancies paying for a better server, do let me know. \\
         The basis of detecting the initial rhythm is the tenor. If the tenor is not steady or is particularly oddstruck then it probably won't work. Similarly if the overall speed takes a while to settle down. Also if there is a particularly harmonic bell louder than the tenor this can cause problems. \\

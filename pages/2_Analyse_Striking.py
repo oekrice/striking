@@ -18,7 +18,7 @@ import pandas as pd
 
 from strike_model import find_ideal_times
 from strike_model_band import find_ideal_times_band
-from methods import find_method_things
+from methods import find_method_things, print_composition
 
 from scipy import interpolate
 import matplotlib.pyplot as plt
@@ -202,8 +202,16 @@ if st.session_state.current_touch >= 0:
     
     st.method_message = st.empty()
     st.method_message.write("Figuring out methods and composition...")
+    methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
 
-    methods, hunt_types, calls, start_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
+
+    if quality < 0.8:
+        methods = []
+    if len(methods) > 0:
+        call_string, comp_html = print_composition(methods, hunt_types, calls, allrows_correct)
+        method_flag = True
+    else:
+        method_flag = False
 
     if len(methods) > 0:
         nchanges = len(allrows_correct) - 1
@@ -229,6 +237,10 @@ if st.session_state.current_touch >= 0:
             lead_length = 2*int(hunt_types[0][1] + 1)
 
         st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+        with st.expander("View Composition"):
+            st.html(comp_html)
+
+
     else:
         st.method_message.write("**No method detected**")
         start_row = 0; end_row = len(allrows_correct)
@@ -399,7 +411,6 @@ if st.session_state.current_touch >= 0:
         #print('SD', np.mean(alldiags[2,2,:]))
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
 
-        
         #Want error through time for each bell, and do as a snazzy plot?
         @st.cache_data
         def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth):
@@ -583,7 +594,7 @@ if st.session_state.current_touch >= 0:
             plt.clf()
             plt.close()
          
-        with st.expander("View Blue Line"):
+        with st.expander("View Grid/Blue Line"):
 
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(start_row, min(300, end_row)), format = "%d", step = 2, key = 400 + st.session_state.current_touch)
             view_numbers = st.checkbox("View Bell Numbers", value = False)
@@ -599,7 +610,7 @@ if st.session_state.current_touch >= 0:
             options = ["Average"] + ["Bell %d" % bell for bell in range(1,nbells+1)]
             highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 600 + st.session_state.current_touch)
             
-            smooth = st.checkbox("Smooth data?", value = True)
+            smooth = st.checkbox("Smooth data?", value = False)
                     
             strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
             if len(highlight_bells) == 1:
@@ -766,11 +777,7 @@ if st.session_state.current_touch >= 0:
         if st.session_state.current_touch > -1 and len(raw_titles) > 0:
             st.download_button("Download analysis to device as .csv", csv, file_name = raw_titles[st.session_state.current_touch] + '.csv', mime="text/csv")
         
-            
-            
-            
-            
-            
+        
             
             
             

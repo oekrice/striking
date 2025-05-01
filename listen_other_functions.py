@@ -295,7 +295,11 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
 
                 Paras.ringing_finished = True
                 
-                bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
+                if len(allconfs) > 2:
+                    bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
+                else:
+                    return [], []
+
                 Data.freq_data = np.array([Paras.dt, Paras.fcut_length, 0., 0.])
                 Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
 
