@@ -927,6 +927,7 @@ def find_method_things(raw_data):
 
     return methods, hunt_types, calls, start_row, end_row, allrows, count
 
+@st.cache_data
 def print_composition(methods, hunt_types, calls, relevant_rows):
     #Should output a markdown of the calling and composition lead-by-lead.
     #All touches output simple PSPPBPPSP etc. 
@@ -997,6 +998,71 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
         else:
             return str(position+1)
         
+    def find_course_ends(lead_ends, hunt_types, methods):
+        stage = methods[0][2]
+        course_ends = np.zeros(len(lead_ends))
+        #Just outputs as the number of leads since the start
+        if hunt_types[0][0] == "T" or hunt_types[0][0] == "P":
+            #Look for times the tenor returns to home
+            for li, lead_end in enumerate(lead_ends):
+                if np.where(lead_end == stage)[0] == stage - 1:
+                    course_ends[li] = 1
+                else:
+                    course_ends[li] = 0
+            for i in range(len(course_ends)-1):
+                if course_ends[i] == 1 and course_ends[i+1] == 1:   #Get rid of repeats, remove the first one
+                    course_ends[i] = 0
+        elif hunt_types[0][0] == "S":
+            if stage == 5:
+                for i in range(10,len(lead_ends), 10):
+                    course_ends[i] = 1
+            else:
+                #Is Stedman, so more complicated
+                def change_distance(change1, change2):
+                    #Gives a 'distance' metric fbetween each change
+                    dsum = 0
+                    for p1, bell in enumerate(change1):
+                        p2 = np.where(change2 == bell)[0][0]
+                        dsum += np.abs(p2 - p1)
+                    return dsum
+                #Course length range
+                range_min = min(stage*2 - 10, len(lead_ends))
+                range_max = min(stage*2 + range_min - 2, len(lead_ends))
+                last_course_end = 0
+                go = True
+                start_offset = int(methods[0][0].rsplit(" ")[-1])
+                if start_offset > 5:
+                    starts_slow = 1
+                else:
+                    starts_slow = 2
+
+                count = 0
+                while go:
+                    if last_course_end + stage*2 > len(lead_ends):
+                        go = False
+                    if last_course_end + range_max > len(lead_ends):
+                        go = False
+                    if count > 100:
+                        go = False
+                    dists = 100*np.ones(len(lead_ends))
+                    for li in range(starts_slow, len(lead_ends), 2):
+                        lead_end = lead_ends[li]
+                        dists[li] = change_distance(lead_ends[last_course_end], lead_end)
+                    lead_end = lead_ends[-1]
+                    dists[-1] = change_distance(lead_ends[last_course_end], lead_end)
+                    if last_course_end + range_min > len(dists) - 6:
+                        break
+                    poss = np.where(dists[last_course_end + range_min:last_course_end + range_max] == np.min(dists[last_course_end + range_min:last_course_end + range_max]))[0]
+                    if stage*2 - range_min in poss:
+                        course_end = stage*2 + last_course_end
+                    else:
+                        course_end = poss[0] + last_course_end + range_min
+
+                    course_ends[course_end] = 1
+                    last_course_end = course_end
+        return course_ends
+
+
     def find_call_positions(call_string, lead_ends, methods):
         stage = methods[0][2]
         positions = []
@@ -1012,15 +1078,20 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 positions.append('  ')
         return positions
 
-    def find_call_positions_stedman(call_string, lead_ends, methods):
+    def find_call_positions_stedman(call_string, lead_ends, methods, course_ends):
         stage = methods[0][2]
         course_length = stage*2
         positions = []
+        course_ends[0] = 1.
         for ci in range(len(call_string)):
+            if ci > 0:
+                last_course_end = np.max(np.where(course_ends[:ci+1] == 1)[0])
+            else:
+                last_course_end = 0
             if call_string[ci] == 'B':
-                positions.append('-' + str((ci + 1)%course_length))
+                positions.append('-' + str((ci + 1) - last_course_end))
             elif call_string[ci] == 'S':
-                positions.append('s'  + str((ci + 1)%course_length))
+                positions.append('s'  + str((ci + 1)- last_course_end))
             else:
                 positions.append('  ')
         return positions
@@ -1053,14 +1124,17 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
     else:
         is_stedman = False
 
-    call_string = produce_call_string(calls, is_stedman)
  
+    lead_ends = find_lead_ends(hunt_types, relevant_rows, methods)
+
+    course_ends = find_course_ends(lead_ends, hunt_types, methods)  #Returns as a string, could be none
+
+    call_string = produce_call_string(calls, is_stedman)
+
     if len(set(call_string)) == 1 and call_string[0] == 'P':
         plain_course = True
     else:
         plain_course = False
-
-    lead_ends = find_lead_ends(hunt_types, relevant_rows, methods)
 
     clean_methods = cleanup_methods(methods, calls)
 
@@ -1069,7 +1143,7 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
     elif not is_stedman:
         call_positions = ' ' * (len(lead_ends) - 1)
     else:
-        call_positions = find_call_positions_stedman(call_string, lead_ends, methods)
+        call_positions = find_call_positions_stedman(call_string, lead_ends, methods, course_ends)
     #Determine markdown widths etc.
     max_method_width = np.max([len(method) for method in clean_methods])
     max_call_width = np.max([len(call) for call in call_positions])
@@ -1107,7 +1181,7 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
         underline = False
         if (relevant_rows[-1] == np.arange(len(lead_ends[0])) + 1).all() and i == len(lead_ends) - 2:
             underline = True
-        if hunt_types[0][0] == "S" and (i + 1)%(int(methods[0][2])*2) == 0:
+        if course_ends[i+1] == 1:
             underline = True
         if not underline:
             lines.append(pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "<br>")
