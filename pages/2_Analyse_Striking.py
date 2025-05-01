@@ -240,7 +240,6 @@ if st.session_state.current_touch >= 0:
         with st.expander("View Composition"):
             st.html(comp_html)
 
-
     else:
         st.method_message.write("**No method detected**")
         start_row = 0; end_row = len(allrows_correct)

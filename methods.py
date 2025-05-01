@@ -245,6 +245,7 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
         possible_methods = possible_methods[possible_methods['Type'] == "S"]
         possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
         possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Place Notation']])
+        possible_stages = [stage for stage in possible_methods['Stage']] 
         for start in range(12):  #Run through the possible start points of the quick six. Normal Stedman start is 9, Erin is 0
             lead_rows = trimmed_rows[start:start + 13]
             check_notation = find_place_notation(lead_rows)
@@ -254,8 +255,9 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
                     bestmatch = match
                     pbest = pi
                     startbest = start
+                    stagebest = possible_stages[pi]
         
-        spliced.append([possible_methods.iloc[pbest]['Name'] + ' Start ' + str(startbest), bestmatch])
+        spliced.append([possible_methods.iloc[pbest]['Name'] + ' Start ' + str(startbest), bestmatch, stagebest])
         
         return hunt_types, None, spliced
 
@@ -931,19 +933,31 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                     call_string = call_string + 'S'
         return call_string
 
-    def find_lead_ends(hunt_types, relevant_rows):
-        row_number = 0   #Need to adjust (probably) for stedman as the lead ends are funny
-        lead_ends = [relevant_rows[row_number]]
-        for li, lead in enumerate(hunt_types):
-            if lead[0] == 'T':
-                lead_length = 4*(lead[1] + 1)
-            elif lead[0] == 'P':
-                lead_length = 2*(lead[1] + 1)
-            elif lead[0] == 'S':
-                lead_length = 6
-            row_number += lead_length
-            if row_number < len(relevant_rows):
-                lead_ends.append(relevant_rows[row_number])
+    def find_lead_ends(hunt_types, relevant_rows, methods):
+
+        if hunt_types[0][0] == 'S':
+            #Is stedman, need to start row in a strange place
+            start_position = int(methods[0][0].rsplit(" ")[-1])%6 #Number of rows until the next six
+            row_number = -start_position
+            lead_length = 6
+            row_number += lead_length - 1
+            lead_ends = [relevant_rows[row_number]]
+            while row_number < len(relevant_rows):
+                row_number += lead_length
+                if row_number < len(relevant_rows):
+                    lead_ends.append(relevant_rows[row_number])
+        else:
+            row_number = 0   #Need to adjust (probably) for stedman as the lead ends are funny
+            lead_ends = [relevant_rows[row_number]]
+            for li, lead in enumerate(hunt_types):
+                if lead[0] == 'T':
+                    lead_length = 4*(lead[1] + 1)
+                elif lead[0] == 'P':
+                    lead_length = 2*(lead[1] + 1)
+                row_number += lead_length
+                if row_number < len(relevant_rows):
+                    lead_ends.append(relevant_rows[row_number])
+
         return np.array(lead_ends)
     
     def call_position_name(position, stage):
@@ -968,6 +982,7 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
     def find_call_positions(call_string, lead_ends, methods):
         stage = methods[0][2]
         positions = []
+        
         for ci in range(len(call_string)):
             if call_string[ci] == 'B':
                 position = np.where(lead_ends[ci+1] == stage)[0][0]
@@ -979,6 +994,19 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 positions.append('  ')
         return positions
 
+    def find_call_positions_stedman(call_string, lead_ends, methods):
+        stage = methods[0][2]
+        course_length = stage*2
+        positions = []
+        for ci in range(len(call_string)):
+            if call_string[ci] == 'B':
+                positions.append('-' + str((ci + 1)%course_length))
+            elif call_string[ci] == 'S':
+                positions.append('s'  + str((ci + 1)%course_length))
+            else:
+                positions.append('  ')
+        return positions
+    
     def cleanup_methods(methods, calls):
         #Removes duplicate method names
         clean_methods = []
@@ -987,6 +1015,10 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 method = methods[i]
             else:
                 method = methods[0]
+            
+            if method[0][:4] == "Erin" or method[0][:7] == "Stedman":
+                method[0] = method[0].rsplit(" ")[0] + " " + method[0].rsplit(" ")[1]
+
             if len(clean_methods) == 0:
                 clean_methods.append(method[0])
                 current_method = method[0]
@@ -1004,21 +1036,22 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
         is_stedman = False
 
     call_string = produce_call_string(calls, is_stedman)
-
+ 
     if len(set(call_string)) == 1 and call_string[0] == 'P':
         plain_course = True
     else:
         plain_course = False
 
-    lead_ends = find_lead_ends(hunt_types, relevant_rows)
+    lead_ends = find_lead_ends(hunt_types, relevant_rows, methods)
 
     clean_methods = cleanup_methods(methods, calls)
 
     if not is_stedman and not plain_course:
         call_positions = find_call_positions(call_string, lead_ends, methods)
-    else:
+    elif not is_stedman:
         call_positions = ' ' * (len(lead_ends) - 1)
-
+    else:
+        call_positions = find_call_positions_stedman(call_string, lead_ends, methods)
     #Determine markdown widths etc.
     max_method_width = np.max([len(method) for method in clean_methods])
     max_call_width = np.max([len(call) for call in call_positions])
@@ -1026,12 +1059,26 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
     pad_width = 4
     total_width = max_method_width + max_call_width + lead_end_width + pad_width*2
 
+    def clean_lead_ends(lead_ends):
+        #Change to string
+        clean_ends = []
+        for lead_end in lead_ends:
+            clean = ''
+            
+            for place in lead_end:
+                clean = clean + tostring_direct(place)
+            clean_ends.append(clean)
+        return clean_ends
+
+    lead_ends = clean_lead_ends(lead_ends)
     lines = []
     if plain_course and len(methods) == 1:
         lines.append('Plain Course <br>')
     else:
         lines.append(' <br>')
-    lines.append("<u>" + ' '*(total_width - lead_end_width ) + str(lead_ends[0])[1:-1] + "</u>"  + "<br>")
+
+    lines.append("<u>" + ' '*(total_width - lead_end_width ) + str(lead_ends[0]) + "</u>"  + "<br>")
+
     for i in range(0, len(lead_ends) -1):
         if len(clean_methods) > 1:
             pad_method = ' '*(max_method_width - len(clean_methods[i])) + str(clean_methods[i])
@@ -1039,9 +1086,14 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             pad_method = ' '*(max_method_width - len(clean_methods[0])) + str(clean_methods[0])
         pad_call = ' '*(max_call_width - len(call_positions[i])) + str(call_positions[i])
 
-        if i < len(lead_ends) - 2 or not(lead_ends[-1] == np.arange(len(lead_ends[0])) + 1).all():
-            lines.append(pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1])[1:-1] + "<br>")
+        underline = False
+        if (relevant_rows[-1] == np.arange(len(lead_ends[0])) + 1).all() and i == len(lead_ends) - 2:
+            underline = True
+        if hunt_types[0][0] == "S" and (i + 1)%(int(methods[0][2])*2) == 0:
+            underline = True
+        if not underline:
+            lines.append(pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "<br>")
         else:
-            lines.append("<u>" + pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1])[1:-1] + "</u>" + "<br>")
+            lines.append("<u>" + pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "</u>" + "<br>")
     lead_end_html = '<pre>' +  ' '.join(lines) + '</pre>'
     return call_string, lead_end_html
