@@ -206,8 +206,11 @@ if st.session_state.current_touch >= 0:
     
     st.method_message = st.empty()
     st.method_message.write("Figuring out methods and composition...")
-    methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
 
+    try:
+       methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
+    except:
+       methods = []
 
     if quality < 0.8:
         methods = []
