@@ -249,7 +249,7 @@ if st.session_state.current_touch >= 0:
 
     else:
         st.method_message.write("**No method detected**")
-        start_row = 0; end_row = len(allstrikes)
+        start_row = 0; end_row = len(allrows_correct)
         lead_length = 24
 
     if "Individual Model" not in  raw_data.columns.tolist():
