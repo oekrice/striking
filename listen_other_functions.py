@@ -630,7 +630,7 @@ def find_first_strikes(Paras, Data):
         st.error('Reliable tenor strikes not found within the required time... Try cutting out audio at the start or increasing rounds time?')
         st.session_state.reinforce_status = 0
         time.sleep(2.0)
-        st.rerun()
+        st.stop()
         
     tenor_strikes = []; best_length = 0; go = True
     

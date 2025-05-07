@@ -308,7 +308,6 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     if raw_file is not None:
         process_audio_files(raw_file, doprints = True)  
-        print(sys.getsizeof(raw_file))
         del raw_file
         st.rerun()
         

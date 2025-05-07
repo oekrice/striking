@@ -229,15 +229,15 @@ def find_final_strikes(Paras, nested = False):
 
          Data.strikes, Data.strike_certs = find_strike_times_rounds(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
                    
-         if len(Data.strikes) > 0:
+         if len(np.shape(Data.strikes)) > 1:
              pass
          else:
              Paras.stop_flag = True
             
-         if len(Data.strikes) > 0:
+         if len(np.shape(Data.strikes)) > 1:
              if len(allstrikes) == 0:   #Check for rounds at the start
                  if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
-                     st.error('This recording doesn\'t appear to start with the tenor behind. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                     st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
                      st.session_state.analysis_status = 0
                      time.sleep(5.0)
                      st.rerun()
