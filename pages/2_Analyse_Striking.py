@@ -125,7 +125,7 @@ for i in range(len(st.session_state.cached_data)):
     raw_titles.append(st.session_state.cached_data[i][2])
 
 uploaded_files = st.file_uploader(
-    "Upload timing data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}")
+    "Upload timing data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 
 dealwith_upload()
 
@@ -207,10 +207,7 @@ if st.session_state.current_touch >= 0:
     st.method_message = st.empty()
     st.method_message.write("Figuring out methods and composition...")
 
-    try:
-       methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
-    except:
-       methods = []
+    methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
 
     if quality < 0.8:
         methods = []
@@ -334,7 +331,7 @@ if st.session_state.current_touch >= 0:
 
         
         st.message = st.empty()
-
+        st.message_2 = st.empty()
         st.message.write("Calculating stats things...")
         #Blue Line
         st.blueline = st.empty()
@@ -343,10 +340,9 @@ if st.session_state.current_touch >= 0:
         alldiags = np.zeros((3,3,nbells))   #Type, stroke, bell
         allerrors = []
         diffs = np.array(raw_actuals)[1:] - np.array(raw_actuals)[:-1]
-        cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)
+        cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)   #Mean interbell gap (ish)
 
         time_errors = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
-
 
         for plot_id in range(3):
             for bell in range(1,nbells+1):#nbells):
@@ -415,7 +411,11 @@ if st.session_state.current_touch >= 0:
         #print('Target', np.sum(raw_target))
         #print('Errors', np.sum(time_errors))
         #print('SD', np.mean(alldiags[2,2,:]))
+        overall_quality = max(0.0, 1.0 - np.mean(alldiags[2,2,:])/cadence)
+        min_quality = 0.65; max_quality = 0.88  #These are open to interpretation
+        shifted_quality = (overall_quality - min_quality)/(max_quality - min_quality)
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
+        st.message_2.write("Overall striking quality: **%.1f%%**" % (100*shifted_quality))
 
         #Want error through time for each bell, and do as a snazzy plot?
         @st.cache_data

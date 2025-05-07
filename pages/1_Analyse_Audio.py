@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import os
 import gc
-import time
+import sys
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
@@ -165,7 +165,7 @@ if st.session_state.tower_name:
 else:
     st.session_state.tower_selected = False  
     st.session_state.nominals_confirmed = False  
-
+    st.write("If you can't find the required tower in the list, try to find a similarly-tuned ring (look for the nominal frequencies) on Dove's guide and that may work.")
 if st.session_state.tower_selected:
     selected_index = tower_names.index(st.session_state.tower_name)
     st.session_state.tower_id = nominal_data["Tower ID"][selected_index]
@@ -308,6 +308,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     if raw_file is not None:
         process_audio_files(raw_file, doprints = True)  
+        print(sys.getsizeof(raw_file))
         del raw_file
         st.rerun()
         
@@ -381,14 +382,13 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             #Zero for not at all, 1 for doing it and 2 for done. Need something to fill this space if never doing reinforcement
             st.main_log.write('**Detecting initial rhythm**')
             
-            if st.session_state.reinforce_frequency_data is not None:
+            if st.session_state.reinforce_frequency_data is not None and st.session_state.reinforce_frequency_data[2] > 0.005:
                 toprint = st.session_state.reinforce_frequency_data[2]
                 c = find_colour(toprint)
                 st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
             else:
                 st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % ('red', 0.0))
         
-            
             st.current_log.write('Detecting ringing...')
         
             Data = establish_initial_rhythm(Paras)
@@ -539,10 +539,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         allbells = np.array(allbells)
         orders = np.array(orders)
 
-        try:
-            methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(allbells)
-        except:
-            methods = []
+        methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(allbells)
          
         if len(methods) > 0:
             nchanges = len(allrows_correct) - 1

@@ -1,10 +1,23 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Mar  7 21:53:04 2025
+'''
+Copyright (C) 2025 Oliver Rice - All Rights Reserved
 
-@author: eleph
-"""
+Permission is hereby granted to any individual to use and modify this software solely for personal, non-commercial purposes.
+
+You May Not:
+
+ - Distribute, sublicense, or share the software or modified versions in any form.
+
+ - Use the software or any part of it for commercial purposes.
+
+ - Use the software as part of a service, product, or offering to others.
+
+This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors be liable for any claim, damages, or other liability.
+
+If you would like to license or publish this software commerically, please contact oliverricesolar@gmail.com
+'''
+
 import streamlit as st
+import sys
 
 import os
 import re
@@ -22,6 +35,16 @@ class audio_data():
         raw_file.name, ext = os.path.splitext(raw_file.name)
         raw_file.name = re.sub(r'[^\w\-]', '_', raw_file.name)
         raw_file.name = raw_file.name + ext
+        raw_file.size = sys.getsizeof(raw_file)
+
+        #Only allow big files if they are wav
+        if ext == '.wav':
+            limit = 2e8
+        else:
+            limit = 2e7
+
+        if raw_file.size > limit:
+            st.error("Recording is too long... sorry. Hopefully  better server will remove this confounded limitation.")
 
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 

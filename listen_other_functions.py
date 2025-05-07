@@ -297,7 +297,7 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
 
                 Paras.ringing_finished = True
                 
-                if len(allconfs) > 2:
+                if len(allconfs) > 1:
                     bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
                 else:
                     return [], []
@@ -355,13 +355,12 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
         start = next_start - 1.5*int(Data.cadence_ref)
         end  =  next_end   + 3.5*int(Data.cadence_ref)
 
-    if len(allconfs) > 0:
+    if len(allconfs) > 1:
         
         bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
         Data.freq_data = np.array([Paras.dt, Paras.fcut_length, np.mean(allconfs[1:]), np.min(allconfs[1:])])
         Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
         
-
     if len(allstrikes) == 0:
         Paras.ringing_finished = True
 
@@ -613,9 +612,10 @@ def find_first_strikes(Paras, Data):
     npeaks_ish = int((Paras.rounds_tmax - Paras.ringing_start*Paras.dt)/2.0)   #How many strikes expected in this time
     
     if npeaks_ish < 5:
-        st.error("Time range for detecting rounds is too small")
+        st.error("Not enough reliable rounds detected. Make sure rounds starts within a minute of the start of the recording,"
+        " and there are at least a few decent whole pulls.")
         st.session_state.reinforce_status = 0
-        time.sleep(2.0)
+        time.sleep(5.0)
 
         st.rerun()
         
