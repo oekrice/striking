@@ -235,13 +235,19 @@ def find_final_strikes(Paras, nested = False):
              Paras.stop_flag = True
             
          if len(np.shape(Data.strikes)) > 1:
-             if len(allstrikes) == 0:   #Check for rounds at the start
-                 if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
-                     st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                     st.session_state.analysis_status = 0
-                     time.sleep(5.0)
-                     st.rerun()
-                     
+             if len(Data.strikes[:,0]) > 1:
+                if len(allstrikes) == 0:   #Check for rounds at the start
+                    if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
+                        st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                        st.session_state.analysis_status = 0
+                        time.sleep(5.0)
+                        st.rerun()
+                else:
+                        st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                        st.session_state.analysis_status = 0
+                        time.sleep(5.0)
+                        st.rerun()
+                        
              for row in range(0,len(Data.strikes[0])):
                  allstrikes.append((Data.strikes[:,row] + int(tmin/Paras.dt)).tolist())
                  allcerts.append(Data.strike_certs[:,row].tolist())
