@@ -397,10 +397,11 @@ if st.session_state.current_touch >= 0:
                     errors[errors > maxlim] = 0.0
                     errors[errors < minlim] = 0.0
 
+                if count > 2:
                 #Diagnostics
-                alldiags[0,plot_id,bell-1] = np.sum(errors)/count
-                alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
-                alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
+                    alldiags[0,plot_id,bell-1] = np.sum(errors)/count
+                    alldiags[1,plot_id,bell-1] = np.sqrt(np.sum((errors-np.sum(errors)/count)**2)/count)
+                    alldiags[2,plot_id,bell-1] = np.sqrt(np.sum(errors**2)/count)
             
         titles = ['All blows', 'Handstrokes', 'Backstrokes']
 
