@@ -166,7 +166,8 @@ if st.session_state.current_touch >= 0:
 
         existing_models = [val for val in cols if val not in ["Bell No", "Confidence", "Actual Time"]]
         existing_models = [val for val in existing_models if val[:7] != "Unnamed"]
-        
+        existing_models = [val for val in existing_models if val[:17] != "Corrected Bells"]
+
         raw_actuals = raw_data["Actual Time"]
         
         nbells = np.max(raw_data["Bell No"])
