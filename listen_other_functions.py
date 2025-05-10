@@ -5,6 +5,7 @@ Created on Sat Mar  8 10:49:58 2025
 @author: eleph
 """
 import streamlit as st
+import matplotlib.pyplot as plt
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -427,7 +428,6 @@ def do_frequency_analysis(Paras, Data):
         tmin = int(np.min(strikes) - Paras.cadence*(Paras.nbells - 2)); tmax = int(np.max(strikes) + Paras.cadence*(Paras.nbells - 2))
         #print('Examining row %d \r' % si)
         for fi, freq_test in enumerate(freq_tests):
-            #fig = plt.figure()
             diff_slice = Data.transform_derivative[tmin:tmax,freq_test]
             diff_slice[diff_slice < 0.0] = 0.0
             diffsum = diff_slice**2
@@ -878,10 +878,13 @@ def find_strike_probabilities(Paras, Data, init = False, final = False):
     #Produce logs of each FREQUENCY, so don't need to loop
     for fi, freq_test in enumerate(Data.test_frequencies):
         
+        raw_slice = Data.transform[:nt_reinforce, freq_test - Paras.frequency_range : freq_test + Paras.frequency_range + 1]
+        rawsum = np.sum(raw_slice**2, axis = 1)
+
         diff_slice = Data.transform_derivative[:nt_reinforce, freq_test - Paras.frequency_range : freq_test + Paras.frequency_range + 1]
         diff_slice[diff_slice < 0.0] = 0.0
         diffsum = np.sum(diff_slice**2, axis = 1)
-        
+
         diffsum = gaussian_filter1d(diffsum, 5)
 
         diffpeaks, _ = find_peaks(diffsum)
@@ -904,7 +907,7 @@ def find_strike_probabilities(Paras, Data, init = False, final = False):
         
         if not init:
             all_sigs.append(sigs)
-        
+
     del diff_slice; del prominences; del diffsum_smooth
      
     if init:

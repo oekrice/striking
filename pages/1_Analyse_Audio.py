@@ -27,6 +27,7 @@ from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
 from listen_other_functions import find_colour
 from methods import find_method_things
+from rounds_testing import establish_initial_rhythm_test
 
 st.set_page_config(page_title="Analyse Audio", page_icon="🎤")
 st.markdown("# Analyse Audio")
@@ -390,8 +391,11 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         
             st.current_log.write('Detecting ringing...')
         
-            Data = establish_initial_rhythm(Paras)
-                    
+            Data = establish_initial_rhythm_test(Paras)
+            
+            print('Rhythm established, stopping')
+            st.stop()
+
             st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
                     
             Data = do_reinforcement(Paras, Data)

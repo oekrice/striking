@@ -25,6 +25,7 @@ from scipy.io import wavfile
 import numpy as np
 from scipy.fftpack import fft
 from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
 
 class audio_data():
     #Does the initial audio normalisation things
@@ -209,6 +210,16 @@ class data():
      
         self.do_fourier_transform(Paras)
      
+        '''
+        fig = plt.figure(figsize = (10,8))
+        plt.pcolormesh(self.transform[500:1000,0:500].T)
+        for i in range(len(self.nominals)):
+            plt.gca().plot([0,100], [self.nominals[i], self.nominals[i]], c = 'red')
+        plt.legend()
+        st.pyplot(fig)
+        plt.close()
+        '''
+        
         self.find_transform_derivatives(Paras)
         
         #print('__________________________________________________________________________________________')
