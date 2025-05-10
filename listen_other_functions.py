@@ -11,7 +11,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 import time
 
-#Added text so Streamlit detects a commit
+#Added text so Streamlit detects a commit. Again.
 
 def find_colour(value):
     #For prettiness purposes
