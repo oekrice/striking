@@ -835,8 +835,12 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             if (trimmed_rows[-1] == end_rows[nrows_left]).all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
 
-    if qualities_single is not None:
-        if np.sum(qualities_spliced) > np.sum(qualities_single):
+    spliced_quality = compare_set(trimmed_rows, allrows_spliced)
+    if allrows_single is not None:
+        single_quality = compare_set(trimmed_rows, allrows_single)
+
+    if single_quality is not None:
+        if np.sum(spliced_quality) > np.sum(single_quality):
             return True, best_calls_spliced, allrows_spliced
         else:
             return False, best_calls_single, allrows_single

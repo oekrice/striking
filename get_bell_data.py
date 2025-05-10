@@ -64,6 +64,14 @@ if fine:
     tower_ids.append(tower_id)
     tower_names.append(tower_name)
     
+def tower_alias(df_new, tower_id, alias_id, tower_name):
+    #Used on a bespoke basis when the Dove data is incomplete. Will assign the data from 'alias name' to 'tower name'
+    alias_data = df_new[df_new["Tower ID"] == alias_id].iloc[0].copy()
+    alias_data["Tower ID"] = tower_id
+    alias_data["Tower Name"] = tower_name
+    df_new = pd.concat([df_new, pd.DataFrame([alias_data])], ignore_index = True)
+    return df_new
+
 allrows = np.array(allrows)
 
 newdata = {'Tower ID': tower_ids, 'Tower Name': tower_names}
@@ -72,6 +80,10 @@ df_new = pd.DataFrame(newdata)
 for ri, bell_type in enumerate(all_fullcircles):
     df_new[bell_type] = allrows[:,ri]
     
+#Add tower aliases
+df_new = tower_alias(df_new, 15311, 15140, "Woolpit, Blessed Virgin Mary")
+
+print('Saving to .csv...')
 df_new.to_csv('./bell_data/nominal_data.csv')  
 
 
