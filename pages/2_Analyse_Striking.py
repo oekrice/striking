@@ -549,13 +549,14 @@ if st.session_state.current_touch >= 0:
                         for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                            ys = np.arange(1,nbells+1)
-                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                            rat = float(f(raw_actuals[bellstrikes][row]))
-                            points.append(rat); changes.append(row)
-                            
-                            if view_numbers:
-                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                            if len(target_row) == nbells:
+                                ys = np.arange(1,nbells+1)
+                                f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                                rat = float(f(raw_actuals[bellstrikes][row]))
+                                points.append(rat); changes.append(row)
+                                
+                                if view_numbers:
+                                    ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
 
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
@@ -567,12 +568,13 @@ if st.session_state.current_touch >= 0:
                         for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                            ys = np.arange(1,nbells+1)
-                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                            rat = float(f(raw_actuals[bellstrikes][row]))
-                            points.append(rat); changes.append(row)
-                            if view_numbers:
-                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                            if len(target_row) == nbells:
+                                ys = np.arange(1,nbells+1)
+                                f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                                rat = float(f(raw_actuals[bellstrikes][row]))
+                                points.append(rat); changes.append(row)
+                                if view_numbers:
+                                    ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
 
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
