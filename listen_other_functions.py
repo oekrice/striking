@@ -63,6 +63,7 @@ def find_ringing_times(Paras, Data):
     start_time = llim
     end_time   = rlim
     
+    start_time = int(max(0, start_time - 3.0/Paras.dt))
     del loudness; del loudsmooth; del loudsum; del peaks 
     return start_time, end_time
     
