@@ -18,6 +18,7 @@ If you would like to license or publish this software commerically, please conta
 
 #This script is for analysing methods. 
 #Takes the raw timing csv as an input (or can pass less if necessary) and will do the analysis from that. Hopefully don't need anything else
+#Get streamlit to detect commit
 
 import pandas as pd
 import numpy as np
