@@ -38,7 +38,7 @@ def establish_initial_rhythm_test(Paras, final = False):
     Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
     Paras.stop_flag = False
 
-    Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
+    #Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)  #Why does this happen twice? Forgot...
     
     Paras.first_strikes, Paras.first_strike_certs = find_first_strikes_test(Paras, Data)
     
