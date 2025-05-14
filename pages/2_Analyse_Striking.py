@@ -415,6 +415,7 @@ if st.session_state.current_touch >= 0:
         #print('SD', np.mean(alldiags[2,2,:]))
         overall_quality = 1.0 - np.mean(alldiags[2,2,:])/cadence
 
+        print('overall benchmark', overall_quality)
         min_quality = 0.65; max_quality = 0.88  #These are open to interpretation
         shifted_quality = (5.23*overall_quality - 3.59) 
         shifted_quality = min(1, max(0, shifted_quality))

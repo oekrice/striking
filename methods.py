@@ -687,6 +687,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
     def compare_set(target_rows, test_rows):
         same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
         return same_count/np.size(target_rows)
+
     #Not spliced first
     if methods_notspliced is not None:
         current_start = 0
@@ -766,7 +767,8 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
     else:
         best_calls_single = None
         qualities_single = None
-        
+        allrows_single = None
+        single_quality = None
     #Then spliced
     current_start = 0
     lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
@@ -799,8 +801,10 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             best_call = np.where(option_quality == np.max(option_quality))[0][0]
             best_calls_spliced.append(best_call)
             qualities_spliced.append(np.max(option_quality))
-            new_rows = generate_rows(lead_end_options[best_call], notation)
-            if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 2:
+            new_rows = generate_rows(lead_end_options[best_call], notation)  #Fix Grandsire problem with the lead end
+            print(methods_spliced[li][0])
+            print(method_data[method_data['Name'] == methods_spliced[li][0]]['Hunt Number'])
+            if method_data[method_data['Name'] == methods_spliced[li][0]]['Hunt Number'].values[0] == 2:
                 allrows_spliced[-2] = previous_options[best_call]
             allrows_spliced = np.concatenate((allrows_spliced[:-1], new_rows), axis = 0)
 
@@ -825,7 +829,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
         option_quality.append(same_count/np.size(trimmed_rows[current_start]))
     best_call = np.where(option_quality == np.max(option_quality))[0][0]
-    if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 2:
+    if method_data[method_data['Name'] == methods_spliced[-1][0]]['Hunt Number'].values[0] == 2:
         allrows_spliced[-2] = previous_options[best_call]
     allrows_spliced[-1] = lead_end_options[best_call]
     best_calls_spliced.append(best_call)
@@ -844,6 +848,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         else:
             allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
 
+    print('sdf', allrows_single)
     spliced_quality = compare_set(trimmed_rows, allrows_spliced)
     if allrows_single is not None:
         single_quality = compare_set(trimmed_rows, allrows_single)
