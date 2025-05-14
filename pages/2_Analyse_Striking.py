@@ -415,10 +415,13 @@ if st.session_state.current_touch >= 0:
         #print('SD', np.mean(alldiags[2,2,:]))
         overall_quality = 1.0 - np.mean(alldiags[2,2,:])/cadence
 
-        print('overall benchmark', overall_quality)
-        min_quality = 0.65; max_quality = 0.88  #These are open to interpretation
-        shifted_quality = (5.23*overall_quality - 3.59) 
-        shifted_quality = min(1, max(0, shifted_quality))
+        #print('overall benchmark', overall_quality)
+        #Now fit to a sigmoidal thing so people don't moan as much
+        k = 17.5; x0 = 0.727
+        shifted_quality = 1.0/(1.0 + np.exp(-k*(overall_quality - x0)))
+        #min_quality = 0.65; max_quality = 0.88  #These are open to interpretation
+        #shifted_quality = (5.23*overall_quality - 3.59) 
+        #shifted_quality = min(1, max(0, shifted_quality))
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.1f%%**" % (100*shifted_quality))
 
