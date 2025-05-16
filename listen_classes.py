@@ -60,7 +60,7 @@ class audio_data():
         if ext != '.wav':
             new_fname = './tmp/' + raw_file.name[:-4] + '.wav'
             #Convert this to a wav
-            os.system('ffmpeg -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
+            os.system('ffmpeg -y -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
                 upload_success = True
 

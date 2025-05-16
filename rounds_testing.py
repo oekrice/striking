@@ -283,7 +283,6 @@ def find_first_strikes_test(Paras, Data):
     belltimes = belltimes[-Paras.nbells:]    
     init_aims.append(belltimes)
 
-    nrounds_max = len(final_guesses)
     for ri in range(0,len(final_guesses)-1):
         #Interpolate the bells smoothly (assuming steady rounds)
 
@@ -372,8 +371,8 @@ def find_first_strikes_test(Paras, Data):
         Paras.nrounds_max = Paras.nrounds_max - 1
         handstroke = not(handstroke)
 
-    print('Change ends', np.array(final_guesses[:5]) + Paras.ringing_start)
-    print(strikes[:,:5] + Paras.ringing_start)
+    #print('Change ends', np.array(final_guesses[:5]) + Paras.ringing_start)
+    #print(strikes[:,:5] + Paras.ringing_start)
 
     all_spacings = []
     for ri in range(Paras.nrounds_max):
@@ -392,9 +391,8 @@ def find_first_strikes_test(Paras, Data):
     
     row_confidences = np.mean(strike_certs, axis = 0)
     bell_confidences = np.mean(strike_certs, axis = 1)
-    print(np.round(strike_certs[:,:10],4))
-    print('Row confidences', row_confidences)
-    print('Bell confidences', bell_confidences)
+    #print('Row confidences', row_confidences)
+    #print('Bell confidences', bell_confidences)
     #Check this is indeed handstroke or not, in case of an oddstruck tenor
     diff1s = strikes[:,1:-1:2] - strikes[:,0:-2:2]
     diff2s = strikes[:,2::2] - strikes[:,1:-1:2]
@@ -404,42 +402,35 @@ def find_first_strikes_test(Paras, Data):
     else:
         handstroke_first = False
 
-    print('Handstroke first?', handstroke_first)
+    #print('Handstroke first?', handstroke_first)
 
-    st.session_state.test_counter += 1
-    if not st.session_state.single_test:
-        st.rerun()
-    else:
-        st.stop()
+    #Filter out rows which probably aren't rounds from these results -- otherwise bells will get mixed up for sure
+    #Establish a standard based on all the bells which aren't the tenor
+    navg = min(8, 2*len(strike_certs)//2)
+    stroke1_standard = np.mean(strike_certs[:-1,2:navg:2])
+    stroke2_standard = np.mean(strike_certs[:-1,3:navg:2])
+    upto_standard = np.zeros(Paras.nrounds_max)
+    last_rounds_change = 0; offrounds_count = 0
+    for ri in range(Paras.nrounds_max):
+        if ri%2 == 0:
+            if np.mean(strike_certs[:-1,ri]) > 0.5*stroke1_standard:
+                upto_standard[ri] = 1.
+                offrounds_count = 0
+        else:
+            if np.mean(strike_certs[:-1,ri]) > 0.5*stroke2_standard:
+                upto_standard[ri] = 1.
+                offrounds_count = 0
+        if upto_standard[ri] > 0.5:
+            last_rounds_change = ri
+        elif np.sum(upto_standard) > 0:
+            offrounds_count += 1
+        if offrounds_count > 3 or (offrounds_count > 1 and ri > 10):
+            break
+    if last_rounds_change < 6:   #Otherwise it's probably not going to work...
+        last_rounds_change = 5
 
-    #Need to redo this one as it makes very little sense. Just include all the changes which are probably rounds, and let the individual confidences sort themselves out.
-    nrounds_per_bell = 2
-    row_ids = []
-    final_strikes = []; final_certs = []
-    for bell in range(Paras.nbells):
-        threshold = 0.0
-        allcerts = []; count = 0
-        for row in range(len(strikes[0])):
-            allcerts.append(strike_certs[bell,row])
-        if len(allcerts) > Paras.nreinforce_rows:
-            threshold = max(threshold, sorted(allcerts, reverse = True)[nrounds_per_bell])
-        #Threshold for THIS BELL
-        for row in range(len(strikes[0])):
-            if strike_certs[bell,row] > threshold and count < nrounds_per_bell:
-                if row not in row_ids:
-                    row_ids.append(row)
-                    final_strikes.append(strikes[:,row])
-                    final_certs.append(strike_certs[:,row])
-                    count += 1
-                    
-    final_strikes = np.array([val for _, val in sorted(zip(row_ids, final_strikes))]).astype('int')
-    final_certs = np.array([val for _, val in sorted(zip(row_ids, final_certs))])
-
-    if np.min(row_ids)%2 == 1:
-        handstroke_first = not(handstroke_first)
-        
-    strikes = np.array(final_strikes).T
-    strike_certs = np.array(final_certs).T
+    strikes = np.array(strikes[:,:last_rounds_change+1]).T
+    strike_certs = np.array(strike_certs[:,:last_rounds_change+1]).T
     
     Data.handstroke_first = handstroke_first
     st.session_state.handstroke_first = handstroke_first

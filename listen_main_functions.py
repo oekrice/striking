@@ -81,6 +81,12 @@ def do_reinforcement(Paras, Data):
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
+        st.session_state.test_counter += 1
+        if not st.session_state.single_test:
+            st.rerun()
+        else:
+            st.stop()
+
         #Save out frequency data only when finished reinforcing?
         
         #print('Finding strike probabilities...')
