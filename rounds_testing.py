@@ -274,7 +274,6 @@ def find_first_strikes_test(Paras, Data):
 
     plt.scatter(second_guesses, -0.75*np.ones(len(second_guesses)), c = 'blue')
     plt.scatter(final_guesses, -1.0*np.ones(len(second_guesses)), c = 'red')
-    st.pyplot(fig)
     plt.close()
     
     handstroke = handstroke_first

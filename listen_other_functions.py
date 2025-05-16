@@ -5,7 +5,6 @@ Created on Sat Mar  8 10:49:58 2025
 @author: eleph
 """
 import streamlit as st
-import matplotlib.pyplot as plt
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -97,7 +96,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
     
     tcut = Paras.rounds_tcut*int(Paras.cadence)
 
-    strike_probs = Data.strike_probabilities
+    strike_probs = Data.strike_probabilities   #I think something has gone awry with the timing
 
     #Obtain adjusted probs
     strike_probs_adjust = np.zeros(strike_probs.shape)
@@ -105,8 +104,8 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
     
     strike_probs_adjust = gaussian_filter1d(strike_probs_adjust, Paras.rounds_probs_smooth, axis = 1)
 
-        
     allpeaks = []; allbigs = []; allsigs = []
+    last_time = 0
     for bell in range(Paras.nbells):
         
         probs = strike_probs_adjust[bell]  
@@ -129,37 +128,37 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         
         allpeaks.append(peaks); allbigs.append(bigpeaks); allsigs.append(sigs)
 
+        last_time = max(last_time, max(peaks))
+
     #Find all peaks to begin with
-    #Run through each set of rounds 
     handstroke = Data.handstroke_first
-    #st.write('Test', handstroke, st.session_state.handstroke_first, len(Paras.allstrikes))
+    
+    #To be rewritten to try to use whole pulls instead, for more resilience
     next_end = 0
     
     count = 0
     unsurecount = 0
-    
-    if len(Paras.allstrikes) == 0:
+
+    if len(Paras.allstrikes) < 2:
         taims = np.zeros(Paras.nbells)
+        next_end = 0
     else:
-        change_start = np.mean(Data.last_change) - Data.cadence_ref*((Paras.nbells - 1)/2)
-        change_end = np.mean(Data.last_change) + Data.cadence_ref*((Paras.nbells - 1)/2)
+        last_change_reference = Paras.allstrikes[-2]
+        change_start = np.mean(last_change_reference) - Data.cadence_ref*((Paras.nbells - 1)/2)
+        change_end = np.mean(last_change_reference) + Data.cadence_ref*((Paras.nbells - 1)/2)
         
-        rats = (Data.last_change - change_start)/(change_end - change_start)
-        if not handstroke:
-            taims  = np.array(Data.last_change) + int(Paras.nbells*Data.cadence_ref)
-            next_start = change_start + int(Paras.nbells*Data.cadence_ref)
-            next_end = change_end + int(Paras.nbells*Data.cadence_ref)
-        else:
-            taims  = np.array(Data.last_change) + int((Paras.nbells + 1)*Data.cadence_ref)
-            next_start = change_start + int((Paras.nbells+1)*Data.cadence_ref)
-            next_end = change_end + int((Paras.nbells+1)*Data.cadence_ref)
+        rats = (last_change_reference - change_start)/(change_end - change_start)
+        taims  = np.array(last_change_reference) + int((2*Paras.nbells + 1)*Data.cadence_ref)
+        next_start = change_start + int((2*Paras.nbells+1)*Data.cadence_ref)
+        next_end = change_end + int((2*Paras.nbells+1)*Data.cadence_ref)
 
         taims = next_start + (next_end - next_start)*rats
                                    
         start = next_start - 3.0*int(Data.cadence_ref)
         end  =  next_end   + 3.0*int(Data.cadence_ref)
 
-    while next_end < np.max(peaks) - int(Paras.max_change_time/Paras.dt):
+    go = True
+    while next_end < last_time + 5.0/Paras.dt and go:
         
         #Paras.local_tmin = 0
         plotflag = False
@@ -168,13 +167,13 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         certs = np.zeros(Paras.nbells) #To know when to stop
         
         count += 1
-        if len(Paras.allstrikes) == 0 and len(allstrikes) == 0:  #Establish first strike overall.
-            #IMPROVE ON THIS - DETERMINE FROM THE INIT AUDIO BIT?
+        if len(Paras.allstrikes) == 0 and len(allstrikes) < 4:  #Establish first strikes overall from the rhythm establishment
+            change_number = len(allstrikes)
             for bell in range(Paras.nbells): #This is a bit shit -- improve it?
-                taim = Paras.first_change_start + Paras.cadence*bell
+                taim = Paras.first_strikes[bell, change_number] - Paras.ringing_start
                 
-                start_bell = taim - int(3.5*Paras.cadence)  #Aim within the change
-                end_bell = taim + int(3.5*Paras.cadence)
+                start_bell = taim - int(0.5*Paras.cadence)  #Aim within the change
+                end_bell = taim + int(0.5*Paras.cadence)
 
                 poss = allpeaks[bell][(allpeaks[bell] > start_bell)*(allpeaks[bell] < end_bell)]
                 sigposs = allsigs[bell][(allpeaks[bell] > start_bell)*(allpeaks[bell] < end_bell)]
@@ -184,16 +183,17 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                 if len(poss) < 1:
                     strikes[bell] = taim
                     confs[bell] = 0.0
+                    certs[bell] = 1.0
                 else:
                     strikes[bell] = poss[0]
                     
-                    if final:
-                        confs[bell] = 1.0
-                    else:
-                        confs[bell] = 0.0
-                        
+                    certs[bell] = 1.0
+                    confs[bell] = 1.0
+    
                     del poss; del sigposs
+
         else:  #Find options in the correct range
+
             failcount = 0; 
             for bell in range(Paras.nbells):
                 peaks = allpeaks[bell]
@@ -202,7 +202,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                 peaks_range = peaks[(peaks > start)*(peaks < end)]
                 sigs_range = sigs[(peaks > start)*(peaks < end)]
                 
-                start_bell = taims[bell] - int(3.5*Paras.cadence)  #Aim within the change
+                start_bell = taims[bell] - int(3.5*Paras.cadence)  #Aim within the change. This is very lenient...
                 end_bell = taims[bell] + int(3.5*Paras.cadence)
                 #Check physically possible...
                 if len(allstrikes) == 0:
@@ -238,7 +238,6 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                             
                         scores.append(tvalue*sigs_range[k]/np.max(sigs))
                                                 
-                        
                     kbest = scores.index(max(scores))
                     
                     strikes[bell] = peaks_range[kbest]
@@ -253,7 +252,6 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                         unsurecount += 1
                         if doplots > 0:
                             plotflag = True
-                            #print('Bell', bell + 1, 'unsure but not too bad...')
                             
                 else:
                     #print('No peaks found in sensible range')
@@ -269,7 +267,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                     
                     if len(allstrikes) > 0:
                         start_bell = max(start_bell, allstrikes[-1][bell] + int(3.0*Paras.cadence))
-                        end_bell = end
+                        end_bell = end - 3.0*int(Data.cadence_ref)
                     else:
                         start_bell = np.min(taims) - 2.0*Paras.cadence
                         end_bell = np.max(taims) + 2.0*Paras.cadence
@@ -280,7 +278,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
 
                     scores = []
                     for k in range(len(peaks_range)):  #Many options...
-                        tvalue = 1.0/(abs(peaks_range[k] - taims[bell])/tcut + 1)**Paras.strike_alpha
+                        tvalue = 1.0/(abs(peaks_range[k] - np.mean(taims))/tcut + 1)**Paras.strike_alpha
                         yvalue = sigs_range[k]/np.max(sigs_range)
                         scores.append(tvalue*yvalue**2.0)
                         
@@ -296,51 +294,22 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                             #print('Bell', bell + 1, 'Not found near to its past position... Will either guess and move on or stop')
                     else:
                         #Pick average point in the change
-
                         strikes[bell] = int(0.5*(start + end))
                         confs[bell] = 0.0
                         certs[bell] = 0.0
                      
-                    
-            if failcount > 1 or np.median(certs) < 0.01:
-                #Nothing has been found - stop!!
-                #print('Confidence in the change not good enough to continue...')
-                if plotflag > 1 or plotflag:
-                    plotstart = int(min(strikes)); plotend = int(max(strikes))
-                    ts = np.arange(plotstart - int(1.0/Paras.dt),plotend + int(1.0/Paras.dt))*Paras.dt + Paras.local_tmin
-    
+        if np.median(certs) < 0.01:
+            go = False
+            continue
 
-                Paras.ringing_finished = True
-                
-                if len(allconfs) > 1:
-                    bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
-                else:
-                    return [], []
-
-                Data.freq_data = np.array([Paras.dt, Paras.fcut_length, 0., 0.])
-                Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
-
-                if len(allstrikes) == 0:
-                    return [], []
-         
-                else:
-                    return np.array(allstrikes).T, np.array(allconfs).T
-                
         allstrikes.append(strikes)
         allconfs.append(confs)
-                
+
         if len(allstrikes) == 0:
             Paras.ringing_finished = True
 
             return [], []
- 
-        if doplots > 1:
-            plotflag = True
-        
-        if plotflag:  #Plot the probs and things
-            plotstart = int(min(strikes)); plotend = int(max(strikes))
-            ts = np.arange(plotstart - int(1.0/Paras.dt),plotend + int(1.0/Paras.dt))*Paras.dt + Paras.local_tmin
-            
+             
         #Determine likely location of the next change END
         #Need to be resilient to method mistakes etc... 
         #Log the current avg. bell cadences
@@ -349,26 +318,22 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         nrows_count = int(min(len(allcadences), 20))
         Data.cadence_ref = np.mean(allcadences[-nrows_count:])
         
-        change_start = np.mean(strikes) - Data.cadence_ref*((Paras.nbells - 1)/2)
-        change_end = np.mean(strikes) + Data.cadence_ref*((Paras.nbells - 1)/2)
-        
-        rats = (strikes - change_start)/(change_end - change_start)
-                
-        if handstroke:
-            taims  = np.array(allstrikes[-1]) + int(Paras.nbells*Data.cadence_ref)
-            next_start = change_start + int(Paras.nbells*Data.cadence_ref)
-            next_end = change_end + int(Paras.nbells*Data.cadence_ref)
-        else:
-            taims  = np.array(allstrikes[-1]) + int((Paras.nbells + 1)*Data.cadence_ref)
-            next_start = change_start + int((Paras.nbells+1)*Data.cadence_ref)
-            next_end = change_end + int((Paras.nbells+1)*Data.cadence_ref)
+        if len(allstrikes) > 1:   #Calculate bounds for the next change
+            last_change_reference = allstrikes[-2]
+            change_start = np.mean(last_change_reference) - Data.cadence_ref*((Paras.nbells - 1)/2)
+            change_end = np.mean(last_change_reference) + Data.cadence_ref*((Paras.nbells - 1)/2)
+            
+            rats = (last_change_reference - change_start)/(change_end - change_start)
+            taims  = np.array(last_change_reference) + int((2*Paras.nbells + 1)*Data.cadence_ref)
+            next_start = change_start + int((2*Paras.nbells + 1)*Data.cadence_ref)
+            next_end = change_end + int((2*Paras.nbells + 1)*Data.cadence_ref)
 
-        taims = next_start + (next_end - next_start)*rats
-                   
-        handstroke = not(handstroke)
-                
-        start = next_start - 1.5*int(Data.cadence_ref)
-        end  =  next_end   + 3.5*int(Data.cadence_ref)
+            taims = next_start + (next_end - next_start)*rats
+                                    
+            start = next_start - 3.0*int(Data.cadence_ref)
+            end  =  next_end   + 3.0*int(Data.cadence_ref)
+                    
+            handstroke = not(handstroke)
 
     if len(allconfs) > 1:
         
@@ -380,10 +345,9 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         Paras.ringing_finished = True
 
         return [], []
-
-
     
-    
+    #print('Allstrikes', np.array(allstrikes))
+    #print('Allconfs', np.array(allconfs))
     spacings = 1e6*np.ones((len(allstrikes), Paras.nbells, 2))
     yvalues = np.arange(Paras.nbells)
         

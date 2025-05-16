@@ -59,6 +59,8 @@ def establish_initial_rhythm(Paras, final = False):
     
     Data.strikes, Data.strike_certs = Paras.first_strikes, Paras.first_strike_certs
         
+    Paras.first_strikes = Paras.first_strikes + Paras.ringing_start
+
     return Data
         
 def do_reinforcement(Paras, Data):
@@ -71,7 +73,7 @@ def do_reinforcement(Paras, Data):
     Paras.new_frequencies = False
     Paras.overwrite_existing_freqs = False
     Paras.use_existing_freqs = False
-            
+
     for reinforce_count in range(Paras.n_reinforces):
         
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
@@ -80,7 +82,7 @@ def do_reinforcement(Paras, Data):
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
-        #Save out frequency data only when finished reinforcing?
+        #Save out frequency data only when finished reinforcing? Yes.
         
         #print('Finding strike probabilities...')
         
@@ -91,6 +93,12 @@ def do_reinforcement(Paras, Data):
         #Determine whether this is actually rounds or if something's got mixed up...
         all_is_well = check_initial_rounds(strikes)
 
+        '''
+        if all_is_well:
+            print("All is well", np.shape(strikes))
+        else:
+            print("All is not well")
+        '''
         if not all_is_well:
             print("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
             st.error("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
@@ -126,6 +134,7 @@ def do_reinforcement(Paras, Data):
         Data.handstroke_first = handstroke_first
         #print('b', st.session_state.handstroke_first, handstroke_first, Data.handstroke_first)
 
+        
         #Filter these strikes for the best rows, to then be used for reinforcement
         best_strikes = []; best_certs = []; allcerts = []; row_ids = []
         #Pick the ones that suit each bell in turn --but make sure to weight!
@@ -151,10 +160,10 @@ def do_reinforcement(Paras, Data):
                 done = True
             else:
                 threshold = threshold/2
-            
-        st.current_log.write('Using ' + str(len(best_strikes)) + ' rows for next reinforcement')
-        Data.strikes, Data.strike_certs = np.array(best_strikes).T, np.array(best_certs).T
         
+        Data.strikes, Data.strike_certs = strikes, strike_certs
+        st.current_log.write('Using ' + str(len(Data.strikes[0])) + ' rows for next reinforcement')
+
         reinforce_count += 1
 
         #This stuff is now a bit different... Need the three arrays as st session variables

@@ -52,8 +52,8 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 25
-single_test = True
+init_test = 0
+single_test = False
 
 
 if not os.path.exists('./tmp/'):
@@ -444,7 +444,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             
             st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
             print('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')        
-            
+
             Data = do_reinforcement(Paras, Data)
                     
             if st.session_state.reinforce_frequency_data[2] > 0.85:
