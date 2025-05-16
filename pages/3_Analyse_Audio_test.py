@@ -52,8 +52,8 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 0
-single_test = False
+init_test = 26
+single_test = True
 
 
 if not os.path.exists('./tmp/'):
@@ -145,7 +145,7 @@ if 'audio_filename' not in st.session_state:
     
 if st.session_state.test_counter >= len(input_matrix):
     print('___________________________________________')
-    print('Tests complete')
+    print('Tests complete with no serious errors')
     st.session_state.test_counter = 0
     st.stop()
 

@@ -27,9 +27,9 @@ def establish_initial_rhythm_test(Paras, final = False):
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
 
     if not final:
-        Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
 
     #Find strike probabilities from the nominals
     Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = True, final = final)
@@ -80,8 +80,6 @@ def find_first_strikes_test(Paras, Data):
 
     #Want to plot prominences and things to check if these is an obvious pattern
     rough_cadence = find_rough_cadence(Paras, Data)   #This gives an impression of how long it is between successive changes
-    print('Peal speed (hours):', 0.01*rough_cadence*5000/3600, rough_cadence)
-    st.write('Peal speed (hours):', 0.01*rough_cadence*5000/3600)
     npeaks_ish = int((Paras.rounds_tmax/Paras.dt - Paras.ringing_start*Paras.dt)/rough_cadence)
 
     fig = plt.figure()
@@ -93,7 +91,6 @@ def find_first_strikes_test(Paras, Data):
         probs = gaussian_filter1d(probs, 5)
         peaks, _ = find_peaks(probs) 
         peaks = peaks[peaks < Paras.rounds_tmax/Paras.dt]
-        peaks = peaks[peaks > Paras.ringing_start + int(2.5/Paras.dt)]
         prominences = peak_prominences(probs, peaks)[0]
         peaks = np.array([val for _, val in sorted(zip(prominences,peaks), reverse = True)]).astype('int')
         prominences = np.array(sorted(prominences, reverse = True))
@@ -111,138 +108,189 @@ def find_first_strikes_test(Paras, Data):
 
         significant_proms.append(np.array(prominences[prominences > threshold]))  
 
-    print('Confidence ratios', np.array(ratios))
-    #These should be slightly too many 
-    best_bells = np.array([val for _, val in sorted(zip(ratios,np.arange(nbells)), reverse = True)]).astype('int')
+    #Try superposing all the strike probabilities based on the assumed cadence?
+    probability_shift = np.zeros(len(Data.strike_probabilities[0]))
+    rough_interbell_gap = rough_cadence*2/(Paras.nbells*2 + 1)
+    alpha = 1.5   #trust larger bells more by this factor
+    fig = plt.figure(figsize = (10,7))
+    for bell in range(nbells):
+        shift = int((nbells - bell - 1)*rough_interbell_gap)
+        toplot = np.zeros(len(Data.strike_probabilities[0]))
+        if shift > 0:
+            probability_shift[shift:] = probability_shift[shift:] + Data.strike_probabilities[bell][:-shift]*((bell + 1)/nbells)**alpha
+            toplot[shift:] = Data.strike_probabilities[bell][:-shift]
+        else:
+            probability_shift[:] = probability_shift[:] + Data.strike_probabilities[bell]*((bell + 1)/nbells)**alpha
+            toplot[shift:] = Data.strike_probabilities[bell][:]
+    
+    plt.plot(probability_shift, c = 'black')
+    plt.plot(gaussian_filter1d(probability_shift, 3), c = 'red')
+    #plt.legend()
+    plt.xlim(0,7500)
+
+    #probability_shift should give a good probability of the location of the TENOR. 
+    #Keep in mind times are all now relative to the start time, whatever that is
 
     #Identify rhythm using these peaks -- that's the tricky bit...
     #Look for peaks which are on their own for some time and regard them as gospel, use as a basis for the rest
-    allpeaks = [[] for _ in range(nbells)]; allconfs = []   #These are for the COMPLETE set of rounds. So will guess those values which don't appear nicely.
-    allpeaks_guess = [[] for _ in range(nbells)]; allconfs = []   #These are for the COMPLETE set of rounds. So will guess those values which don't appear nicely.
-    all_lonesome_peaks = [[] for _ in range(nbells)]
-    for bi, bell in enumerate(best_bells):
-        cadence_cutoff = 0.75*rough_cadence #Look for lonesome peaks
-        lonesome_peaks = []
-        sigpeaks = sorted(significant_peaks[bell])
-        for pi in range(0,len(sigpeaks)):
-            if pi == 0:
-                nearest_distance = abs(sigpeaks[pi + 1] - sigpeaks[pi])
-            elif pi == len(significant_peaks[bell]) - 1:
-                nearest_distance = abs(sigpeaks[pi - 1] - sigpeaks[pi])
-            else:
-                nearest_distance = min(abs(sigpeaks[pi - 1] - sigpeaks[pi]), abs(sigpeaks[pi + 1] - sigpeaks[pi]))
-            if nearest_distance > cadence_cutoff:
-                lonesome_peaks.append(sigpeaks[pi])
-        all_lonesome_peaks[bell] = lonesome_peaks
-    
-    for bi, bell in enumerate(best_bells):
-        if len(all_lonesome_peaks[bell]) < 3:
-            continue
-        #Figure out distances between these peaks (in 'change space')
-        #Don't want to rely on one bell here, take the 'best'
-        #Can also probably figure out hand/back at this point, though it might be incorrect
-        allpeaks.append([])
-        allpeaks[bell].append(all_lonesome_peaks[bell][0])
-        allpeaks_guess[bell].append(all_lonesome_peaks[bell][0])   #This is an interpolated 'guess' based on no gaps. 
-        #Necessary to do this to determine the gaps, then can figure out allpeaks properly
-        for li in range(1, len(all_lonesome_peaks[bell])):
-            gap = int(round((all_lonesome_peaks[bell][li] - all_lonesome_peaks[bell][li-1])/rough_cadence, 0))
-            for k in range(max(0, gap - 1)):
-                allpeaks[bell].append(-1)
-                allpeaks_guess[bell].append(all_lonesome_peaks[bell][li-1] + (k+1)*(all_lonesome_peaks[bell][li] - all_lonesome_peaks[bell][li-1])/gap)
-            allpeaks[bell].append(all_lonesome_peaks[bell][li])
-            allpeaks_guess[bell].append(all_lonesome_peaks[bell][li])
+    shiftpeaks, _ = find_peaks(gaussian_filter1d(probability_shift, 3)) 
+    shiftproms = peak_prominences(gaussian_filter1d(probability_shift, 3), shiftpeaks)[0]
+    shiftpeaks = np.array([val for _, val in sorted(zip(shiftproms,shiftpeaks), reverse = True)]).astype('int')
 
+    cadence_cutoff = 0.75*rough_cadence #Look for lonesome peaks
+    lonesome_peaks = []
+    npeaks_ish = int(len(probability_shift)/rough_cadence + 1)
+    significant_peaks = shiftpeaks[:npeaks_ish]
+    significant_peaks = sorted(significant_peaks)
 
-        if bell == 5:
-            print(allpeaks_guess[bell])
-        #Cut off things here as all the bells might not start at the same time (establish start time)
-        #Use best_bell for this I think. Begin with the change AFTER that one as that's the only way to be certain
-        if bi == 0:
-            actual_start_time = min(allpeaks_guess[bell])
-            allpeaks_guess[bell] = allpeaks_guess[bell][1:].copy()
-            print('Actual start', actual_start_time)
+    peak_threshold = 0.25*np.max(shiftproms)
+    shiftpeaks = shiftpeaks[sorted(shiftproms, reverse = True) > peak_threshold]
+    shiftproms = peak_prominences(gaussian_filter1d(probability_shift, 3), shiftpeaks)[0]
+
+    for pi in range(0,len(significant_peaks)):
+        if pi == 0:
+            nearest_distance = abs(significant_peaks[pi + 1] - significant_peaks[pi])
+        elif pi == len(significant_peaks) - 1:
+            nearest_distance = abs(significant_peaks[pi - 1] - significant_peaks[pi])
         else:
-            if bell < best_bells[0]: #Cut off the same as before
-                allpeaks_guess[bell] = [val for val in allpeaks_guess[bell].copy() if val > actual_start_time]
-            else:
-                allpeaks_guess[bell] = [val for val in allpeaks_guess[bell].copy() if val > actual_start_time + rough_cadence*0.75]
+            nearest_distance = min(abs(significant_peaks[pi - 1] - significant_peaks[pi]), abs(significant_peaks[pi + 1] - significant_peaks[pi]))
+        if nearest_distance > cadence_cutoff:
+            lonesome_peaks.append(significant_peaks[pi])
     
-        plt.scatter(allpeaks[bell], bell*np.ones(len(allpeaks[bell])), c = 'green', s = 20)
+    if len(lonesome_peaks) < 4:
+        st.error('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
+        print('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
+        st.session_state.test_counter += 1
+        st.rerun()
 
-    rounds_start_time = min(allpeaks_guess[0])
+    plt.scatter(lonesome_peaks,-0.25*np.ones(len(lonesome_peaks)), c = 'green')
 
-    print('rounds start time', rounds_start_time)
-    sum_1 = 0; sum_2 = 0
-    for bi, bell in enumerate(best_bells[:3]):
-        #At this point there are half-decent guesses for each of the rows. 
-        #Now need to adjust for handstroke gaps, and redo the above step
-        diff1s = np.array(allpeaks_guess[bell])[1:-1:2] - np.array(allpeaks_guess[bell])[0:-2:2]
-        diff2s = np.array(allpeaks_guess[bell])[2::2] - np.array(allpeaks_guess[bell])[1:-1:2]
-        #The non-confident ones won't really contribute but also won't be detrimental, so keep them in
-        sum_1 += np.mean(diff1s)
-        sum_2 += np.mean(diff2s)
+    #Figure out distances between these peaks (in 'change space')
+    #Can also probably figure out hand/back at this point, though it might be incorrect
+    #Interpolate between the correct values to obtain a 'guess'
+    #Use this to then determine hand/back, and improve the guess
+    #Then backdate to the start of the ringing.
+    #THEN search for actual peaks nearby
+    #Hopefully that'll be foolproof...
+    first_guesses = [lonesome_peaks[0]]
 
-    if sum_1 > sum_2: 
-        handstroke_first = False
-    else:
+    #Necessary to do this to determine the gaps, then can figure out allpeaks properly
+    for li in range(1, len(lonesome_peaks)):
+        if lonesome_peaks[li] < 15.0/Paras.dt:   #Adjust for slow pull-off
+            gap = int(round((lonesome_peaks[li] - lonesome_peaks[li-1])/rough_cadence - 0.25, 0))
+        else:
+            gap = int(round((lonesome_peaks[li] - lonesome_peaks[li-1])/rough_cadence, 0))
+
+        for k in range(max(0, gap - 1)):
+            first_guesses.append(lonesome_peaks[li-1] + (k+1)*(lonesome_peaks[li] - lonesome_peaks[li-1])/gap)
+        first_guesses.append(lonesome_peaks[li])
+
+    plt.scatter(first_guesses,-0.5*np.ones(len(first_guesses)), c = 'orange')
+
+    #Update rough cadence:
+    rough_cadence = np.mean(np.array(sorted(first_guesses))[1:] - np.array(sorted(first_guesses)[:-1]))
+    print('Peal speed (hours):', Paras.dt*rough_cadence*5000/3600)
+
+    if len(first_guesses) < 6:
+        st.error('Not enough changes detected to proceed...')
+        print('Not enough changes detected to proceed...')
+        st.session_state.test_counter += 1
+        st.rerun()
+    #At this point there are half-decent guesses for each of the rows. 
+    #Now need to adjust for handstroke gaps, and redo the above step
+    nrows_check = int(min(6, 2*len(first_guesses)//2 - 4))
+    diff1s = np.array(first_guesses)[2:][1:nrows_check:2] - np.array(first_guesses)[2:][0:nrows_check-1:2]
+    diff2s = np.array(first_guesses)[2:][2:nrows_check+1:2] - np.array(first_guesses)[2:][1:nrows_check:2]
+
+    if np.mean(diff1s) < np.mean(diff2s): 
         handstroke_first = True
-    print('Handstroke?', sum_1, sum_2, handstroke_first)
-    allpeaks_betterguess = [[] for _ in range(nbells)]
+    else:
+        handstroke_first = False
+    stroke_difference = abs(np.mean(diff2s) - np.mean(diff1s))
 
-    for bell in range(nbells):
-        if len(all_lonesome_peaks[bell]) < 3:
-            continue
-        handstroke = handstroke_first
+    handstroke = handstroke_first   #This is the stroke of the next change 
+    second_guesses = [lonesome_peaks[0]]
+    handstroke = not(handstroke)
+    #Necessary to do this to determine the gaps, then can figure out allpeaks properly
+    for li in range(1, len(lonesome_peaks)):
+        if lonesome_peaks[li] < 15.0/Paras.dt:   #Adjust for slow pull-off
+            gap = int(round((lonesome_peaks[li] - lonesome_peaks[li-1])/rough_cadence - 0.25, 0))
+        else:
+            gap = int(round((lonesome_peaks[li] - lonesome_peaks[li-1])/rough_cadence, 0))
 
-        allpeaks.append([])
-        if all_lonesome_peaks[bell][0] >= rounds_start_time + 0.375*bell*rough_cadence/nbells:
-            allpeaks_betterguess[bell].append(all_lonesome_peaks[bell][0])  
-            handstroke = not(handstroke)
-        #Necessary to do this to determine the gaps, then can figure out allpeaks properly
-        for li in range(1, len(all_lonesome_peaks[bell])):
-            gap = int(round((all_lonesome_peaks[bell][li] - all_lonesome_peaks[bell][li-1])/rough_cadence, 0))
-
-            if gap > 1: 
-                #Need to do some interpolation
-                start = all_lonesome_peaks[bell][li-1]; end = all_lonesome_peaks[bell][li]
-                position = start
+        if gap > 1: 
+            #Need to do some interpolation
+            start = lonesome_peaks[li-1]; end = lonesome_peaks[li]
+            position = start
+            if handstroke:
+                total_interbell_gaps = (nbells*2 + 1)*(gap//2) + (gap%2)*(nbells + 1)
+            else:
+                total_interbell_gaps = (nbells*2 + 1)*(gap//2) + (gap%2)*(nbells)
+            avg_gap = (end - start)/total_interbell_gaps
+            for k in range(gap-1):
+                #Run through and add things
                 if handstroke:
-                    total_interbell_gaps = (nbells*2 + 1)*(gap//2) + (gap%2)*(nbells + 1)
+                    position += avg_gap*(nbells + 1)
+                    second_guesses.append(position)  
+                    handstroke = not(handstroke)
                 else:
-                    total_interbell_gaps = (nbells*2 + 1)*(gap//2) + (gap%2)*(nbells)
-                avg_gap = (end - start)/total_interbell_gaps
-                for k in range(gap-1):
-                    #Run through and add things
-                    if handstroke:
-                        position += avg_gap*(nbells + 1)
-                        allpeaks_betterguess[bell].append(position)  
-                        handstroke = not(handstroke)
-                    else:
-                        position += avg_gap*(nbells)
-                        allpeaks_betterguess[bell].append(position)
-                        handstroke = not(handstroke)
+                    position += avg_gap*(nbells)
+                    second_guesses.append(position)
+                    handstroke = not(handstroke)
 
-            if all_lonesome_peaks[bell][li] >= rounds_start_time + 0.375*bell*rough_cadence/nbells:
-                allpeaks_betterguess[bell].append(all_lonesome_peaks[bell][li])
-                handstroke = not(handstroke)
+        second_guesses.append(lonesome_peaks[li])
+        handstroke = not(handstroke)
 
-        plt.scatter(allpeaks_betterguess[bell], bell*np.ones(len(allpeaks_betterguess[bell])), c = 'red', s = 5)
+    #Almost done -- now append to the start, and find the 'final' guesses for the tenor times
+    handstroke = handstroke_first
+    while min(shiftpeaks) < min(second_guesses) - 0.75*rough_cadence and min(second_guesses) - 1.5*rough_cadence > Paras.ringing_start:
+        #Check for strikes which are closer to the start than we've already looked at (unsteady rounds problem)
+        if handstroke:
+            second_guesses.insert(0,second_guesses[0]-rough_interbell_gap*(nbells + 1))
+        else:
+            second_guesses.insert(0,second_guesses[0]-rough_interbell_gap*(nbells))
+        handstroke = not(handstroke)
 
+    handstroke_first = handstroke   #This is actually the stroke of the first recorded change, rather than the first reliable one
+    #BUT if there is silence beforehand and not much confidence, it's safe to assume it's handstroke first probably
 
-    #Start with the bells with the most peaks?
-    plt.gca().invert_yaxis()
-    plt.xlim(0,4000)
+    if Paras.ringing_start > rough_cadence * 1.5 and stroke_difference*Paras.dt < 10.0:
+        handstroke_first = True
+
+    #Check for peaks close to these assumed times (deals with some variation in ringing time). Just pick the most prominent within a reasonable range, if such a thing exists
+    final_guesses = []
+    for strike in second_guesses:
+        min_limit = strike - (nbells/3)*rough_interbell_gap
+        max_limit = strike + (nbells/3)*rough_interbell_gap
+        options = [val for val in shiftpeaks if min_limit <= val <= max_limit]
+        if len(options) == 0:
+            final_guesses.append(strike)
+        else:
+            prom_options = peak_prominences(gaussian_filter1d(probability_shift, 3), options)[0]
+            index = np.argmax(prom_options)
+            final_guesses.append(options[index])
+
+    plt.scatter(second_guesses, -0.75*np.ones(len(second_guesses)), c = 'blue')
+    plt.scatter(final_guesses, -1.0*np.ones(len(second_guesses)), c = 'red')
     st.pyplot(fig)
     plt.close()
-    st.stop()
+    
+    handstroke = handstroke_first
 
-    for rounds in range(nrounds_test):
+    cadences = []; init_aims = []
+    cadence_guess = (final_guesses[2] - final_guesses[0])/(2*Paras.nbells + 1)
+    belltimes = np.linspace(final_guesses[0] - cadence_guess*(nbells-1), final_guesses[0], Paras.nbells)
+    belltimes = belltimes[-Paras.nbells:]    
+    init_aims.append(belltimes)
+
+    nrounds_max = len(final_guesses)
+    for ri in range(0,len(final_guesses)-1):
         #Interpolate the bells smoothly (assuming steady rounds)
-        if not handstroke:
-            belltimes = np.linspace(tenor_strikes[rounds], tenor_strikes[rounds+1], Paras.nbells + 1)
+
+        if handstroke:
+            belltimes = np.linspace(final_guesses[ri], final_guesses[ri + 1], Paras.nbells + 1)
         else:
-            belltimes = np.linspace(tenor_strikes[rounds], tenor_strikes[rounds+1], Paras.nbells + 2)
+            belltimes = np.linspace(final_guesses[ri], final_guesses[ri + 1], Paras.nbells + 2)
             
         cadences.append(belltimes[1] - belltimes[0])
         belltimes = belltimes[-Paras.nbells:]
@@ -272,8 +320,9 @@ def find_first_strikes_test(Paras, Data):
     probs_raw = Data.strike_probabilities[:]
     probs_raw = gaussian_filter1d(probs_raw, Paras.strike_smoothing, axis = 1)
 
-    tcut = 1 #Be INCREDIBLY fussy with these picks or the wrong ones will get nicked
-    
+
+    tcut = 1 #Be INCREDIBLY fussy with these picks or the wrong ones will get picked
+    absolute_cutoff = cadence*0.5
     for bell in range(Paras.nbells):
         #Find all peaks in the probabilities for this individual bell
         probs_adjust = probs_raw[bell,:]**(Paras.probs_adjust_factor + 1)/(np.sum(probs_raw[:,:], axis = 0) + 1e-6)**Paras.probs_adjust_factor
@@ -292,7 +341,10 @@ def find_first_strikes_test(Paras, Data):
 
             scores = []
             for k in range(len(poss)):  #Many options...
-                tvalue = 1.0/(abs(poss[k] - aim)/tcut + 1)**Paras.strike_alpha
+                if abs(poss[k] - aim) < absolute_cutoff:
+                    tvalue = 1.0/(abs(poss[k] - aim)/tcut + 1)**Paras.strike_alpha
+                else:
+                    tvalue = 0
                 yvalue = yvalues[k]
                 scores.append(tvalue*yvalue**Paras.strike_gamma_init)
                 
@@ -306,12 +358,22 @@ def find_first_strikes_test(Paras, Data):
             else:
                 strikes[bell, ri] = aim
                 strike_certs[bell, ri] = 0.0
-               
-        
+                 
     del probs_raw; del probs_adjust; del peaks; del sigs
     
     strikes = np.array(strikes)
     strike_certs = np.array(strike_certs)    
+
+
+    #If the first change is before the ringing time, ged rid of it (make sure to change stroke)
+    if np.min(strikes) < 0:
+        strikes = strikes[:,1:]
+        strike_certs = strike_certs[:,1:]
+        Paras.nrounds_max = Paras.nrounds_max - 1
+        handstroke = not(handstroke)
+
+    print('Change ends', np.array(final_guesses[:5]) + Paras.ringing_start)
+    print(strikes[:,:5] + Paras.ringing_start)
 
     all_spacings = []
     for ri in range(Paras.nrounds_max):
@@ -328,22 +390,29 @@ def find_first_strikes_test(Paras, Data):
 
     strike_certs = strike_certs*all_spacings
     
+    row_confidences = np.mean(strike_certs, axis = 0)
+    bell_confidences = np.mean(strike_certs, axis = 1)
+    print(np.round(strike_certs[:,:10],4))
+    print('Row confidences', row_confidences)
+    print('Bell confidences', bell_confidences)
     #Check this is indeed handstroke or not, in case of an oddstruck tenor
-    diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
+    diff1s = strikes[:,1:-1:2] - strikes[:,0:-2:2]
     diff2s = strikes[:,2::2] - strikes[:,1:-1:2]
     
-    #st.write('Initial diffs', diff1s, diff2s)
-    kback = len(diff2s[0])
-    kback = min((2*kback)//2, 4)   #MUST BE EVEN
     if np.mean(diff1s[:]) < np.mean(diff2s[:]):
         handstroke_first = True
     else:
         handstroke_first = False
-    #st.write('First change', strikes[:,0], handstroke_first)
-    #st.write(diff1s, diff2s)
-    #st.write(handstroke_first)
-    
-    
+
+    print('Handstroke first?', handstroke_first)
+
+    st.session_state.test_counter += 1
+    if not st.session_state.single_test:
+        st.rerun()
+    else:
+        st.stop()
+
+    #Need to redo this one as it makes very little sense. Just include all the changes which are probably rounds, and let the individual confidences sort themselves out.
     nrounds_per_bell = 2
     row_ids = []
     final_strikes = []; final_certs = []
