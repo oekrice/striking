@@ -52,8 +52,8 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 30
-single_test = True
+init_test = 52
+single_test = False
 
 if not os.path.exists('./tmp/'):
     os.system('mkdir tmp')
@@ -108,11 +108,8 @@ if 'reinforce_frequency_profile' not in st.session_state:
     st.session_state.reinforce_frequency_profile = None  
 if 'reinforce_frequency_data' not in st.session_state:
     st.session_state.reinforce_frequency_data = None  
-
-st.session_state.reinforce_test_frequencies = None   
-st.session_state.reinforce_frequency_profile = None  
-st.session_state.reinforce_frequency_data = None 
-
+ 
+    
 #Final frequency data for use
 if 'final_freqs' not in st.session_state:
     st.session_state.final_freqs = None   
@@ -335,6 +332,15 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     else:
         st.session_state.use_existing_freqs  = allstrings.index(options) - 1
         existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
+    
+    if len(allstrings) > 0:
+        st.session_state.use_existing_freqs  = st.session_state.test_counter
+        existing_filename = freq_root + '_%03d' % (st.session_state.test_counter)  
+    else:
+        print('No frequencies for this tower')
+        st.session_state.test_counter += 1
+        st.rerun()
+
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
     def reset_on_upload():
@@ -362,6 +368,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
 
+    
     if st.session_state.trimmed_signal is not None:
         st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
         st.write('Trimmed audio length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
@@ -495,12 +502,12 @@ if (st.session_state.reinforce_status == 2 and st.session_state.use_existing_fre
 else:
     st.session_state.good_frequencies_selected = False
     
-if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None and st.session_state.nominals_confirmed or (st.session_state.analysis_status == 2):
-
+if True:
+    st.session_state.analysis_status = 1
     if st.session_state.allcerts is None and st.session_state.analysis_status == 2:
         st.session_state.analysis_status = 0
     #st.write(st.session_state.analysis_status)
-    if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
+    if True:
         if st.session_state.use_existing_freqs < 0:
             st.empty().write('New frequency profile calculated. Find strike times?')
         else:
@@ -531,7 +538,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
 
         #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
-        establish_initial_rhythm(Paras, final = True)
+        establish_initial_rhythm_test(Paras, final = True)
        
         #Load in final frequencies as session variables
         if st.session_state.use_existing_freqs < 0:
@@ -550,7 +557,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         st.session_state.reinforce_frequency_data = np.array([Paras.dt, Paras.fcut_length, np.mean(np.array(st.session_state.allcerts)[1:]), np.min(np.array(st.session_state.allcerts)[1:])])
         st.session_state.reinforce_frequency_data = np.concatenate((st.session_state.reinforce_frequency_data, bellconfs_individual))
 
-        st.rerun()
+
+
+        #st.rerun()
 
     if st.session_state.analysis_status == 2:
         st.analysis_log.write('**Audio Analysed**')
@@ -566,6 +575,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         if len(st.session_state.allstrikes[0]) < 60.0:
             goodenough = False
         
+
         #If it's good, give an option to save out so it can be used next time
         if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough and freq_filename is not None:
             
@@ -617,9 +627,13 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     method_title = "Spliced"
                 lead_length = 2*int(hunt_types[0][1] + 1)
             st.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            print('Result:', str(nchanges) + " " + method_title)
         else:
             st.write("**No method detected**")
+            print('Result:' + "**No method detected**")
             start_row = 0; end_row = len(allrows_correct)
+        st.session_state.test_counter += 1
+        st.rerun()
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         if not st.session_state.incache:
             if st.button("Save this striking data to the cache for analysis"):
@@ -691,6 +705,5 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 c = find_colour(np.mean(rowconf))
                 confstring = ('%d' % np.mean(rowconf)*100 )
                 st.write(':%s[%s -- %d %%]' % (c ,string, np.mean(rowconf)*100))
-
 
 

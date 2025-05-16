@@ -23,7 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_strike_times_new
+from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
 
 def establish_initial_rhythm(Paras, final = False):
     #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
@@ -169,7 +169,6 @@ def do_reinforcement(Paras, Data):
         #This stuff is now a bit different... Need the three arrays as st session variables
         if len(Data.strikes) > 0 and len(Data.strike_certs) > 0:
             print('Match at count', reinforce_count, Data.freq_data[2])
-
             #Check if it's worth overwriting the old one? Do this at EVERY STEP, and save out to THIS filename.
             update = False
             if st.session_state.reinforce_frequency_data is not None:
@@ -195,11 +194,11 @@ def do_reinforcement(Paras, Data):
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*toprint))
+
     return Data
 
 def find_final_strikes(Paras, nested = False):
     
-     #Create new data files in turn -- will be more effeicient ways but meh...
      tmin = 0.0
      tmax = tmin + Paras.overall_tcut + Paras.ringing_start*Paras.dt
      allstrikes = []; allcerts = []
@@ -214,7 +213,6 @@ def find_final_strikes(Paras, nested = False):
 
      counter = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
-         
          if tmax >= Paras.overall_tmax - 1.0:  #Last one
              Paras.stop_flag = True
              
@@ -244,7 +242,8 @@ def find_final_strikes(Paras, nested = False):
              pass
          else:
              Paras.stop_flag = True
-            
+             Paras.ringing_finished = True
+
          if len(np.shape(Data.strikes)) > 1:
             if len(Data.strikes[:,0]) > 1:
                 if len(allstrikes) == 0:   #Check for rounds at the start
@@ -269,7 +268,6 @@ def find_final_strikes(Paras, nested = False):
              diff1s = Data.strikes[:,1::2] - Data.strikes[:,0:-1:2]
              diff2s = Data.strikes[:,2::2] - Data.strikes[:,1:-1:2]
              
-             kback = len(diff2s[0])
              if np.mean(diff1s[:]) < np.mean(diff2s[:]):
                  handstroke_first = True
              else:
@@ -290,7 +288,8 @@ def find_final_strikes(Paras, nested = False):
          Paras.cadence_ref = np.mean(Paras.allcadences[-nrows_count:])
          Paras.allstrikes = np.array(allstrikes)
          
-         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs - Paras.ringing_start*Paras.dt)
+         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs)
+         progress_fraction = min(1, progress_fraction)
          st.analysis_sublog.progress(progress_fraction, text = 'Complete until time %d seconds, after %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          #st.analysis_sublog.write('Complete until time %d seconds with %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          
@@ -298,7 +297,7 @@ def find_final_strikes(Paras, nested = False):
          st.session_state.allcerts = np.array(allcerts).T
      
          counter += 1
-         
+
      del allstrikes; del allcerts
      Data = None
      
