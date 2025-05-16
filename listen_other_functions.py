@@ -13,7 +13,6 @@ from scipy.signal import find_peaks, peak_prominences
 import time
 
 #Added text so Streamlit detects a commit
-
 def find_colour(value):
     #For prettiness purposes
     colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
@@ -27,6 +26,23 @@ def find_colour(value):
 def normalise(nbits, raw_input):
     #Normalises the string to the number of bits
     return raw_input/(2**(nbits-1))
+
+def check_initial_rounds(strikes):
+    isfines = np.zeros(len(strikes[0]))
+    ncheck = 6
+    for ri in range(len(strikes[0])):
+        row = strikes[:,ri]
+        diffs = row[1:] - row[:-1]
+        mean_diff = np.mean(diffs)
+        if np.min(diffs) < mean_diff*0.25:
+            isfines[ri] = 0
+        else:
+            isfines[ri] = 1
+    if np.sum(isfines[:ncheck])/ncheck < 0.5:
+        return False
+    else:
+        return True
+
 
 def find_ringing_times(Paras, Data):
     
@@ -69,7 +85,7 @@ def find_ringing_times(Paras, Data):
     
     
 
-def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
+def find_strike_times(Paras, Data, final = False, doplots = 0):
     #Go through the rounds in turn instead of doing it bellwise
     #Allows for nicer plotting and stops mistakely hearing louder bells. Hopefully.
         
@@ -153,7 +169,7 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
         
         count += 1
         if len(Paras.allstrikes) == 0 and len(allstrikes) == 0:  #Establish first strike overall.
-            #IMPROVE ON THIS - DETERMINE FROM THE INIT AUDIO BIT
+            #IMPROVE ON THIS - DETERMINE FROM THE INIT AUDIO BIT?
             for bell in range(Paras.nbells): #This is a bit shit -- improve it?
                 taim = Paras.first_change_start + Paras.cadence*bell
                 
@@ -166,20 +182,17 @@ def find_strike_times_rounds(Paras, Data, final = False, doplots = 0):
                 poss = np.array([val for _, val in sorted(zip(sigposs, poss), reverse = True)])
     
                 if len(poss) < 1:
-                    #st.session_state.reinforce = 0
-                    st.error('Cannot find strike for bell %d in rounds. Check tower/number of bells correct or try changing the start time?'% (bell+1))
-                    st.session_state.reinforce_status = 0
-                    time.sleep(5.0)
-
-                    st.rerun()
-                strikes[bell] = poss[0]
-                
-                if final:
-                    confs[bell] = 1.0
-                else:
+                    strikes[bell] = taim
                     confs[bell] = 0.0
+                else:
+                    strikes[bell] = poss[0]
                     
-                del poss; del sigposs
+                    if final:
+                        confs[bell] = 1.0
+                    else:
+                        confs[bell] = 0.0
+                        
+                    del poss; del sigposs
         else:  #Find options in the correct range
             failcount = 0; 
             for bell in range(Paras.nbells):
@@ -418,14 +431,19 @@ def do_frequency_analysis(Paras, Data):
         
     bellsums = np.zeros(Paras.nbells)
     for bell in range(Paras.nbells):
+        max_cert_threshold = sorted(Data.strike_certs[bell,:])[-4]   #Get rid of massive outliers
+        Data.strike_certs[bell,:] = np.minimum(Data.strike_certs[bell,:], max_cert_threshold)
         bellsums[bell] = np.sum(Data.strike_certs[bell,:]**Paras.beta)
-        Data.strike_certs[bell,:] = Data.strike_certs[bell,:]/bellsums[bell]
-        
-    #Try going through in turn for each set of rounds? Should reduce the order of this somewhat
+        #Need to adjust these for the case where there is literally zero certainty (as for Hursley)
+        if np.sum(bellsums[bell]) > 0.0:
+            Data.strike_certs[bell,:] = Data.strike_certs[bell,:]/bellsums[bell]
+        else:
+            Data.strike_certs[bell,:] = 1.0
+    #Try going through in turn for each set of rounds? Should reduce the order of this somewhat. BUT don't want to use bad things -- need a threshold for EACH bell
     for si in range(nstrikes):
         #Run through each row
         strikes = Data.strikes[:,si] #Strikes on this row.
-        certs = Data.strike_certs[:, si]
+        certs = Data.strike_certs[:,si]
         tmin = int(np.min(strikes) - Paras.cadence*(Paras.nbells - 2)); tmax = int(np.max(strikes) + Paras.cadence*(Paras.nbells - 2))
         #print('Examining row %d \r' % si)
         for fi, freq_test in enumerate(freq_tests):
@@ -439,39 +457,23 @@ def do_frequency_analysis(Paras, Data):
             
             prominences = peak_prominences(diffsum, peaks)[0]
             
+            if len(prominences) == 0:
+                continue
+
             sigs = prominences/np.max(prominences)   #Significance of the peaks relative to the background flow
             
             peaks = peaks + tmin
         
-            #Two options here -- the first works well on 12, the second on 6. Oh well...
-            if True:
-                #For each frequency, check consistency against confident strikes (threshold can be really high for that -- 99%?)
-                for bell in range(Paras.nbells):
-                    best_value = 0.0; min_tvalue = 1e6
-                    pvalue = certs[bell]**Paras.beta
-                    for pi, peak_test in enumerate(peaks):
-                        tvalue = 1.0/(abs(peak_test - strikes[bell])/tcut + 1)**Paras.strike_alpha
-                        best_value = max(best_value, sigs[pi]**Paras.strike_gamma_init*tvalue*pvalue)
-                        min_tvalue = min(min_tvalue, tvalue)
-                    allvalues[fi,si,bell] = best_value*min_tvalue**2
+            #For each frequency, check consistency against confident strikes (threshold can be really high for that -- 99%?)
+            for bell in range(Paras.nbells):
+                best_value = 0.0; min_tvalue = 1e6
+                pvalue = certs[bell]**Paras.beta
+                for pi, peak_test in enumerate(peaks):
+                    tvalue = 1.0/(abs(peak_test - strikes[bell])/tcut + 1)**Paras.strike_alpha
+                    best_value = max(best_value, sigs[pi]**Paras.strike_gamma_init*tvalue*pvalue)
+                    min_tvalue = min(min_tvalue, tvalue)
+                allvalues[fi,si,bell] = best_value*min_tvalue**2
                 
-            else:
-                for bell in range(Paras.nbells):
-                    scores = []; tvalues = []
-                    pvalue = certs[bell]**Paras.beta
-                    for pi, peak_test in enumerate(peaks):
-                        tvalue = (abs(peak_test - strikes[bell])/tcut_big)
-                        scores.append(1.0/(tvalue + 1)**Paras.strike_alpha)
-    
-                        #scores.append(1.0 - sigs[pi]**Paras.strike_gamma_init*tvalue)
-                        tvalues.append(tvalue)
-                        
-                    minscore = min(scores) #Score of the WORST PEAK
-                    ind = scores.index(max(scores))  #Index of the BEST PEAK
-                    
-                    allvalues[fi,si,bell] = minscore*sigs[ind]**Paras.strike_gamma_init*pvalue
-            
-
     allprobs[:,:] = np.mean(allvalues, axis = 1)
     del strikes; del certs; del diff_slice; del diffsum; del peaks; del prominences; del sigs; del allvalues
 
@@ -483,10 +485,6 @@ def do_frequency_analysis(Paras, Data):
     #Do a plot of the 'frequency spectrum' for each bell, with probabilities that each one is significant
     #Need to take into account lots of frequencies, not just the one (which is MUCH easier)
     #Do a plot of the 'frequency spectrum' for each bell, with probabilities that each one is significant
-    if Paras.nbells > 6:
-        ncols = 3; nrows = 4
-    else:
-        ncols = 2; nrows = 3
     
     for bell in range(Paras.nbells):
         allprobs[:,bell] = allprobs[:,bell]/np.max(allprobs[:,bell])
@@ -557,15 +555,12 @@ def do_frequency_analysis(Paras, Data):
 
     nfinals = Paras.n_frequency_picks
     
-
     for bell in range(Paras.nbells):
-        rat = 0.1*np.max(allprobs[:,bell])
 
         best_probs[:,bell] = best_probs[:,bell]/np.max(best_probs[:,bell])
 
         freqs_arrange = np.array([val for _, val in sorted(zip(best_probs[:,bell], final_freqs), reverse = True)]).astype('int')
         
-            
         for fi in freqs_arrange[:nfinals*2]:
             #Check for close by alternatives to the biggest peaks and remove them
             others = final_freqs[(abs(final_freqs - fi) < 20) * (abs( final_freqs - fi) > 0)]
@@ -594,7 +589,6 @@ def do_frequency_analysis(Paras, Data):
     frequency_probabilities = np.array(frequency_probabilities)
     
     del best_probs
-    
     
     return frequencies, frequency_probabilities
        

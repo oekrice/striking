@@ -52,16 +52,16 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 0
+init_test = 25
 single_test = True
 
 
 if not os.path.exists('./tmp/'):
-    os.system('mkdir ./tmp/')
+    os.system('mkdir tmp')
 if not os.path.exists('./frequency_data/'):
-    os.system('mkdir ./frequency_data/')
+    os.system('mkdir frequency_data')
 if not os.path.exists('./striking_data/'):
-    os.system('mkdir ./striking_data/')
+    os.system('mkdir striking_data')
 
 #Establish persistent variables
 if "test_counter" not in st.session_state:
@@ -300,7 +300,8 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
                     
             existing_files += 1
     frequency_counter = existing_files//3    #ID of THIS frequency set
-    freq_filename = freq_root + '_%03d' % (max_existing + 1)         
+    #freq_filename = freq_root + '_%03d' % (max_existing + 1)         
+    freq_filename = freq_root + '_%03d' % st.session_state.test_counter    
         
     def stop_analysis():
         if st.session_state.final_freqs is not None:
@@ -435,7 +436,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
                 c = find_colour(toprint)
                 st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
             else:
-                st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % ('red', 0.0))
+                st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % ('red', 0.00))
         
             st.current_log.write('Detecting ringing...')
         
@@ -446,7 +447,12 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             
             Data = do_reinforcement(Paras, Data)
                     
-            st.stop()
+            if st.session_state.reinforce_frequency_data[2] > 0.85:
+                np.save('%s%s_freqs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_test_frequencies)
+                np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
+                np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
+            st.session_state.test_counter += 1
+            st.rerun()
 
             if st.session_state.reinforce_frequency_data is not None:
                 if st.session_state.reinforce_frequency_data[2] > 0.85:
@@ -458,7 +464,6 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
                 st.session_state.reinforce_status = 0
                         
             del Data   #Can probably delete some other stuff as well...
-            st.rerun()
                         
         if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
                              
@@ -481,7 +486,8 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             else:
                 st.current_log.write('That should be fine to detect everything reasonably well.')
             st.divider()
-                    
+
+ 
 #st.write(st.session_state.reinforce_status, st.session_state.use_existing_freqs)
 #Proceed to actual calculation
 if (st.session_state.reinforce_status == 2 and st.session_state.use_existing_freqs < 0) or st.session_state.use_existing_freqs >= 0:

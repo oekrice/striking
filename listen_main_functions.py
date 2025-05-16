@@ -23,8 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
-
+from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
 
 def establish_initial_rhythm(Paras, final = False):
     #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
@@ -73,28 +72,42 @@ def do_reinforcement(Paras, Data):
     Paras.overwrite_existing_freqs = False
     Paras.use_existing_freqs = False
             
-    for count in range(Paras.n_reinforces):
+    for reinforce_count in range(Paras.n_reinforces):
         
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
         #st.write('Doing frequency analysis,  iteration number', count + 1, 'of', Paras.n_reinforces)
-        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (count + 1, Paras.n_reinforces))
+        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (reinforce_count + 1, Paras.n_reinforces))
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
-        st.session_state.test_counter += 1
-        if not st.session_state.single_test:
-            st.rerun()
-        else:
-            st.stop()
-
         #Save out frequency data only when finished reinforcing?
         
         #print('Finding strike probabilities...')
         
         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = False)
                 
-        strikes, strike_certs = find_strike_times_rounds(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
+        strikes, strike_certs = find_strike_times(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
     
+        #Determine whether this is actually rounds or if something's got mixed up...
+        all_is_well = check_initial_rounds(strikes)
+
+        if not all_is_well:
+            print("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
+            st.error("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
+            st.session_state.test_counter += 1
+            st.rerun()
+
+        if len(strikes) == 0:
+            print('Finding strikes error -- to be sorted out later!')
+            st.session_state.test_counter += 1
+            st.rerun()
+
+        if np.shape(strikes)[1] < 6:
+            st.error("Failed to find reliable enough strikes to determine frequencies. Apologies.")
+            print('Finding strikes error -- to be sorted out later!')
+            st.session_state.test_counter += 1
+            st.rerun()
+
         #Check and fix handstrokes if necessary
         diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
         diff2s = strikes[:,2::2] - strikes[:,1:-1:2]
@@ -119,7 +132,7 @@ def do_reinforcement(Paras, Data):
         done  = False
         while not done:
             for bell in range(Paras.nbells):
-                threshold = 0.05   #Need changes to be at least this good... Need to improve on this really.
+                threshold = 0.01   #Need changes to be at least this good... Need to improve on this really as it's a bit arbitrary.
                 allcerts = []; count = 0
                 for row in range(len(strikes[0])):
                     allcerts.append(strike_certs[bell,row])
@@ -142,43 +155,27 @@ def do_reinforcement(Paras, Data):
         st.current_log.write('Using ' + str(len(best_strikes)) + ' rows for next reinforcement')
         Data.strikes, Data.strike_certs = np.array(best_strikes).T, np.array(best_certs).T
         
-        count += 1
-        
+        reinforce_count += 1
+
         #This stuff is now a bit different... Need the three arrays as st session variables
         if len(Data.strikes) > 0 and len(Data.strike_certs) > 0:
+            print('Match at count', reinforce_count, Data.freq_data[2])
+
             #Check if it's worth overwriting the old one? Do this at EVERY STEP, and save out to THIS filename.
-            if True:   #Old one which works -KEEP
-                update = False
-                if st.session_state.reinforce_frequency_data is not None:
-                    if st.session_state.reinforce_frequency_data[2] < Data.freq_data[2]:
-                        update = True
-                else:
-                    update= True
-                    
-                if update:
-                    #Experimental -- run through and detect the best yet from EACH bell!
-                    st.session_state.reinforce_test_frequencies = Data.test_frequencies
-                    st.session_state.reinforce_frequency_profile = Data.frequency_profile
-                    st.session_state.reinforce_frequency_data = Data.freq_data
-                    st.session_state.already_saved = False
-                    
+            update = False
+            if st.session_state.reinforce_frequency_data is not None:
+                if st.session_state.reinforce_frequency_data[2] < Data.freq_data[2]:
+                    update = True
             else:
-                if st.session_state.reinforce_frequency_data is not None:
-                    #st.write(st.session_state.reinforce_frequency_data[:])
-                    #st.write(Data.freq_data[:])
-                    for bell in range(Paras.nbells):
-                        #Check individually against the reference
-                        if st.session_state.reinforce_frequency_data[4+bell] < Data.freq_data[4+bell]:
-                            st.session_state.reinforce_frequency_data[4+bell] = Data.freq_data[4+bell]
-                            st.session_state.reinforce_test_frequencies[:] = Data.test_frequencies[:]
-                            st.session_state.reinforce_frequency_profile[:,bell] = Data.frequency_profile[:,bell]
-                            st.session_state.already_saved = False
-                else:
-                    st.session_state.reinforce_test_frequencies = Data.test_frequencies
-                    st.session_state.reinforce_frequency_profile = Data.frequency_profile
-                    st.session_state.reinforce_frequency_data = Data.freq_data
-                    st.session_state.already_saved = False
+                update= True
                 
+            if update:
+                #Experimental -- run through and detect the best yet from EACH bell!
+                st.session_state.reinforce_test_frequencies = Data.test_frequencies
+                st.session_state.reinforce_frequency_profile = Data.frequency_profile
+                st.session_state.reinforce_frequency_data = Data.freq_data
+                st.session_state.already_saved = False
+                    
         else:
             #st.session_state.reinforce = 0
             st.error("Frequency analysis failed for some reason. If the percentage is reasonably high this is probably due to bad audio or bad ringing. If it is low then check the correct tower/bells are selected.")
@@ -189,7 +186,6 @@ def do_reinforcement(Paras, Data):
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*toprint))
-
     return Data
 
 def find_final_strikes(Paras, nested = False):
@@ -233,7 +229,7 @@ def find_final_strikes(Paras, nested = False):
              Data.last_change = np.array(allstrikes[-1]) - int(tmin/Paras.dt)
              Data.cadence_ref = Paras.cadence_ref
 
-         Data.strikes, Data.strike_certs = find_strike_times_rounds(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
+         Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
                    
          if len(np.shape(Data.strikes)) > 1:
              pass

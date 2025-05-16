@@ -6,7 +6,7 @@ import pandas as pd
 from listen_classes import data
 import matplotlib.pyplot as plt
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
+from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 
@@ -44,6 +44,8 @@ def establish_initial_rhythm_test(Paras, final = False):
     
     Data.strikes, Data.strike_certs = Paras.first_strikes, Paras.first_strike_certs
         
+    Paras.first_strikes = Paras.first_strikes + Paras.ringing_start
+
     return Data
 
 
@@ -429,8 +431,8 @@ def find_first_strikes_test(Paras, Data):
     if last_rounds_change < 6:   #Otherwise it's probably not going to work...
         last_rounds_change = 5
 
-    strikes = np.array(strikes[:,:last_rounds_change+1]).T
-    strike_certs = np.array(strike_certs[:,:last_rounds_change+1]).T
+    strikes = np.array(strikes[:,:last_rounds_change+1])
+    strike_certs = np.array(strike_certs[:,:last_rounds_change+1])
     
     Data.handstroke_first = handstroke_first
     st.session_state.handstroke_first = handstroke_first
