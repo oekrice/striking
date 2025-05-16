@@ -21,7 +21,6 @@ def establish_initial_rhythm_test(Paras, final = False):
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
 
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
-    Paras.rounds_tmax = Paras.ringing_start*Paras.dt  + Paras.rounds_tmax
 
     if not final:
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
@@ -44,8 +43,6 @@ def establish_initial_rhythm_test(Paras, final = False):
     
     Data.strikes, Data.strike_certs = Paras.first_strikes, Paras.first_strike_certs
         
-    Paras.first_strikes = Paras.first_strikes + Paras.ringing_start
-
     return Data
 
 
@@ -82,7 +79,7 @@ def find_first_strikes_test(Paras, Data):
 
     #Want to plot prominences and things to check if these is an obvious pattern
     rough_cadence = find_rough_cadence(Paras, Data)   #This gives an impression of how long it is between successive changes
-    npeaks_ish = int((Paras.rounds_tmax/Paras.dt - Paras.ringing_start*Paras.dt)/rough_cadence)
+    npeaks_ish = int((len(Data.strike_probabilities[0]) - Paras.ringing_start*Paras.dt)/rough_cadence)
 
     fig = plt.figure()
     ratios = []
@@ -92,7 +89,6 @@ def find_first_strikes_test(Paras, Data):
         probs = Data.strike_probabilities[bell][:]
         probs = gaussian_filter1d(probs, 5)
         peaks, _ = find_peaks(probs) 
-        peaks = peaks[peaks < Paras.rounds_tmax/Paras.dt]
         prominences = peak_prominences(probs, peaks)[0]
         peaks = np.array([val for _, val in sorted(zip(prominences,peaks), reverse = True)]).astype('int')
         prominences = np.array(sorted(prominences, reverse = True))

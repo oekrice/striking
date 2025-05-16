@@ -112,12 +112,12 @@ class parameters(object):
     #Also all variables that can theoretically be easily changed
     
     #Want only one of these to exist at once -- so define as a singleton
-    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces):
+    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
         if not hasattr(cls, 'instance'):
             cls.instance = super(parameters, cls).__new__(cls)
         return cls.instance
     
-    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces):
+    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
                 
         self.dt = 0.01
         self.fcut_length = 0.125  #Length of each transform slice (in seconds)
@@ -147,7 +147,6 @@ class parameters(object):
         self.rounds_tcut = 0.5 #How many times the average cadence to cut off find in rounds
         self.rounds_leeway = 1.5 #How far to allow a strike before it is more improbable
 
-        self.rounds_tmax = rounds_tmax
         self.reinforce_tmax = reinforce_tmax
         
         self.overall_tcut = 60.0  #How frequently (seconds) to do update rounds etc.

@@ -84,7 +84,7 @@ def find_ringing_times(Paras, Data):
     
     
 
-def find_strike_times(Paras, Data, final = False, doplots = 0):
+def find_strike_times_new(Paras, Data, final = False, doplots = 0):
     #Go through the rounds in turn instead of doing it bellwise
     #Allows for nicer plotting and stops mistakely hearing louder bells. Hopefully.
         
@@ -378,7 +378,299 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
     del probs; del probs_smooth
 
     return np.array(allstrikes).T, np.array(allconfs).T
+
+
+def find_strike_times(Paras, Data, final = False, doplots = 0):
+    #Go through the rounds in turn instead of doing it bellwise
+    #Allows for nicer plotting and stops mistakely hearing louder bells. Hopefully.
         
+    #Determine whether this is the start of the ringing or not... Actually, disregard the first change whatever. Usually going to be wrong...
+    
+    allstrikes = []; allconfs = []; allcadences = []
+            
+    start = 0; end = 0
+    
+    tcut = Paras.rounds_tcut*int(Paras.cadence)
+
+    strike_probs = Data.strike_probabilities
+
+    #Obtain adjusted probs
+    strike_probs_adjust = np.zeros(strike_probs.shape)
+    strike_probs_adjust = strike_probs[:, :]**(Paras.probs_adjust_factor + 1)/(np.sum(strike_probs[:,:], axis = 0) + 1e-6)**Paras.probs_adjust_factor
+    
+    strike_probs_adjust = gaussian_filter1d(strike_probs_adjust, Paras.rounds_probs_smooth, axis = 1)
+
+    allpeaks = []; allbigs = []; allsigs = []
+    for bell in range(Paras.nbells):
+        
+        probs = strike_probs_adjust[bell]  
+
+        probs_smooth = 1.0*gaussian_filter1d(probs, int(Paras.smooth_time/Paras.dt))
+
+        peaks, _ = find_peaks(probs)
+        
+        if len(Paras.allstrikes) == 0 and not final:
+            peaks = peaks[peaks > np.min(Paras.first_strikes) - int(1.0/Paras.dt)]
+        
+        prominences = peak_prominences(probs, peaks)[0]
+        
+        bigpeaks = peaks[prominences > 0.5*probs_smooth[peaks]]  #For getting first strikes, need to mbe more significant
+        peaks = peaks[prominences > 0.1*probs_smooth[peaks]]
+
+        sigs = peak_prominences(probs, peaks)[0]/probs_smooth[peaks]
+        
+        sigs = sigs/np.max(sigs)
+        
+        allpeaks.append(peaks); allbigs.append(bigpeaks); allsigs.append(sigs)
+
+    #Find all peaks to begin with
+    #Run through each set of rounds 
+    handstroke = Data.handstroke_first
+    #st.write('Test', handstroke, st.session_state.handstroke_first, len(Paras.allstrikes))
+    next_end = 0
+    
+    count = 0
+    
+    if len(Paras.allstrikes) == 0:
+        taims = np.zeros(Paras.nbells)
+    else:
+        change_start = np.mean(Data.last_change) - Data.cadence_ref*((Paras.nbells - 1)/2)
+        change_end = np.mean(Data.last_change) + Data.cadence_ref*((Paras.nbells - 1)/2)
+        
+        rats = (Data.last_change - change_start)/(change_end - change_start)
+        if not handstroke:
+            taims  = np.array(Data.last_change) + int(Paras.nbells*Data.cadence_ref)
+            next_start = change_start + int(Paras.nbells*Data.cadence_ref)
+            next_end = change_end + int(Paras.nbells*Data.cadence_ref)
+        else:
+            taims  = np.array(Data.last_change) + int((Paras.nbells + 1)*Data.cadence_ref)
+            next_start = change_start + int((Paras.nbells+1)*Data.cadence_ref)
+            next_end = change_end + int((Paras.nbells+1)*Data.cadence_ref)
+
+        taims = next_start + (next_end - next_start)*rats
+                                   
+        start = next_start - 3.0*int(Data.cadence_ref)
+        end  =  next_end   + 3.0*int(Data.cadence_ref)
+
+    go = True
+    while go:
+        strikes = np.zeros(Paras.nbells)
+        confs = np.zeros(Paras.nbells)
+        certs = np.zeros(Paras.nbells) #To know when to stop
+        
+        count += 1
+        if len(Paras.allstrikes) == 0 and len(allstrikes) < 4:  #Establish first strikes overall.
+            #IMPROVE ON THIS - DETERMINE FROM THE INIT AUDIO BIT
+            #print(Paras.first_strikes[:,0])
+            change_number = len(allstrikes)
+            for bell in range(Paras.nbells): #This is a bit shit -- improve it?
+                #taim = Paras.first_change_start + Paras.cadence*bell
+                taim = Paras.first_strikes[bell,change_number]
+                start_bell = taim - int(3.5*Paras.cadence)  #Aim within the change
+                end_bell = taim + int(3.5*Paras.cadence)
+
+                poss = allpeaks[bell][(allpeaks[bell] > start_bell)*(allpeaks[bell] < end_bell)]
+                sigposs = allsigs[bell][(allpeaks[bell] > start_bell)*(allpeaks[bell] < end_bell)]
+                
+                poss = np.array([val for _, val in sorted(zip(sigposs, poss), reverse = True)])
+    
+                if len(poss) < 1:
+                    strikes[bell] = taim
+                    confs[bell] = 0.0
+                else:
+                    strikes[bell] = poss[0]
+                    confs[bell] = 1.0
+                    
+                del poss; del sigposs
+        else:  #Find options in the correct range
+            for bell in range(Paras.nbells):
+                peaks = allpeaks[bell]
+                sigs = allsigs[bell]
+                
+                peaks_range = peaks[(peaks > start)*(peaks < end)]
+                sigs_range = sigs[(peaks > start)*(peaks < end)]
+                
+                start_bell = taims[bell] - int(3.5*Paras.cadence)  #Aim within the change
+                end_bell = taims[bell] + int(3.5*Paras.cadence)
+                #Check physically possible...
+                if len(allstrikes) == 0:
+                    start_bell = max(start_bell, Data.last_change[bell] + int(3.0*Paras.cadence))
+                else:
+                    start_bell = max(start_bell, allstrikes[-1][bell] + int(3.0*Paras.cadence))
+                    
+                sigs_range = sigs_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
+                peaks_range = peaks_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
+
+                if len(peaks_range) == 1:   #Only one time that it could reasonably be
+                    strikes[bell] = peaks_range[0]
+                    tvalue = 1.0/(abs(peaks_range[0] - taims[bell])/tcut + 1)**Paras.strike_alpha
+                    if final:
+                        confs[bell]  = 1.0
+                    else:
+                        confs[bell] = 1.0  #Timing doesn't really matter, but prominence does -- don't want ambiguity
+                    certs[bell] = tvalue*sigs_range[0]/np.max(sigs)
+                    
+                elif len(peaks_range) > 1:
+                                          
+                    scores = []
+                    for k in range(len(peaks_range)):  #Many options...
+                        if abs(peaks_range[k] - taims[bell]) < int(Paras.rounds_leeway*Paras.cadence):
+                            tvalue = 1.0
+                        else:
+                            tvalue = 1.0/(abs(abs(peaks_range[k] - taims[bell]) - int(Paras.rounds_leeway*Paras.cadence))/tcut + 1)**(Paras.strike_alpha)
+                            
+                        if final:
+                            yvalue = sigs_range[k]
+                        else:
+                            yvalue = sigs_range[k]
+                            
+                        scores.append(tvalue*sigs_range[k]/np.max(sigs))
+                                                
+                        
+                    kbest = scores.index(max(scores))
+                    
+                    strikes[bell] = peaks_range[kbest]
+                    if final:
+                        confs[bell] = (sigs_range[kbest]/np.sum(sigs_range))**2
+                    else:
+                        confs[bell] = (sigs_range[kbest]/np.sum(sigs_range))**2
+                        
+                    certs[bell] = scores[kbest]
+                            
+                else:
+                    #Pick best peak in the change? Seems to work when things are terrible
+                    peaks = allpeaks[bell]
+                    sigs = allsigs[bell]
+                    peaks_range = peaks[(peaks > start)*(peaks < end)]
+                    sigs_range = sigs[(peaks > start)*(peaks < end)]
+                    
+                    if len(allstrikes) > 0:
+                        start_bell = max(start_bell, allstrikes[-1][bell] + int(3.0*Paras.cadence))
+                        end_bell = end
+                    else:
+                        start_bell = np.min(taims) - 2.0*Paras.cadence
+                        end_bell = np.max(taims) + 2.0*Paras.cadence
+
+                    sigs_range = sigs_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
+                    peaks_range = peaks_range[(peaks_range > start_bell)*(peaks_range < end_bell)]
+
+                    scores = []
+                    for k in range(len(peaks_range)):  #Many options...
+                        tvalue = 1.0/(abs(peaks_range[k] - taims[bell])/tcut + 1)**Paras.strike_alpha
+                        yvalue = sigs_range[k]/np.max(sigs_range)
+                        scores.append(tvalue*yvalue**2.0)
+                        
+                    if len(scores) > 0:
+                        kbest = scores.index(max(scores))
+                        
+                        strikes[bell] = peaks_range[kbest]
+                        confs[bell] = 0.0
+                        certs[bell] = 0.0
+
+                    else:
+                        #Pick average point in the change
+
+                        strikes[bell] = int(0.5*(start + end))
+                        confs[bell] = 0.0
+                        certs[bell] = 0.0
+                     
+                    
+            if np.median(certs) < 0.01:
+                go = False
+   
+                Paras.ringing_finished = True
+                
+                if len(allconfs) > 1:
+                    bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
+
+                Data.freq_data = np.array([Paras.dt, Paras.fcut_length, 0., 0.])
+                Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
+
+        if len(strikes) > 0:
+            allstrikes.append(strikes)
+            allconfs.append(confs)
+                
+        if len(allstrikes) == 0:
+            Paras.ringing_finished = True
+
+            return [], []
+         
+        #Determine likely location of the next change END
+        #Need to be resilient to method mistakes etc... 
+        #Log the current avg. bell cadences
+        allcadences.append((max(strikes) - min(strikes))/(Paras.nbells - 1))     
+
+        nrows_count = int(min(len(allcadences), 20))
+        Data.cadence_ref = np.mean(allcadences[-nrows_count:])
+        
+        change_start = np.mean(strikes) - Data.cadence_ref*((Paras.nbells - 1)/2)
+        change_end = np.mean(strikes) + Data.cadence_ref*((Paras.nbells - 1)/2)
+        
+        rats = (strikes - change_start)/(change_end - change_start)
+                
+        if handstroke:
+            taims  = np.array(allstrikes[-1]) + int(Paras.nbells*Data.cadence_ref)
+            next_start = change_start + int(Paras.nbells*Data.cadence_ref)
+            next_end = change_end + int(Paras.nbells*Data.cadence_ref)
+        else:
+            taims  = np.array(allstrikes[-1]) + int((Paras.nbells + 1)*Data.cadence_ref)
+            next_start = change_start + int((Paras.nbells+1)*Data.cadence_ref)
+            next_end = change_end + int((Paras.nbells+1)*Data.cadence_ref)
+
+        taims = next_start + (next_end - next_start)*rats
+                   
+        handstroke = not(handstroke)
+                
+        start = next_start - 1.5*int(Data.cadence_ref)
+        end  =  next_end   + 3.5*int(Data.cadence_ref)
+
+    if len(allconfs) > 1:
+        
+        bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
+        Data.freq_data = np.array([Paras.dt, Paras.fcut_length, np.mean(allconfs[1:]), np.min(allconfs[1:])])
+        Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
+        
+    if len(allstrikes) == 0:
+        Paras.ringing_finished = True
+        return [], []
+    
+    spacings = 1e6*np.ones((len(allstrikes), Paras.nbells, 2))
+    yvalues = np.arange(Paras.nbells)
+        
+    for ri, row in enumerate(allstrikes):
+        #Sort out ends
+        order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        for si in range(len(row)):
+            if si == 0:
+                if ri == 0:
+                    spacings[ri,order[si],0] = Paras.cadence*2
+                else:
+                    spacings[ri,order[si],0] = row[order[si]] - np.max(allstrikes[ri-1])
+            else:
+                spacings[ri,order[si],0] = row[order[si]] - row[order[si-1]]
+            
+            if si == len(row)- 1:    
+                if ri == len(allstrikes) - 1:
+                    spacings[ri,order[si],1] =  Paras.cadence*2
+                else:
+                    spacings[ri,order[si],1] =  np.min(allstrikes[ri+1])  - row[order[si]]  
+            else:
+                spacings[ri,order[si],1] = row[order[si+1]] - row[order[si]]
+      
+    if not final:
+        allconfs = allconfs*(np.min(spacings, axis = 2)/ np.max(spacings))
+            
+    del allpeaks; del allsigs; del peaks_range; del sigs_range
+    del probs; del probs_smooth
+
+    nstrikes_done = len(allstrikes)
+
+    # if nstrikes_done < len(Paras.first_strikes[0]):
+    #     Paras.first_strikes[:,:nstrikes_done] = np.array(allstrikes).T
+    # else:
+    #     Paras.first_strikes[:,:] = np.array(allstrikes).T[:,:len(Paras.first_strikes[0])]
+
+    return np.array(allstrikes).T, np.array(allconfs).T   
 
 def do_frequency_analysis(Paras, Data):
     #Now takes existing strikes data to do this (to make reinforcing easier)
@@ -562,13 +854,12 @@ def find_first_strikes(Paras, Data):
     tenor_probs = Data.strike_probabilities[-1]
     tenor_probs = gaussian_filter1d(tenor_probs, 5)
     tenor_peaks, _ = find_peaks(tenor_probs) 
-    tenor_peaks = tenor_peaks[tenor_peaks < Paras.rounds_tmax/Paras.dt]
     tenor_peaks = tenor_peaks[tenor_peaks > Paras.ringing_start + int(2.5/Paras.dt)]
     prominences = peak_prominences(tenor_probs, tenor_peaks)[0]
     tenor_peaks = np.array([val for _, val in sorted(zip(prominences,tenor_peaks), reverse = True)]).astype('int')
     prominences = np.array(sorted(prominences, reverse = True))
     #Test the first few tenor peaks to see if the following diffs are fine...    
-    npeaks_ish = int((Paras.rounds_tmax - Paras.ringing_start*Paras.dt)/2.0)   #How many strikes expected in this time
+    npeaks_ish = int((len(Data.strike_probabilities[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/2.0)   #How many strikes expected in this time
     
     if npeaks_ish < 5:
         st.error("Not enough reliable rounds detected. Make sure rounds starts within a minute of the start of the recording,"

@@ -23,7 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
+from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_strike_times_new
 
 def establish_initial_rhythm(Paras, final = False):
     #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation

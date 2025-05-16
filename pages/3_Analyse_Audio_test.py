@@ -55,7 +55,6 @@ input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
 init_test = 0
 single_test = False
 
-
 if not os.path.exists('./tmp/'):
     os.system('mkdir tmp')
 if not os.path.exists('./frequency_data/'):
@@ -394,17 +393,15 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
     overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
-    
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(45.0), format = "%ds")
-    
+        
     if st.session_state.use_existing_freqs < 0:
         reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 45.0, max_value = min(90.0, tmax), step = 1., value=(60.0), format = "%ds")
-        nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
+        nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 2, step = 1))
     else:
         reinforce_tmax = 90.0
         nreinforces = 5
 
-    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
+    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, reinforce_tmax, nreinforces)
     Paras.fname = str(st.session_state.tower_id)
 
     if st.session_state.use_existing_freqs < 0:
