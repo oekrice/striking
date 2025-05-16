@@ -52,7 +52,7 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 52
+init_test = 58
 single_test = False
 
 if not os.path.exists('./tmp/'):
@@ -333,7 +333,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.session_state.use_existing_freqs  = allstrings.index(options) - 1
         existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     
-    if len(allstrings) > 0:
+    if frequency_counter > 0:
         st.session_state.use_existing_freqs  = st.session_state.test_counter
         existing_filename = freq_root + '_%03d' % (st.session_state.test_counter)  
     else:
@@ -341,6 +341,10 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.session_state.test_counter += 1
         st.rerun()
 
+    if not os.path.exists('./frequency_data/' + existing_filename + '_freqs.npy'):
+        print('No frequencies for this tower')
+        st.session_state.test_counter += 1
+        st.rerun()
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
     def reset_on_upload():

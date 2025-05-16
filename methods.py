@@ -18,6 +18,7 @@ If you would like to license or publish this software commerically, please conta
 
 #This script is for analysing methods. 
 #Takes the raw timing csv as an input (or can pass less if necessary) and will do the analysis from that. Hopefully don't need anything else
+#Get streamlit to detect commit
 
 import pandas as pd
 import numpy as np
@@ -686,6 +687,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
     def compare_set(target_rows, test_rows):
         same_count = np.sum(target_rows[:-1,:] == test_rows[:-1,:])
         return same_count/np.size(target_rows)
+
     #Not spliced first
     if methods_notspliced is not None:
         current_start = 0
@@ -757,11 +759,16 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             if len(end_rows) > nrows_left:
                 if (trimmed_rows[-1] == end_rows[nrows_left]).all():
                     allrows_single = np.concatenate((allrows_single[:-1], end_rows[:nrows_left+1]), axis = 0)
+                else:  #Just finish off with what actually happened - something fired out
+                    allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
+            else:
+                allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
 
     else:
         best_calls_single = None
         qualities_single = None
-        
+        allrows_single = None
+        single_quality = None
     #Then spliced
     current_start = 0
     lead_end_options = [np.arange(nbells) + 1] #Assume it starts in rounds (one hopes...)
@@ -794,8 +801,8 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             best_call = np.where(option_quality == np.max(option_quality))[0][0]
             best_calls_spliced.append(best_call)
             qualities_spliced.append(np.max(option_quality))
-            new_rows = generate_rows(lead_end_options[best_call], notation)
-            if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 2:
+            new_rows = generate_rows(lead_end_options[best_call], notation)  #Fix Grandsire problem with the lead end
+            if method_data[method_data['Name'] == methods_spliced[li][0]]['Hunt Number'].values[0] == 2:
                 allrows_spliced[-2] = previous_options[best_call]
             allrows_spliced = np.concatenate((allrows_spliced[:-1], new_rows), axis = 0)
 
@@ -820,7 +827,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         same_count = np.sum(trimmed_rows[current_start] == lead_end_options[i])
         option_quality.append(same_count/np.size(trimmed_rows[current_start]))
     best_call = np.where(option_quality == np.max(option_quality))[0][0]
-    if method_data[method_data['Name'] == methods_notspliced[0]]['Hunt Number'].values[0] == 2:
+    if method_data[method_data['Name'] == methods_spliced[-1][0]]['Hunt Number'].values[0] == 2:
         allrows_spliced[-2] = previous_options[best_call]
     allrows_spliced[-1] = lead_end_options[best_call]
     best_calls_spliced.append(best_call)
@@ -831,9 +838,13 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         nrows_left = len(trimmed_rows) - len(allrows_spliced)
         end_notation = method_data[method_data['Name'] == methods_spliced[-1][0]]['Interior Notation'].values[0]
         end_rows = generate_rows(allrows_spliced[-1], end_notation)
-        if len(end_rows) > nrows_left:
+        if len(end_rows) > nrows_left:  #This is a good match - do this
             if (trimmed_rows[-1] == end_rows[nrows_left]).all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
+            else:  #Just finish off with what actually happened - something fired out
+                allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
+        else:
+            allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
 
     spliced_quality = compare_set(trimmed_rows, allrows_spliced)
     if allrows_single is not None:

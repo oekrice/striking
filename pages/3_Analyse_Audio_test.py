@@ -52,8 +52,8 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 30
-single_test = True
+init_test = 0
+single_test = False
 
 if not os.path.exists('./tmp/'):
     os.system('mkdir tmp')
@@ -531,8 +531,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
 
         #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
-        establish_initial_rhythm(Paras, final = True)
+        establish_initial_rhythm_test(Paras)
        
+        print(Paras.first_strikes)
         #Load in final frequencies as session variables
         if st.session_state.use_existing_freqs < 0:
             st.session_state.final_freqs = st.session_state.reinforce_test_frequencies

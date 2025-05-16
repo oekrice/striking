@@ -100,8 +100,8 @@ def do_reinforcement(Paras, Data):
             print("All is not well")
         '''
         if not all_is_well:
-            print("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
-            st.error("Failed to detect rounds. Either there isn't any or the recording isn't good enough...")
+            print("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
             st.session_state.test_counter += 1
             st.rerun()
 
@@ -199,7 +199,7 @@ def do_reinforcement(Paras, Data):
 
 def find_final_strikes(Paras, nested = False):
     
-     tmin = 0.0
+     tmin = Paras.ringing_start*Paras.dt
      tmax = tmin + Paras.overall_tcut + Paras.ringing_start*Paras.dt
      allstrikes = []; allcerts = []
      Paras.allcadences = []
@@ -224,6 +224,10 @@ def find_final_strikes(Paras, nested = False):
          Data.test_frequencies = st.session_state.final_freqs
          Data.frequency_profile = st.session_state.final_freqprobs
              
+         if counter == 0:
+             #Adjust the first strikes as appropriate
+             Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - int(tmin/Paras.dt)
+
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
          if len(allstrikes) == 0:  #Look for changes after this time
@@ -238,24 +242,30 @@ def find_final_strikes(Paras, nested = False):
 
          Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
                    
-         if len(np.shape(Data.strikes)) > 1:
-             pass
-         else:
+         if len(np.shape(Data.strikes)) == 0:
+             Paras.stop_flag = True
+             Paras.ringing_finished = True
+         elif len(Data.strikes[0]) < 2:
+             Paras.stop_flag = True
+             Paras.ringing_finished = True
+         elif np.median(Data.strike_certs[:,-1]) < 0.5:
              Paras.stop_flag = True
              Paras.ringing_finished = True
 
          if len(np.shape(Data.strikes)) > 1:
             if len(Data.strikes[:,0]) > 1:
                 if len(allstrikes) == 0:   #Check for rounds at the start
-                    if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
+                    if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0][0] != Paras.nbells - 1:
                         st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                        st.session_state.test_counter += 1
+                        print('No rounds found. Bugger')
                         st.session_state.analysis_status = 0
-                        time.sleep(5.0)
                         st.rerun()
             else:
                     st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                    st.session_state.test_counter += 1
+                    print('No rounds found. Bugger')
                     st.session_state.analysis_status = 0
-                    time.sleep(5.0)
                     st.rerun()
 
             for row in range(0,len(Data.strikes[0])):
