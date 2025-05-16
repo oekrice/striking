@@ -360,7 +360,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
     if not final:
         allconfs = allconfs*(np.min(spacings, axis = 2)/ np.max(spacings))
             
-    #del allpeaks; del allsigs; del peaks_range; del sigs_range
+    del allpeaks; del allsigs; del peaks_range; del sigs_range
     del probs; del probs_smooth
 
     nstrikes_done = len(allstrikes)
@@ -546,7 +546,7 @@ def do_frequency_analysis(Paras, Data):
     
     del best_probs
     
-    return frequencies, frequency_probabilities
+    return frequencies, 
        
 def find_first_strikes(Paras, Data):
     #Takes normalised wave vector, and does some fourier things

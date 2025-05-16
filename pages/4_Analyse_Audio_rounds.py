@@ -52,7 +52,7 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 58
+init_test = 0
 single_test = False
 
 if not os.path.exists('./tmp/'):
@@ -631,7 +631,7 @@ if True:
                     method_title = "Spliced"
                 lead_length = 2*int(hunt_types[0][1] + 1)
             st.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
-            print('Result:', str(nchanges) + " " + method_title)
+            print('Result:', str(nchanges) + " " + method_title, quality)
         else:
             st.write("**No method detected**")
             print('Result:' + "**No method detected**")
