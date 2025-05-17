@@ -284,8 +284,9 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                 Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
 
         if len(strikes) > 0:
-            allstrikes.append(strikes)
-            allconfs.append(confs)
+            if np.median(confs) > 0.5 or len(allstrikes) == 0:
+                allstrikes.append(strikes)
+                allconfs.append(confs)
                 
         if len(allstrikes) == 0:
             Paras.ringing_finished = True
@@ -321,7 +322,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         start = next_start - 1.5*int(Data.cadence_ref)
         end  =  next_end   + 3.5*int(Data.cadence_ref)
 
-        if next_end + 0.5*int(Data.cadence_ref) > len(Data.strike_probabilities[0]):   #This is nearing the end of the reasonable time
+        if next_end > len(Data.strike_probabilities[0]) + 2.0*int(Data.cadence_ref):   #This is nearing the end of the reasonable time
             go = False
 
     if len(allconfs) > 1:
@@ -546,7 +547,7 @@ def do_frequency_analysis(Paras, Data):
     
     del best_probs
     
-    return frequencies, 
+    return frequencies, frequency_probabilities
        
 def find_first_strikes(Paras, Data):
     #Takes normalised wave vector, and does some fourier things

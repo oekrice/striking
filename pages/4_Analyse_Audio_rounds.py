@@ -52,8 +52,8 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 0
-single_test = False
+init_test = 9
+single_test = True
 
 if not os.path.exists('./tmp/'):
     os.system('mkdir tmp')
@@ -406,7 +406,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     st.write("Audio parameters:")
     tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
+    overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(5.0, tmax),step = 1. ,format = "%ds", disabled = False)
         
     if st.session_state.use_existing_freqs < 0:
         reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 45.0, max_value = min(120.0, tmax), step = 1., value=(60.0), format = "%ds")

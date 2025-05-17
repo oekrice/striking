@@ -251,7 +251,7 @@ def find_final_strikes(Paras, nested = False):
          elif np.median(Data.strike_certs[:,-1]) < 0.5:
              Paras.stop_flag = True
              Paras.ringing_finished = True
-
+        
          if len(np.shape(Data.strikes)) > 1:
             if len(Data.strikes[:,0]) > 1:
                 if len(allstrikes) == 0:   #Check for rounds at the start

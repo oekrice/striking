@@ -908,7 +908,7 @@ def check_lead_ends(methods, calls, nbells, method_data):
 
     return methods
 
-@st.cache_data
+#@st.cache_data
 def find_method_things(raw_data):
     
     method_data = pd.read_csv('./method_data/clean_methods.csv')
@@ -932,7 +932,7 @@ def find_method_things(raw_data):
     else:
         hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types, method_data)
 
-        #print(methods_spliced)
+
         if len(methods_spliced) == 0:
             methods = []
         else:

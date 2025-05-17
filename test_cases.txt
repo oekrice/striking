@@ -60,6 +60,9 @@ Stockton on Tees, Parish Church;12;audio/stockton_stedman.wav
 Dersingham, S Nicholas;6;audio/Trip 2 Dersingham.m4a
 Yaxham, S Peter;6;audio/Yacham Norfolk.m4a
 York, Cath & Metropolitical Ch of S Peter;12;audio/york_1.m4a
+Horbury, S Peter & S Leonard;8;audio/Horbury.m4a
+Dewsbury, Minster Ch of All Saints;8;audio/Dewsbury.m4a
+
 
 
 
