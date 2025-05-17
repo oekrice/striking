@@ -290,7 +290,6 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                 
         if len(allstrikes) == 0:
             Paras.ringing_finished = True
-
             return [], []
          
         #Determine likely location of the next change END
@@ -322,7 +321,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         start = next_start - 1.5*int(Data.cadence_ref)
         end  =  next_end   + 3.5*int(Data.cadence_ref)
 
-        if next_end > len(Data.strike_probabilities[0]) + 2.0*int(Data.cadence_ref):   #This is nearing the end of the reasonable time
+        if next_end + 0.5*int(Data.cadence_ref) > len(Data.strike_probabilities[0]):   #This is nearing the end of the reasonable time
             go = False
 
     if len(allconfs) > 1:

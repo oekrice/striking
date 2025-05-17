@@ -922,6 +922,7 @@ def find_method_things(raw_data):
     
     trimmed_rows = all_rows[start_row:end_row+1]   #Includes all the changes we care about, rounds EITHER END inclusive
 
+    print(trimmed_rows)
     hunt_types = find_method_types(trimmed_rows)
 
     if len(hunt_types) == 0:
@@ -931,7 +932,6 @@ def find_method_things(raw_data):
         count = 1.
     else:
         hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types, method_data)
-
 
         if len(methods_spliced) == 0:
             methods = []

@@ -28,7 +28,7 @@ import sys
 import io
 
 from listen_classes import audio_data, parameters
-from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
+from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
 from listen_other_functions import find_colour
 from methods import find_method_things
 from rounds_testing import establish_initial_rhythm_test
@@ -52,7 +52,7 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 9
+init_test = 27
 single_test = True
 
 if not os.path.exists('./tmp/'):
@@ -552,7 +552,9 @@ if True:
             st.session_state.final_freqs = np.load('./frequency_data/' + existing_filename + '_freqs.npy')
             st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
             
-        find_final_strikes(Paras)
+        find_final_strikes(Paras)  #Finds all the strikes in rounds
+
+        filter_final_strikes(Paras)    #Looks for non-confident blows and smooths out accordingly
 
         st.session_state.analysis_status = 2
         

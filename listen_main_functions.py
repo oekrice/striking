@@ -241,7 +241,7 @@ def find_final_strikes(Paras, nested = False):
              Data.cadence_ref = Paras.cadence_ref
 
          Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
-                   
+
          if len(np.shape(Data.strikes)) == 0:
              Paras.stop_flag = True
              Paras.ringing_finished = True
@@ -253,6 +253,7 @@ def find_final_strikes(Paras, nested = False):
              Paras.ringing_finished = True
         
          if len(np.shape(Data.strikes)) > 1:
+
             if len(Data.strikes[:,0]) > 1:
                 if len(allstrikes) == 0:   #Check for rounds at the start
                     if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0][0] != Paras.nbells - 1:
@@ -308,11 +309,23 @@ def find_final_strikes(Paras, nested = False):
      
          counter += 1
 
+     print(np.array(allstrikes))
      del allstrikes; del allcerts
      Data = None
      
      return 
      
+def filter_final_strikes(Paras):
+    #Looks for non-confident blows and attempts to put them somewhere reasonable based on the (hopefully) confident blows either side. Should make the grids look better...
+    #Needs to find the ratio through the change for each bell, approximately
+    change_ratios = np.zeros(np.shape(st.session_state.allstrikes))
+    for ri in range(len(change_ratios[0])):
+        change_ratios[:,ri] = (st.session_state.allstrikes[:,ri] - np.min(st.session_state.allstrikes[:,ri]))/(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
+
+    print(change_ratios[0,:])
+    return
+
+
 def save_strikes(Paras):
     #Saves as a pandas thingummy like the strikeometer does
     allstrikes = []
