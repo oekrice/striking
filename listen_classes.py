@@ -154,16 +154,16 @@ class parameters(object):
         
         if True:#not st.session_state.trim_flag:
             if overall_tmax > 0.0:
-                st.session_state.trimmed_signal = st.session_state.audio_signal[int(overall_tmin*st.session_state.fs):int(overall_tmax*st.session_state.fs)]
+                st.session_state.trimmed_signal = st.session_state.audio_signal[round(overall_tmin*st.session_state.fs):round(overall_tmax*st.session_state.fs)]
             else:
-                st.session_state.trimmed_signal = st.session_state.audio_signal[int(overall_tmin*st.session_state.fs):]
+                st.session_state.trimmed_signal = st.session_state.audio_signal[round(overall_tmin*st.session_state.fs):]
             
         self.overall_tmin = overall_tmin
         self.overall_tmax = overall_tmax
         
         self.nbells = len(nominal_freqs)
         
-        self.fcut_int = 2*int(self.fcut_length*st.session_state.fs/2)  #Length of this cut (must be even for symmetry purposes)
+        self.fcut_int = 2*round(self.fcut_length*st.session_state.fs/2)  #Length of this cut (must be even for symmetry purposes)
         self.tmax =  len(st.session_state.trimmed_signal)/st.session_state.fs + self.overall_tmin
         
         self.prob_tcut = 0.1   #Time cutoff for all frequency identification
@@ -195,11 +195,11 @@ class data():
         #Chnage the length of the audio as appropriate
         
         if tmin > 0.0:
-            cut_min_int = int(tmin*st.session_state.fs)
+            cut_min_int = round(tmin*st.session_state.fs)
         else:
             cut_min_int = 0
         if tmax > 0.0:
-            cut_max_int = int(tmax*st.session_state.fs)
+            cut_max_int = round(tmax*st.session_state.fs)
         else:
             cut_max_int = -1
         
@@ -239,8 +239,8 @@ class data():
         t = Paras.fcut_length/2   #Initial time (halfway through each transform)
         
         while t < Paras.tmax - Paras.fcut_length/2:
-            cut_start  = int(t*st.session_state.fs - Paras.fcut_int/2)
-            cut_end    = int(t*st.session_state.fs + Paras.fcut_int/2)
+            cut_start  = round(t*st.session_state.fs - Paras.fcut_int/2)
+            cut_end    = round(t*st.session_state.fs + Paras.fcut_int/2)
             
             signal_cut = st.session_state.local_signal[cut_start:cut_end]
             
@@ -263,7 +263,7 @@ class data():
         return 
     
     def find_transform_derivatives(self, Paras):
-        allfreqs_smooth = gaussian_filter1d(self.transform, int(Paras.transform_smoothing/Paras.dt), axis = 0)
+        allfreqs_smooth = gaussian_filter1d(self.transform, round(Paras.transform_smoothing/Paras.dt), axis = 0)
         diffs = np.zeros(allfreqs_smooth.shape)
         diffs[1:,:] = allfreqs_smooth[1:,:] - allfreqs_smooth[:-1,:] 
         

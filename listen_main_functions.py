@@ -23,7 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
+from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
 
 def establish_initial_rhythm(Paras, final = False):
     #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
@@ -50,7 +50,7 @@ def establish_initial_rhythm(Paras, final = False):
     Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = True, final = final)
     #Find the first strikes based on these probabilities. Hopefully some kind of nice pattern to the treble at least... 
     Paras.local_tmin = Paras.overall_tmin
-    Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
+    Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
     Paras.stop_flag = False
 
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
@@ -205,7 +205,7 @@ def find_final_strikes(Paras, nested = False):
      Paras.allcadences = []
      Paras.stop_flag = False
      Paras.local_tmin = Paras.overall_tmin
-     Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
+     Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
      Paras.ringing_finished = False
      
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
@@ -217,7 +217,7 @@ def find_final_strikes(Paras, nested = False):
              Paras.stop_flag = True
              
          Paras.local_tmin = tmin + Paras.overall_tmin
-         Paras.local_tint = int((tmin+Paras.overall_tmin)/Paras.dt) 
+         Paras.local_tint = round((tmin+Paras.overall_tmin)/Paras.dt) 
 
          Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
          
@@ -226,7 +226,7 @@ def find_final_strikes(Paras, nested = False):
              
          if counter == 0:
              #Adjust the first strikes as appropriate
-             Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - int(tmin/Paras.dt)
+             Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - round(tmin/Paras.dt)
 
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
@@ -237,10 +237,11 @@ def find_final_strikes(Paras, nested = False):
                  Data.handstroke_first = st.session_state.handstroke_first
              else:
                  Data.handstroke_first = not(st.session_state.handstroke_first)
-             Data.last_change = np.array(allstrikes[-1]) - int(tmin/Paras.dt)
+             Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
              Data.cadence_ref = Paras.cadence_ref
 
          Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
+
 
          if len(np.shape(Data.strikes)) == 0:
              Paras.stop_flag = True
@@ -252,25 +253,27 @@ def find_final_strikes(Paras, nested = False):
              Paras.stop_flag = True
              Paras.ringing_finished = True
         
+         
+         if st.session_state.allstrikes is None:
+            all_is_well = check_initial_rounds(Data.strikes)
+            if not all_is_well:
+                st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                st.session_state.test_counter += 1
+                print('No rounds found. Bugger')
+                st.session_state.analysis_status = 0
+                st.rerun()
+
          if len(np.shape(Data.strikes)) > 1:
 
-            if len(Data.strikes[:,0]) > 1:
-                if len(allstrikes) == 0:   #Check for rounds at the start
-                    if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0][0] != Paras.nbells - 1:
-                        st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                        st.session_state.test_counter += 1
-                        print('No rounds found. Bugger')
-                        st.session_state.analysis_status = 0
-                        st.rerun()
-            else:
-                    st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                    st.session_state.test_counter += 1
-                    print('No rounds found. Bugger')
-                    st.session_state.analysis_status = 0
-                    st.rerun()
+            if len(Data.strikes[:,0]) == 0:
+                st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                st.session_state.test_counter += 1
+                print('No rounds found. Bugger')
+                st.session_state.analysis_status = 0
+                st.rerun()
 
             for row in range(0,len(Data.strikes[0])):
-                 allstrikes.append((Data.strikes[:,row] + int(tmin/Paras.dt)).tolist())
+                 allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())
                  allcerts.append(Data.strike_certs[:,row].tolist())
                  Paras.allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
                  
@@ -309,7 +312,6 @@ def find_final_strikes(Paras, nested = False):
      
          counter += 1
 
-     print(np.array(allstrikes))
      del allstrikes; del allcerts
      Data = None
      
@@ -321,10 +323,18 @@ def filter_final_strikes(Paras):
     change_ratios = np.zeros(np.shape(st.session_state.allstrikes))
     for ri in range(len(change_ratios[0])):
         change_ratios[:,ri] = (st.session_state.allstrikes[:,ri] - np.min(st.session_state.allstrikes[:,ri]))/(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
-
-    print(change_ratios[0,:])
+    
+    for bell in range(len(change_ratios)):
+        for ri in range(1,len(change_ratios[0])-1):
+            if st.session_state.allcerts[bell,ri] < 0.1:   #This is one to be interpolated. Hopefully those either side are fine...
+                predicted_ratio = 0.5*(change_ratios[bell,ri-1] + change_ratios[bell,ri + 1])
+                predicted_location = np.min(st.session_state.allstrikes[:,ri]) + predicted_ratio*(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
+                st.session_state.allstrikes[bell,ri] = predicted_location
+    #Check that last row is indeed real
+    if np.median(st.session_state.allcerts[:,-1]) < 0.5:
+        st.session_state.allstrikes = st.session_state.allstrikes[:,:-1]
+        st.session_state.allcerts = st.session_state.allcerts[:,:-1]
     return
-
 
 def save_strikes(Paras):
     #Saves as a pandas thingummy like the strikeometer does

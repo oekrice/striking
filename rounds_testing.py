@@ -6,7 +6,7 @@ import pandas as pd
 from listen_classes import data
 import matplotlib.pyplot as plt
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times, find_colour
+from listen_other_functions import find_ringing_times, find_strike_probabilities
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 
