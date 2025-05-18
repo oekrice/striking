@@ -406,18 +406,10 @@ if st.session_state.current_touch >= 0:
             
         titles = ['All blows', 'Handstrokes', 'Backstrokes']
 
-        #print('')
-        #print(use_method_info)
-        #print('Raw Team', np.sum(raw_data['Team Model']))
-        #print('Actuals', np.sum(raw_actuals))
-        #print('Target', np.sum(raw_target))
-        #print('Errors', np.sum(time_errors))
-        #print('SD', np.mean(alldiags[2,2,:]))
         overall_quality = 1.0 - np.mean(alldiags[2,2,:])/cadence
 
-        min_quality = 0.65; max_quality = 0.88  #These are open to interpretation
-        shifted_quality = (5.23*overall_quality - 3.59) 
-        shifted_quality = min(1, max(0, shifted_quality))
+        k = 17.5; x0 = 0.727
+        shifted_quality = 1.0/(1.0 + np.exp(-k*(overall_quality - x0)))
         st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.1f%%**" % (100*shifted_quality))
 
@@ -549,13 +541,14 @@ if st.session_state.current_touch >= 0:
                         for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                            ys = np.arange(1,nbells+1)
-                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                            rat = float(f(raw_actuals[bellstrikes][row]))
-                            points.append(rat); changes.append(row)
-                            
-                            if view_numbers:
-                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                            if len(target_row) == nbells:
+                                ys = np.arange(1,nbells+1)
+                                f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                                rat = float(f(raw_actuals[bellstrikes][row]))
+                                points.append(rat); changes.append(row)
+                                
+                                if view_numbers:
+                                    ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
 
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
@@ -567,13 +560,14 @@ if st.session_state.current_touch >= 0:
                         for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
                             #Find linear position... Linear interpolate?
                             target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                            ys = np.arange(1,nbells+1)
-                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                            rat = float(f(raw_actuals[bellstrikes][row]))
-                            points.append(rat); changes.append(row)
-                            if view_numbers:
-                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
-
+                            if len(target_row) == nbells:
+                                ys = np.arange(1,nbells+1)
+                                f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                                rat = float(f(raw_actuals[bellstrikes][row]))
+                                points.append(rat); changes.append(row)
+                                if view_numbers:
+                                    ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                                    
                         if len(highlight_bells) > 0:
                             ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
                         else:

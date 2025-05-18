@@ -27,7 +27,6 @@ from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
 from listen_other_functions import find_colour
 from methods import find_method_things
-from rounds_testing import establish_initial_rhythm_test
 
 st.set_page_config(page_title="Analyse Audio", page_icon="🎤")
 st.markdown("# Analyse Audio")
@@ -349,9 +348,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
     tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
     overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
-    
-    rounds_tmax = st.slider("Max. length of reliable rounds (be conservative):", min_value = 20.0, max_value = min(60.0, tmax), step = 1., value=(45.0), format = "%ds")
-    
+        
     if st.session_state.use_existing_freqs < 0:
         reinforce_tmax = st.slider("Max. time for frequency analysis -- don't include bad ringing (otherwise longer is slower but more accurate):", min_value = 45.0, max_value = min(90.0, tmax), step = 1., value=(60.0), format = "%ds")
         nreinforces = int(st.slider("Max number of frequency analysis steps:", min_value = 2, max_value = 10, value = 5, step = 1))
@@ -359,13 +356,13 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         reinforce_tmax = 90.0
         nreinforces = 5
 
-    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces)
+    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, reinforce_tmax, nreinforces)
     Paras.fname = str(st.session_state.tower_id)
 
     if st.session_state.use_existing_freqs < 0:
         
         if st.session_state.reinforce_status == 0 or st.session_state.reinforce_status == 2:
-            st.button("Find new frequency profiles", on_click = change_reinforce)
+            st.button("Find new frequency profiles and strike times", on_click = change_reinforce)
         else: 
             st.button("Stop finding frequencies", on_click = change_reinforce)
                      
@@ -391,11 +388,8 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         
             st.current_log.write('Detecting ringing...')
         
-            Data = establish_initial_rhythm_test(Paras)
+            Data = establish_initial_rhythm(Paras)
             
-            print('Rhythm established, stopping')
-            st.stop()
-
             st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
                     
             Data = do_reinforcement(Paras, Data)
@@ -432,6 +426,9 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
                 st.current_log.write('Not perfect but it\'ll probably do.')
             else:
                 st.current_log.write('That should be fine to detect everything reasonably well.')
+
+            if st.session_state.analysis_status == 0:
+                st.session_state.analysis_status = 1 #Automatically find strike times
             st.divider()
                     
 #st.write(st.session_state.reinforce_status, st.session_state.use_existing_freqs)
@@ -448,9 +445,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
     #st.write(st.session_state.analysis_status)
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
         if st.session_state.use_existing_freqs < 0:
-            st.empty().write('New frequency profile calculated. Find strike times?')
+            st.empty().write('New frequency profile calculated. Ready to find strike times.')
         else:
-            st.empty().write('Existing frequency profile loaded. Find strike times?')
+            st.empty().write('Existing frequency profile loaded. Ready to find strike times.')
             
         def change_analysis():
             if st.session_state.analysis_status == 1:
@@ -545,24 +542,27 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(allbells)
          
         if len(methods) > 0:
-            nchanges = len(allrows_correct) - 1
+            if quality > 0.8:
+                nchanges = len(allrows_correct) - 1
 
-            if len(methods) == 1:   #Single method
-                method_title = methods[0][0]
-                if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
-                    method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+                if len(methods) == 1:   #Single method
+                    method_title = methods[0][0]
+                    if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+                        method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
 
-            else:   #Spliced methods
-                stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
-                stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
-                if len(set(stagetypes)) == 1:
-                    method_title = "Spliced " + stagetypes[0]
-                elif len(set(stages)) == 1:
-                    method_title = "Spliced " + stages[0]
-                else:
-                    method_title = "Spliced"
-                lead_length = 2*int(hunt_types[0][1] + 1)
-            st.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+                else:   #Spliced methods
+                    stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+                    stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+                    if len(set(stagetypes)) == 1:
+                        method_title = "Spliced " + stagetypes[0]
+                    elif len(set(stages)) == 1:
+                        method_title = "Spliced " + stages[0]
+                    else:
+                        method_title = "Spliced"
+                    lead_length = 2*int(hunt_types[0][1] + 1)
+                st.write("**Method(s) detected: " + str(nchanges) + " " + method_title + ", %.1f %% match**" % (100*quality))
+            else:
+                st.write("**Probably a method but not sure what it is...**")
         else:
             st.write("**No method detected**")
             start_row = 0; end_row = len(allrows_correct)

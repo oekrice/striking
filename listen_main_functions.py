@@ -23,11 +23,10 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds
+from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes
+
 
 def establish_initial_rhythm(Paras, final = False):
-    #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
-    #Hopefully remove a load of the bugs that seem to have appeared.
 
     if not final:
         Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
@@ -35,32 +34,30 @@ def establish_initial_rhythm(Paras, final = False):
         Data = data(Paras, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
         
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
+
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
-    Paras.rounds_tmax = Paras.ringing_start*Paras.dt  + Paras.rounds_tmax
 
     if not final:
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
 
     if not final:
-        Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
 
     #Find strike probabilities from the nominals
     Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = True, final = final)
     #Find the first strikes based on these probabilities. Hopefully some kind of nice pattern to the treble at least... 
     Paras.local_tmin = Paras.overall_tmin
-    Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
+    Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
     Paras.stop_flag = False
 
-    Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
+    #Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)  #Why does this happen twice? Forgot...
     
     Paras.first_strikes, Paras.first_strike_certs = find_first_strikes(Paras, Data)
     
     Data.strikes, Data.strike_certs = Paras.first_strikes, Paras.first_strike_certs
         
-    Paras.first_strikes = Paras.first_strikes + Paras.ringing_start
-
     return Data
         
 def do_reinforcement(Paras, Data):
