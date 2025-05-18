@@ -52,7 +52,7 @@ st.markdown(
 #Inputs as tower, number of bells and filename. That is all.
 
 input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)
-init_test = 0
+init_test = 72
 single_test = False
 
 if not os.path.exists('./tmp/'):

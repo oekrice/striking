@@ -59,11 +59,18 @@ Stockton on Tees, Parish Church;12;audio/stockton_finaltouch.m4a
 Stockton on Tees, Parish Church;12;audio/stockton_stedman.wav
 Dersingham, S Nicholas;6;audio/Trip 2 Dersingham.m4a
 Yaxham, S Peter;6;audio/Yacham Norfolk.m4a
+Yoxford, S Peter;6;audio/SG Petistree.m4a
 York, Cath & Metropolitical Ch of S Peter;12;audio/york_1.m4a
 Horbury, S Peter & S Leonard;8;audio/Horbury.m4a
 Dewsbury, Minster Ch of All Saints;8;audio/Dewsbury.m4a
-
-
+Brancepeth, S Brandon;6;audio/Whoops Brancepeth.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth PB7.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth grandsire-2.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth Bastow.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral G7.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral SC7.m4a
+Bristol, S Mary V, Redcliffe;12;audio/Track-5 20250504-203132.mp3
+Bristol, S Mary V, Redcliffe;12;audio/BristolRedcliffe.20250504-1715.6.beai (1).mp3
 
 
 
