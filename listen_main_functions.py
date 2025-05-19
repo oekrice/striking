@@ -23,12 +23,10 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, find_first_strikes, do_frequency_analysis, find_strike_times_rounds, find_colour
+from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes
 
 
 def establish_initial_rhythm(Paras, final = False):
-    #Obtain various things about the ringing. What exactlythis does will depend on what's required from the situation
-    #Hopefully remove a load of the bugs that seem to have appeared.
 
     if not final:
         Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
@@ -36,16 +34,16 @@ def establish_initial_rhythm(Paras, final = False):
         Data = data(Paras, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
         
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
+
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
-    Paras.rounds_tmax = Paras.ringing_start*Paras.dt  + Paras.rounds_tmax
 
     if not final:
         st.current_log.write('Ringing detected from approx. time %d seconds' % (Paras.ringing_start*Paras.dt))
 
     if not final:
-        Data = data(Paras, tmin = 0.0, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = Paras.reinforce_tmax) #This class contains all the important stuff, with outputs and things
     else:
-        Data = data(Paras, tmin = 0.0, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = Paras.ringing_start*Paras.dt, tmax = 60.0 + Paras.ringing_start*Paras.dt) #This class contains all the important stuff, with outputs and things
 
     #Find strike probabilities from the nominals
     Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = True, final = final)
@@ -54,7 +52,7 @@ def establish_initial_rhythm(Paras, final = False):
     Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
     Paras.stop_flag = False
 
-    Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
+    #Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)  #Why does this happen twice? Forgot...
     
     Paras.first_strikes, Paras.first_strike_certs = find_first_strikes(Paras, Data)
     
@@ -72,23 +70,49 @@ def do_reinforcement(Paras, Data):
     Paras.new_frequencies = False
     Paras.overwrite_existing_freqs = False
     Paras.use_existing_freqs = False
-            
-    for count in range(Paras.n_reinforces):
+
+    for reinforce_count in range(Paras.n_reinforces):
         
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
         #st.write('Doing frequency analysis,  iteration number', count + 1, 'of', Paras.n_reinforces)
-        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (count + 1, Paras.n_reinforces))
+        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (reinforce_count + 1, Paras.n_reinforces))
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
-        #Save out frequency data only when finished reinforcing?
+        #Save out frequency data only when finished reinforcing? Yes.
         
         #print('Finding strike probabilities...')
         
         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = False)
                 
-        strikes, strike_certs = find_strike_times_rounds(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
+        strikes, strike_certs = find_strike_times(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
     
+        #Determine whether this is actually rounds or if something's got mixed up...
+        all_is_well = check_initial_rounds(strikes)
+
+        '''
+        if all_is_well:
+            print("All is well", np.shape(strikes))
+        else:
+            print("All is not well")
+        '''
+        if not all_is_well:
+            print("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            st.session_state.test_counter += 1
+            st.rerun()
+
+        if len(strikes) == 0:
+            print('Finding strikes error -- to be sorted out later!')
+            st.session_state.test_counter += 1
+            st.rerun()
+
+        if np.shape(strikes)[1] < 6:
+            st.error("Failed to find reliable enough strikes to determine frequencies. Apologies.")
+            print('Finding strikes error -- to be sorted out later!')
+            st.session_state.test_counter += 1
+            st.rerun()
+
         #Check and fix handstrokes if necessary
         diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
         diff2s = strikes[:,2::2] - strikes[:,1:-1:2]
@@ -107,13 +131,14 @@ def do_reinforcement(Paras, Data):
         Data.handstroke_first = handstroke_first
         #print('b', st.session_state.handstroke_first, handstroke_first, Data.handstroke_first)
 
+        
         #Filter these strikes for the best rows, to then be used for reinforcement
         best_strikes = []; best_certs = []; allcerts = []; row_ids = []
         #Pick the ones that suit each bell in turn --but make sure to weight!
         done  = False
         while not done:
             for bell in range(Paras.nbells):
-                threshold = 0.05   #Need changes to be at least this good... Need to improve on this really.
+                threshold = 0.01   #Need changes to be at least this good... Need to improve on this really as it's a bit arbitrary.
                 allcerts = []; count = 0
                 for row in range(len(strikes[0])):
                     allcerts.append(strike_certs[bell,row])
@@ -132,47 +157,30 @@ def do_reinforcement(Paras, Data):
                 done = True
             else:
                 threshold = threshold/2
-            
-        st.current_log.write('Using ' + str(len(best_strikes)) + ' rows for next reinforcement')
-        Data.strikes, Data.strike_certs = np.array(best_strikes).T, np.array(best_certs).T
         
-        count += 1
-        
+        Data.strikes, Data.strike_certs = strikes, strike_certs
+        st.current_log.write('Using ' + str(len(Data.strikes[0])) + ' rows for next reinforcement')
+
+        reinforce_count += 1
+
         #This stuff is now a bit different... Need the three arrays as st session variables
         if len(Data.strikes) > 0 and len(Data.strike_certs) > 0:
+            print('Match at count', reinforce_count, Data.freq_data[2])
             #Check if it's worth overwriting the old one? Do this at EVERY STEP, and save out to THIS filename.
-            if True:   #Old one which works -KEEP
-                update = False
-                if st.session_state.reinforce_frequency_data is not None:
-                    if st.session_state.reinforce_frequency_data[2] < Data.freq_data[2]:
-                        update = True
-                else:
-                    update= True
-                    
-                if update:
-                    #Experimental -- run through and detect the best yet from EACH bell!
-                    st.session_state.reinforce_test_frequencies = Data.test_frequencies
-                    st.session_state.reinforce_frequency_profile = Data.frequency_profile
-                    st.session_state.reinforce_frequency_data = Data.freq_data
-                    st.session_state.already_saved = False
-                    
+            update = False
+            if st.session_state.reinforce_frequency_data is not None:
+                if st.session_state.reinforce_frequency_data[2] < Data.freq_data[2]:
+                    update = True
             else:
-                if st.session_state.reinforce_frequency_data is not None:
-                    #st.write(st.session_state.reinforce_frequency_data[:])
-                    #st.write(Data.freq_data[:])
-                    for bell in range(Paras.nbells):
-                        #Check individually against the reference
-                        if st.session_state.reinforce_frequency_data[4+bell] < Data.freq_data[4+bell]:
-                            st.session_state.reinforce_frequency_data[4+bell] = Data.freq_data[4+bell]
-                            st.session_state.reinforce_test_frequencies[:] = Data.test_frequencies[:]
-                            st.session_state.reinforce_frequency_profile[:,bell] = Data.frequency_profile[:,bell]
-                            st.session_state.already_saved = False
-                else:
-                    st.session_state.reinforce_test_frequencies = Data.test_frequencies
-                    st.session_state.reinforce_frequency_profile = Data.frequency_profile
-                    st.session_state.reinforce_frequency_data = Data.freq_data
-                    st.session_state.already_saved = False
+                update= True
                 
+            if update:
+                #Experimental -- run through and detect the best yet from EACH bell!
+                st.session_state.reinforce_test_frequencies = Data.test_frequencies
+                st.session_state.reinforce_frequency_profile = Data.frequency_profile
+                st.session_state.reinforce_frequency_data = Data.freq_data
+                st.session_state.already_saved = False
+                    
         else:
             #st.session_state.reinforce = 0
             st.error("Frequency analysis failed for some reason. If the percentage is reasonably high this is probably due to bad audio or bad ringing. If it is low then check the correct tower/bells are selected.")
@@ -182,20 +190,19 @@ def do_reinforcement(Paras, Data):
             #Determine colours:
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
-            st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*toprint))
+            st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
 
     return Data
 
 def find_final_strikes(Paras, nested = False):
     
-     #Create new data files in turn -- will be more effeicient ways but meh...
-     tmin = 0.0
+     tmin = Paras.ringing_start*Paras.dt
      tmax = tmin + Paras.overall_tcut + Paras.ringing_start*Paras.dt
      allstrikes = []; allcerts = []
      Paras.allcadences = []
      Paras.stop_flag = False
      Paras.local_tmin = Paras.overall_tmin
-     Paras.local_tint = int(Paras.overall_tmin/Paras.dt)
+     Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
      Paras.ringing_finished = False
      
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
@@ -203,18 +210,21 @@ def find_final_strikes(Paras, nested = False):
 
      counter = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
-         
          if tmax >= Paras.overall_tmax - 1.0:  #Last one
              Paras.stop_flag = True
              
          Paras.local_tmin = tmin + Paras.overall_tmin
-         Paras.local_tint = int((tmin+Paras.overall_tmin)/Paras.dt) 
+         Paras.local_tint = round((tmin+Paras.overall_tmin)/Paras.dt) 
 
          Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
          
          Data.test_frequencies = st.session_state.final_freqs
          Data.frequency_profile = st.session_state.final_freqprobs
              
+         if counter == 0:
+             #Adjust the first strikes as appropriate
+             Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - round(tmin/Paras.dt)
+
          Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
          if len(allstrikes) == 0:  #Look for changes after this time
@@ -224,32 +234,43 @@ def find_final_strikes(Paras, nested = False):
                  Data.handstroke_first = st.session_state.handstroke_first
              else:
                  Data.handstroke_first = not(st.session_state.handstroke_first)
-             Data.last_change = np.array(allstrikes[-1]) - int(tmin/Paras.dt)
+             Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
              Data.cadence_ref = Paras.cadence_ref
 
-         Data.strikes, Data.strike_certs = find_strike_times_rounds(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
-                   
-         if len(np.shape(Data.strikes)) > 1:
-             pass
-         else:
+         Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
+
+
+         if len(np.shape(Data.strikes)) == 0:
              Paras.stop_flag = True
-            
+             Paras.ringing_finished = True
+         elif len(Data.strikes[0]) < 2:
+             Paras.stop_flag = True
+             Paras.ringing_finished = True
+         elif np.median(Data.strike_certs[:,-1]) < 0.5:
+             Paras.stop_flag = True
+             Paras.ringing_finished = True
+        
+         
+         if st.session_state.allstrikes is None:
+            all_is_well = check_initial_rounds(Data.strikes)
+            if not all_is_well:
+                st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                st.session_state.test_counter += 1
+                print('No rounds found. Bugger')
+                st.session_state.analysis_status = 0
+                st.rerun()
+
          if len(np.shape(Data.strikes)) > 1:
-            if len(Data.strikes[:,0]) > 1:
-                if len(allstrikes) == 0:   #Check for rounds at the start
-                    if np.where(Data.strikes[:,0] == np.max(Data.strikes[:,0]))[0] != Paras.nbells - 1:
-                        st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                        st.session_state.analysis_status = 0
-                        time.sleep(5.0)
-                        st.rerun()
-            else:
-                    st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                    st.session_state.analysis_status = 0
-                    time.sleep(5.0)
-                    st.rerun()
+
+            if len(Data.strikes[:,0]) == 0:
+                st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                st.session_state.test_counter += 1
+                print('No rounds found. Bugger')
+                st.session_state.analysis_status = 0
+                st.rerun()
 
             for row in range(0,len(Data.strikes[0])):
-                 allstrikes.append((Data.strikes[:,row] + int(tmin/Paras.dt)).tolist())
+                 allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())
                  allcerts.append(Data.strike_certs[:,row].tolist())
                  Paras.allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
                  
@@ -258,7 +279,6 @@ def find_final_strikes(Paras, nested = False):
              diff1s = Data.strikes[:,1::2] - Data.strikes[:,0:-1:2]
              diff2s = Data.strikes[:,2::2] - Data.strikes[:,1:-1:2]
              
-             kback = len(diff2s[0])
              if np.mean(diff1s[:]) < np.mean(diff2s[:]):
                  handstroke_first = True
              else:
@@ -279,7 +299,8 @@ def find_final_strikes(Paras, nested = False):
          Paras.cadence_ref = np.mean(Paras.allcadences[-nrows_count:])
          Paras.allstrikes = np.array(allstrikes)
          
-         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs - Paras.ringing_start*Paras.dt)
+         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs)
+         progress_fraction = min(1, progress_fraction)
          st.analysis_sublog.progress(progress_fraction, text = 'Complete until time %d seconds, after %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          #st.analysis_sublog.write('Complete until time %d seconds with %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          
@@ -287,12 +308,31 @@ def find_final_strikes(Paras, nested = False):
          st.session_state.allcerts = np.array(allcerts).T
      
          counter += 1
-         
+
      del allstrikes; del allcerts
      Data = None
      
      return 
      
+def filter_final_strikes(Paras):
+    #Looks for non-confident blows and attempts to put them somewhere reasonable based on the (hopefully) confident blows either side. Should make the grids look better...
+    #Needs to find the ratio through the change for each bell, approximately
+    change_ratios = np.zeros(np.shape(st.session_state.allstrikes))
+    for ri in range(len(change_ratios[0])):
+        change_ratios[:,ri] = (st.session_state.allstrikes[:,ri] - np.min(st.session_state.allstrikes[:,ri]))/(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
+    
+    for bell in range(len(change_ratios)):
+        for ri in range(1,len(change_ratios[0])-1):
+            if st.session_state.allcerts[bell,ri] < 0.1:   #This is one to be interpolated. Hopefully those either side are fine...
+                predicted_ratio = 0.5*(change_ratios[bell,ri-1] + change_ratios[bell,ri + 1])
+                predicted_location = np.min(st.session_state.allstrikes[:,ri]) + predicted_ratio*(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
+                st.session_state.allstrikes[bell,ri] = predicted_location
+    #Check that last row is indeed real
+    if np.median(st.session_state.allcerts[:,-1]) < 0.5:
+        st.session_state.allstrikes = st.session_state.allstrikes[:,:-1]
+        st.session_state.allcerts = st.session_state.allcerts[:,:-1]
+    return
+
 def save_strikes(Paras):
     #Saves as a pandas thingummy like the strikeometer does
     allstrikes = []

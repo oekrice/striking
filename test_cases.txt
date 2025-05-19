@@ -1,0 +1,88 @@
+Amersham, S Mary V;12;audio/amersham_team1.mp3
+Beetley, S Mary;8;audio/Beetley Grandsire.m4a
+Beetley, S Mary;8;audio/Beetley stedman.m4a
+Brancepeth, S Brandon;6;audio/brancepeth_grandsire.wav
+Brancepeth, S Brandon;6;audio/Brancepeth_cambridge.wav
+Brancepeth, S Brandon;8;audio/Brancepeth PB 7.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth PH7.m4a
+Brancepeth, S Brandon;6;audio/Brancepeth st Clements.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth_Stedman.m4a
+Barton, S Cuthbert & S Mary;6;audio/Branch striking contest 2024 - Northallerton (2).wav
+Bristol, S Mary V, Redcliffe;12;audio/BristolRedcliffe.20250504-1620.3.ynmv (1).mp3
+Bristol, S Mary V, Redcliffe;12;audio/redcliffe_chamber_1.mp3
+Burley, S Matthias;6;audio/burley cambridge.m4a
+Burley, S Matthias;6;audio/Burley Changes.m4a
+Burley, S Matthias;6;audio/Burley pb5_error.m4a
+Burley, S Matthias;6;audio/Burley PH.m4a
+Burley, S Matthias;6;audio/BurleyPB.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;10;audio/cathedral_Grandsire.m4a
+Exeter, Cath Ch of S Peter;12;audio/Exeter Stedman.m4a
+Great Ryburgh, S Andrew;6;audio/Great Ryburgh.m4a
+Grimston, S Botolph;6;audio/Grimston 1.m4a
+Grimston, S Botolph;6;audio/Grimston 2.m4a
+Holbeach, All Saints;8;audio/Holbeach 1.m4a
+Holbeach, All Saints;8;audio/Holbeach Stedman.m4a
+Houghton, All Saints;6;audio/houghton_hants.wav
+Hursley, All Saints;12;audio/Hursley.r325.wav
+King's Lynn, S Nicholas;8;audio/Kings Lynn.m4a
+Leeds, Minster Ch of S Peter;12;audio/leeds1.wav
+Leeds, Minster Ch of S Peter;12;audio/leeds2.wav
+Leeds, Minster Ch of S Peter;12;audio/leeds3.wav
+Leeds, Minster Ch of S Peter;12;audio/leeds4.wav
+Leeds, Minster Ch of S Peter;12;audio/leeds5.wav
+Leeds, Minster Ch of S Peter;12;audio/leeds6.wav
+Brancepeth, S Brandon;6;audio/Lily.m4a
+Brancepeth, S Brandon;6;audio/Lily 2.m4a
+Lincoln, Cath Ch of BVM;12;audio/lincoln_cathedral_birmingham_band.mp3
+Brancepeth, S Brandon;8;audio/Little_Bob_Brancepeth.m4a
+Durham, S Nicholas;6;audio/London_nics.m4a
+Lutton, S Nicholas;6;audio/Lutton 2.m4a
+Lutton, S Nicholas;6;audio/Lutton 3.m4a
+Lutton, S Nicholas;6;audio/Lutton 4.m4a
+Meanwood, Holy Trinity;5;audio/meanwood_all.wav
+Brancepeth, S Brandon;6;audio/Netherseale.m4a
+Durham, S Nicholas;6;audio/nics_durham_LB6.m4a
+Durham, S Oswald;8;audio/Ossies PB8.m4a
+Durham, S Oswald;8;audio/Ossies_yorkshire.m4a
+Durham, S Oswald;8;audio/oswalds_durham_stedman.m4a
+Brancepeth, S Brandon;8;audio/PB7_Brancepeth.m4a
+Ripon, Cath Ch of S Peter & S Wilfrid;12;audio/ripon_touch4.m4a
+Durham, S Nicholas;6;audio/Spliced_nics.m4a
+Durham, S Nicholas;6;audio/St Clements_nics.m4a
+Swindon, Christ Church;10;audio/Stedman Caters at Swindon.mp3
+Durham, S Nicholas;6;audio/stedman_nics.wav
+Stockton on Tees, Parish Church;12;audio/Stockton Bristol 2.m4a
+Stockton on Tees, Parish Church;12;audio/Stockton Stedman 2.m4a
+Stockton on Tees, Parish Church;12;audio/stockton_all.wav
+Beverley, S Mary;12;audio/stockton_at_beverley.mp3
+Stockton on Tees, Parish Church;12;audio/stockton_finaltouch.m4a
+Stockton on Tees, Parish Church;12;audio/stockton_stedman.wav
+Dersingham, S Nicholas;6;audio/Trip 2 Dersingham.m4a
+Yaxham, S Peter;6;audio/Yacham Norfolk.m4a
+Yoxford, S Peter;6;audio/SG Petistree.m4a
+York, Cath & Metropolitical Ch of S Peter;12;audio/york_1.m4a
+Horbury, S Peter & S Leonard;8;audio/Horbury.m4a
+Dewsbury, Minster Ch of All Saints;8;audio/Dewsbury.m4a
+Brancepeth, S Brandon;6;audio/Whoops Brancepeth.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth PB7.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth grandsire-2.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth Bastow.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral G7.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral SC7.m4a
+Bristol, S Mary V, Redcliffe;12;audio/Track-5 20250504-203132.mp3
+Bristol, S Mary V, Redcliffe;12;audio/BristolRedcliffe.20250504-1715.6.beai (1).mp3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
