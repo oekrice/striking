@@ -115,12 +115,18 @@ if "rhythm_variation_time" not in st.session_state:
 if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 10
     
+#Remove the large things from memory -- need a condition on this!
+st.session_state.trimmed_signal = None
+st.session_state.audio_signal = None
+Paras = None
+Data = None
+
 touch_titles = []
 raw_titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = '"' + st.session_state.cached_data[i][2] + '"'# + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    title = '' + st.session_state.cached_data[i][2] + ''# + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
@@ -147,7 +153,7 @@ if len(touch_titles) > 0 and st.session_state.current_touch < 0:
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
-    st.write('Analysing ringing from file %s' % touch_titles[st.session_state.current_touch])
+    st.write('Analysing ringing from file "%s"' % touch_titles[st.session_state.current_touch])
 
 if len(touch_titles) == 0:
     st.session_state.current_touch = -1
@@ -210,8 +216,6 @@ if st.session_state.current_touch >= 0:
 
     methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(raw_data["Bell No"])
 
-    if quality < 0.8:
-        methods = []
     if len(methods) > 0:
         call_string, comp_html = print_composition(methods, hunt_types, calls, allrows_correct)
         method_flag = True
@@ -221,29 +225,32 @@ if st.session_state.current_touch >= 0:
     if len(methods) > 0:
         nchanges = len(allrows_correct) - 1
         end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
+        if quality > 0.8:
 
-        if len(methods) == 1:   #Single method
-            method_title = methods[0][0]
-            if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
-                method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
-                lead_length = 12
-            else:
-                lead_length = 4*int(hunt_types[0][1] + 1)
+            if len(methods) == 1:   #Single method
+                method_title = methods[0][0]
+                if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+                    method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+                    lead_length = 12
+                else:
+                    lead_length = 4*int(hunt_types[0][1] + 1)
 
-        else:   #Spliced methods
-            stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
-            stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
-            if len(set(stagetypes)) == 1:
-                method_title = "Spliced " + stagetypes[0]
-            elif len(set(stages)) == 1:
-                method_title = "Spliced " + stages[0]
-            else:
-                method_title = "Spliced"
-            lead_length = 2*int(hunt_types[0][1] + 1)
-
-        st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
-        with st.expander("View Composition"):
-            st.html(comp_html)
+            else:   #Spliced methods
+                stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+                stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+                if len(set(stagetypes)) == 1:
+                    method_title = "Spliced " + stagetypes[0]
+                elif len(set(stages)) == 1:
+                    method_title = "Spliced " + stages[0]
+                else:
+                    method_title = "Spliced"
+                lead_length = 2*int(hunt_types[0][1] + 1)
+            st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            with st.expander("View Composition"):
+                st.html(comp_html)
+        else:
+            st.write("**Probably a method but not entirely sure what...**")
+            method_flag = False
 
     else:
         st.method_message.write("**No method detected**")
@@ -302,7 +309,7 @@ if st.session_state.current_touch >= 0:
         nstrikes = len(raw_actuals)
         nrows = int(nstrikes//nbells)
     
-        with st.expander("Options"):
+        with st.expander("Statistical Options"):
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
                 st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
@@ -326,8 +333,10 @@ if st.session_state.current_touch >= 0:
                 
             remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats?", value = True)
             remove_confidence = st.checkbox("Remove not-confident strike times from the stats?", value = True)
-            use_method_info = st.checkbox("Use presumed composition to identify correct times?", value = True)
-    
+            if method_flag:
+                use_method_info = st.checkbox("Use presumed composition to identify correct times?", value = True)
+            else:
+                use_method_info = False
             min_include_change, max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = nrows, value=(start_row+1, end_row), format = "%d", step = 2, key = 300 + st.session_state.current_touch)
 
         
@@ -410,8 +419,8 @@ if st.session_state.current_touch >= 0:
 
         k = 17.5; x0 = 0.727
         shifted_quality = 1.0/(1.0 + np.exp(-k*(overall_quality - x0)))
-        st.message.write("Standard deviation from ideal for this touch: %dms" % np.mean(alldiags[2,2,:]))
-        st.message_2.write("Overall striking quality: **%.1f%%**" % (100*shifted_quality))
+        st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(alldiags[2,2,:]))
+        st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
 
         #Want error through time for each bell, and do as a snazzy plot?
         @st.cache_data
@@ -731,8 +740,8 @@ if st.session_state.current_touch >= 0:
                     plt.close()
 
             x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")
-            nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= 50, format = "%d", step = 1)
-
+            nbins_default = min(100, max(int(len(errors)/5),10))
+            nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= nbins_default, format = "%d", step = 1)
             plot_histograms(errors,x_range,nbins)
 
         with st.expander("View Box Plots"):

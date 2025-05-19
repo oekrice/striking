@@ -71,11 +71,12 @@ def do_reinforcement(Paras, Data):
     Paras.overwrite_existing_freqs = False
     Paras.use_existing_freqs = False
 
+    quality_log = []
     for reinforce_count in range(Paras.n_reinforces):
         
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
         #st.write('Doing frequency analysis,  iteration number', count + 1, 'of', Paras.n_reinforces)
-        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (reinforce_count + 1, Paras.n_reinforces))
+        st.main_log.write('**Analysing bell frequencies, iteration %d**' % (reinforce_count + 1))
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
@@ -163,9 +164,10 @@ def do_reinforcement(Paras, Data):
 
         reinforce_count += 1
 
+        quality_log.append(Data.freq_data[2])
+
         #This stuff is now a bit different... Need the three arrays as st session variables
         if len(Data.strikes) > 0 and len(Data.strike_certs) > 0:
-            print('Match at count', reinforce_count, Data.freq_data[2])
             #Check if it's worth overwriting the old one? Do this at EVERY STEP, and save out to THIS filename.
             update = False
             if st.session_state.reinforce_frequency_data is not None:
@@ -180,6 +182,7 @@ def do_reinforcement(Paras, Data):
                 st.session_state.reinforce_frequency_profile = Data.frequency_profile
                 st.session_state.reinforce_frequency_data = Data.freq_data
                 st.session_state.already_saved = False
+                st.session_state.analysis_status = 0
                     
         else:
             #st.session_state.reinforce = 0
@@ -191,6 +194,11 @@ def do_reinforcement(Paras, Data):
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
+
+        if len(quality_log) > 2:
+            #Check for lack of increase
+            if np.max(quality_log[-2:]) < np.max(quality_log[:-2]):
+                break
 
     return Data
 

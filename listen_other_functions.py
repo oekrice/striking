@@ -224,7 +224,7 @@ def find_first_strikes(Paras, Data):
 
     #Update rough cadence:
     rough_cadence = np.mean(np.array(sorted(first_guesses))[1:] - np.array(sorted(first_guesses)[:-1]))
-    print('Peal speed (hours):', Paras.dt*rough_cadence*5000/3600)
+    #print('Peal speed (hours):', Paras.dt*rough_cadence*5000/3600)
 
     if len(first_guesses) < 6:
         st.error('Not enough changes detected to proceed...')
