@@ -136,6 +136,7 @@ def reset_nominals():
     st.session_state.good_frequencies_selected = False
     st.session_state.checked = []
     st.session_state.use_existing_freqs = -1   #Positive if do want to use existing frequencies. Negative if not.
+    st.session_state.analysis_status = 0 #If new file is uploaded, reset status
     #st.rerun()
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
