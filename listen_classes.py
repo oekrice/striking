@@ -25,9 +25,6 @@ from scipy.io import wavfile
 import numpy as np
 from scipy.fftpack import fft
 from scipy.ndimage import gaussian_filter1d
-import matplotlib.pyplot as plt
-import warnings
-
 
 class audio_data():
     #Does the initial audio normalisation things
@@ -42,13 +39,13 @@ class audio_data():
 
         #Only allow big files if they are wav
         if ext == '.wav':
-            limit = 3e8
+            limit = 2e8
         else:
-            limit = 3e7
+            limit = 2e7
 
         if raw_file.size > limit:
             st.error("Recording is too long... sorry. Hopefully  better server will remove this confounded limitation.")
-            st.stop()
+
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        
@@ -59,8 +56,9 @@ class audio_data():
         
         if ext != '.wav':
             new_fname = './tmp/' + raw_file.name[:-4] + '.wav'
+
             #Convert this to a wav
-            os.system('ffmpeg -y -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
+            os.system('ffmpeg -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
                 upload_success = True
 
@@ -79,9 +77,8 @@ class audio_data():
         if upload_success:
         
             st.session_state.audio_signal = None
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                self.fs, self.data = wavfile.read(new_fname)  #Hopefully this doesn't use too much...
+            
+            self.fs, self.data = wavfile.read(new_fname)  #Hopefully this doesn't use too much...
     
             if os.path.exists('./tmp/' + raw_file.name):
                 os.system('rm -r ./tmp/' + raw_file.name)
@@ -112,12 +109,12 @@ class parameters(object):
     #Also all variables that can theoretically be easily changed
     
     #Want only one of these to exist at once -- so define as a singleton
-    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
+    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces):
         if not hasattr(cls, 'instance'):
             cls.instance = super(parameters, cls).__new__(cls)
         return cls.instance
     
-    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
+    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, rounds_tmax, reinforce_tmax, nreinforces):
                 
         self.dt = 0.01
         self.fcut_length = 0.125  #Length of each transform slice (in seconds)
@@ -147,6 +144,7 @@ class parameters(object):
         self.rounds_tcut = 0.5 #How many times the average cadence to cut off find in rounds
         self.rounds_leeway = 1.5 #How far to allow a strike before it is more improbable
 
+        self.rounds_tmax = rounds_tmax
         self.reinforce_tmax = reinforce_tmax
         
         self.overall_tcut = 60.0  #How frequently (seconds) to do update rounds etc.
@@ -154,16 +152,16 @@ class parameters(object):
         
         if True:#not st.session_state.trim_flag:
             if overall_tmax > 0.0:
-                st.session_state.trimmed_signal = st.session_state.audio_signal[round(overall_tmin*st.session_state.fs):round(overall_tmax*st.session_state.fs)]
+                st.session_state.trimmed_signal = st.session_state.audio_signal[int(overall_tmin*st.session_state.fs):int(overall_tmax*st.session_state.fs)]
             else:
-                st.session_state.trimmed_signal = st.session_state.audio_signal[round(overall_tmin*st.session_state.fs):]
+                st.session_state.trimmed_signal = st.session_state.audio_signal[int(overall_tmin*st.session_state.fs):]
             
         self.overall_tmin = overall_tmin
         self.overall_tmax = overall_tmax
         
         self.nbells = len(nominal_freqs)
         
-        self.fcut_int = 2*round(self.fcut_length*st.session_state.fs/2)  #Length of this cut (must be even for symmetry purposes)
+        self.fcut_int = 2*int(self.fcut_length*st.session_state.fs/2)  #Length of this cut (must be even for symmetry purposes)
         self.tmax =  len(st.session_state.trimmed_signal)/st.session_state.fs + self.overall_tmin
         
         self.prob_tcut = 0.1   #Time cutoff for all frequency identification
@@ -195,11 +193,11 @@ class data():
         #Chnage the length of the audio as appropriate
         
         if tmin > 0.0:
-            cut_min_int = round(tmin*st.session_state.fs)
+            cut_min_int = int(tmin*st.session_state.fs)
         else:
             cut_min_int = 0
         if tmax > 0.0:
-            cut_max_int = round(tmax*st.session_state.fs)
+            cut_max_int = int(tmax*st.session_state.fs)
         else:
             cut_max_int = -1
         
@@ -211,16 +209,6 @@ class data():
      
         self.do_fourier_transform(Paras)
      
-        '''
-        fig = plt.figure(figsize = (10,8))
-        plt.pcolormesh(self.transform[500:1000,0:500].T)
-        for i in range(len(self.nominals)):
-            plt.gca().plot([0,100], [self.nominals[i], self.nominals[i]], c = 'red')
-        plt.legend()
-        st.pyplot(fig)
-        plt.close()
-        '''
-        
         self.find_transform_derivatives(Paras)
         
         #print('__________________________________________________________________________________________')
@@ -239,8 +227,8 @@ class data():
         t = Paras.fcut_length/2   #Initial time (halfway through each transform)
         
         while t < Paras.tmax - Paras.fcut_length/2:
-            cut_start  = round(t*st.session_state.fs - Paras.fcut_int/2)
-            cut_end    = round(t*st.session_state.fs + Paras.fcut_int/2)
+            cut_start  = int(t*st.session_state.fs - Paras.fcut_int/2)
+            cut_end    = int(t*st.session_state.fs + Paras.fcut_int/2)
             
             signal_cut = st.session_state.local_signal[cut_start:cut_end]
             
@@ -263,7 +251,7 @@ class data():
         return 
     
     def find_transform_derivatives(self, Paras):
-        allfreqs_smooth = gaussian_filter1d(self.transform, round(Paras.transform_smoothing/Paras.dt), axis = 0)
+        allfreqs_smooth = gaussian_filter1d(self.transform, int(Paras.transform_smoothing/Paras.dt), axis = 0)
         diffs = np.zeros(allfreqs_smooth.shape)
         diffs[1:,:] = allfreqs_smooth[1:,:] - allfreqs_smooth[:-1,:] 
         

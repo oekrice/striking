@@ -27,8 +27,8 @@ def run():
         page_icon="🔔",
     )
 
-    st.write("## Striking Analysis Tools")
-    st.write("Apologies for forgetting the brilliant punny name which has been lost in the mists of time.")
+    st.write("## BReNDA 0.9.2")
+    st.write('### Bell REcording with Novel Data Analysis')
 
     st.write('### What this is')
     st.markdown('''
@@ -36,9 +36,11 @@ def run():
         There are two main parts to this: \\
                     1. Analysing a raw recording to determine the times at which the bells strike. \\
                     2. Displaying this data in a way which is meaningful. \\
+                \\
         There already exists software to accomplish this, namely (respectively) HawkEar and Strikeometer. 
                     This new app is designed completely differently from these and is more focused on less technical analysis than the high-quality 12 bell touches people usually focus on with this kind of software. \\
                     Notably, the new method for audio analysis can use (reasonably) noisy ringing chamber recordings, and does not require any calibration beforehand. \\
+                \\
                     This is not a replacement for or an update to the existing software -- with the same input HawkEar will probably provide more reliable results -- but this does open up this kind of analysis to more everday ringing, and the feedback can hopefully be used to help people improve more generally than just in fancy places. 
         ''')
     st.write('### How to use it')
