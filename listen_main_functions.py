@@ -190,7 +190,7 @@ def do_reinforcement(Paras, Data):
             #Determine colours:
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
-            st.quality_log.write('Best yet frequency match: :%s[%.1f %%]' % (c, 100*toprint))
+            st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
 
     return Data
 
