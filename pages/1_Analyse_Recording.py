@@ -564,7 +564,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             if np.mean(st.session_state.allcerts) > best_freq_quality:
                 if np.mean(st.session_state.allcerts) > 0.98:
                     save_automatically = True
-                elif np.mean(st.session_state.allcerts) > 0.96 and quality > 0.95 and len(allrows_correct) > 60 and len(methods) > 0:
+                elif np.mean(st.session_state.allcerts) > 0.95 and quality > 0.95 and len(allrows_correct) > 60 and len(methods) > 0:
                     save_automatically = True
 
             st.save_option = st.empty()
