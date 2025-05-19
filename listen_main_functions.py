@@ -71,11 +71,12 @@ def do_reinforcement(Paras, Data):
     Paras.overwrite_existing_freqs = False
     Paras.use_existing_freqs = False
 
+    quality_log = []
     for reinforce_count in range(Paras.n_reinforces):
         
         #Find the probabilities that each frequency is useful. Also plots frequency profile of each bell, hopefully.
         #st.write('Doing frequency analysis,  iteration number', count + 1, 'of', Paras.n_reinforces)
-        st.main_log.write('**Analysing bell frequencies, iteration %d of %d**' % (reinforce_count + 1, Paras.n_reinforces))
+        st.main_log.write('**Learning bell frequencies, iteration %d**' % (reinforce_count + 1))
 
         Data.test_frequencies, Data.frequency_profile = do_frequency_analysis(Paras, Data)  
             
@@ -97,21 +98,16 @@ def do_reinforcement(Paras, Data):
             print("All is not well")
         '''
         if not all_is_well:
-            print("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
             st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
-            st.session_state.test_counter += 1
-            st.rerun()
+            st.stop()
 
         if len(strikes) == 0:
-            print('Finding strikes error -- to be sorted out later!')
-            st.session_state.test_counter += 1
-            st.rerun()
+            st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            st.stop()
 
         if np.shape(strikes)[1] < 6:
-            st.error("Failed to find reliable enough strikes to determine frequencies. Apologies.")
-            print('Finding strikes error -- to be sorted out later!')
-            st.session_state.test_counter += 1
-            st.rerun()
+            st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            st.stop()
 
         #Check and fix handstrokes if necessary
         diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
@@ -163,9 +159,10 @@ def do_reinforcement(Paras, Data):
 
         reinforce_count += 1
 
+        quality_log.append(Data.freq_data[2])
+
         #This stuff is now a bit different... Need the three arrays as st session variables
         if len(Data.strikes) > 0 and len(Data.strike_certs) > 0:
-            print('Match at count', reinforce_count, Data.freq_data[2])
             #Check if it's worth overwriting the old one? Do this at EVERY STEP, and save out to THIS filename.
             update = False
             if st.session_state.reinforce_frequency_data is not None:
@@ -180,6 +177,7 @@ def do_reinforcement(Paras, Data):
                 st.session_state.reinforce_frequency_profile = Data.frequency_profile
                 st.session_state.reinforce_frequency_data = Data.freq_data
                 st.session_state.already_saved = False
+                st.session_state.analysis_status = 0
                     
         else:
             #st.session_state.reinforce = 0
@@ -191,6 +189,11 @@ def do_reinforcement(Paras, Data):
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
+
+        if len(quality_log) > 3:
+            #Check for lack of increase
+            if np.max(quality_log[-3:]) < np.max(quality_log[:-3]):
+                break
 
     return Data
 
@@ -255,19 +258,15 @@ def find_final_strikes(Paras, nested = False):
             all_is_well = check_initial_rounds(Data.strikes)
             if not all_is_well:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                st.session_state.test_counter += 1
-                print('No rounds found. Bugger')
                 st.session_state.analysis_status = 0
-                st.rerun()
+                st.stop()
 
          if len(np.shape(Data.strikes)) > 1:
 
             if len(Data.strikes[:,0]) == 0:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                st.session_state.test_counter += 1
-                print('No rounds found. Bugger')
                 st.session_state.analysis_status = 0
-                st.rerun()
+                st.stop()
 
             for row in range(0,len(Data.strikes[0])):
                  allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())

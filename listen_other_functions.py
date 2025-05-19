@@ -194,9 +194,7 @@ def find_first_strikes(Paras, Data):
     
     if len(lonesome_peaks) < 4:
         st.error('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
-        print('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
-        st.session_state.test_counter += 1
-        st.rerun()
+        st.stop()
 
     #plt.scatter(lonesome_peaks,-0.25*np.ones(len(lonesome_peaks)), c = 'green')
 
@@ -224,13 +222,11 @@ def find_first_strikes(Paras, Data):
 
     #Update rough cadence:
     rough_cadence = np.mean(np.array(sorted(first_guesses))[1:] - np.array(sorted(first_guesses)[:-1]))
-    print('Peal speed (hours):', Paras.dt*rough_cadence*5000/3600)
+    #print('Peal speed (hours):', Paras.dt*rough_cadence*5000/3600)
 
     if len(first_guesses) < 6:
         st.error('Not enough changes detected to proceed...')
-        print('Not enough changes detected to proceed...')
-        st.session_state.test_counter += 1
-        st.rerun()
+        st.stop()
     #At this point there are half-decent guesses for each of the rows. 
     #Now need to adjust for handstroke gaps, and redo the above step
     nrows_check = int(min(6, 2*len(first_guesses)//2 - 4))

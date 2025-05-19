@@ -846,7 +846,6 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         else:
             allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
 
-    print('sdf', allrows_single)
     spliced_quality = compare_set(trimmed_rows, allrows_spliced)
     if allrows_single is not None:
         single_quality = compare_set(trimmed_rows, allrows_single)
@@ -932,9 +931,16 @@ def find_method_things(raw_data):
         count = 1.
     else:
         hunt_types, methods_notspliced, methods_spliced = determine_methods(trimmed_rows, hunt_types, method_data)
-
-        if len(methods_spliced) == 0:
+        if methods_spliced is None:
             methods = []
+            calls = []
+            allrows = all_rows
+            count = 1.
+        elif len(methods_spliced) == 0:
+            methods = []
+            calls = []
+            allrows = all_rows
+            count = 1.
         else:
             if len(hunt_types) == 1 and hunt_types[0][0] == "S":   #Stedman behaves differently so do need a different thing here entirely. Will do later...
                 spliced_flag, calls, allrows = find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, methods_spliced, method_data)
