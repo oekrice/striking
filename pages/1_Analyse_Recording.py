@@ -272,11 +272,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         if file[:len(freq_root)] == freq_root:
             if file[-11:] == "quality.npy":
                 max_existing = max(max_existing, int(file[12:15]))
-                try:
-                    quals = np.load('./frequency_data/' + file)
-                except:
-                    os.system('rm -r %s' % ('./frequency_data/' + file))
-                    st.rerun()
+                quals = np.load('./frequency_data/' + file)
                 allquals.append(quals[2])
                 c = find_colour(quals[2])
                 allcs.append(c)
