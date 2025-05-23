@@ -242,6 +242,10 @@ if st.session_state.tower_selected:
         
     edited_nominals = np.array(st.data_editor(freq_df, hide_index = True, on_change = reset_nominals))[0].tolist()
     
+    if len(bell_nominals) < 4:
+        st.write('Please select four or more bells')
+        st.stop()
+
     if st.button("Confirm Tower and Frequencies", disabled = st.session_state.nominals_confirmed):
         st.session_state.nominals_confirmed = True
         st.session_state.bell_nominals = edited_nominals

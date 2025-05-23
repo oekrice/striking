@@ -80,6 +80,8 @@ df_new = pd.DataFrame(newdata)
 for ri, bell_type in enumerate(all_fullcircles):
     df_new[bell_type] = allrows[:,ri]
     
+#Filter out towers with not enough bells
+df_new = df_new[df_new.apply(lambda tower: (tower != 0).sum(), axis=1) >= 6]
 #Add tower aliases
 df_new = tower_alias(df_new, 15311, 15140, "Woolpit, Blessed Virgin Mary")
 
