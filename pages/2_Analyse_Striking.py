@@ -92,7 +92,7 @@ if not os.path.exists('./striking_data/'):
     os.system('mkdir ./striking_data/')
 
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
-st.markdown("# Analyse Striking")
+st.markdown("## Analyse Striking")
 
 st.write(
     """This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab or from an uploaded .csv."""

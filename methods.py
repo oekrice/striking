@@ -864,6 +864,8 @@ def check_lead_ends(methods, calls, nbells, method_data):
         if calls[mi] > 1:
             #Is a bob. Just go with it and keep the same. It's probably fine. Or could check against the previous methods? Yeah.
             if mi > 0:
+                if len(methods[mi-1]) < 1 or len(methods[mi]) < 1:  #Somehow this is causing en error sometimes. This should catch it...
+                    continue
                 not_old = method_data[method_data['Name'] == methods[mi-1][0]]['Place Notation'].values[0]
                 not_new = method_data[method_data['Name'] == method[0]]['Place Notation'].values[0]
                 if not_old == not_new:  #Is the same
