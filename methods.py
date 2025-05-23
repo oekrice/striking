@@ -580,7 +580,7 @@ def find_stedman_composition(trimmed_rows, hunt_types, methods_notspliced, metho
         else:
             end_rows = generate_rows(allrows_spliced[-1], slow_pn[:])
         if len(end_rows) > nrows_left:
-            if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+            if ((np.arange(len(trimmed_rows[-1])) + 1) == end_rows[nrows_left]).all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
 
     return True, best_calls_spliced, allrows_spliced
@@ -590,6 +590,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
     #Obvioulsy one would expect spliced to be best, but not if the ringing is terrible
     #Will need to add a Stedman flag at some point...
     nbells = len(trimmed_rows[0])
+
     def generate_rows(first_change, place_notation):
         #From the change first_change (first one not in rounds, etc., generate all the rows in a lead for comparison with the lead lumps)
         notation_list = re.split(r'(\-|\.)', place_notation)
@@ -757,10 +758,12 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
             end_notation = method_data[method_data['Name'] == methods_notspliced[0]]['Interior Notation'].values[0]
             end_rows = generate_rows(allrows_single[-1], end_notation)
             if len(end_rows) > nrows_left:
-                if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+                #Be more fussy here -- should be rounds (or not at all?)
+                if (np.arange(len(trimmed_rows[-1])) + 1 == end_rows[nrows_left]).all():
                     allrows_single = np.concatenate((allrows_single[:-1], end_rows[:nrows_left+1]), axis = 0)
-                else:  #Just finish off with what actually happened - something fired out
-                    allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
+                else:  #Just cut off to the last known bit of the method
+                    trimmed_rows = trimmed_rows[:len(allrows_single)]
+                    #allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
             else:
                 allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
 
@@ -839,10 +842,11 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         end_notation = method_data[method_data['Name'] == methods_spliced[-1][0]]['Interior Notation'].values[0]
         end_rows = generate_rows(allrows_spliced[-1], end_notation)
         if len(end_rows) > nrows_left:  #This is a good match - do this
-            if (trimmed_rows[-1] == end_rows[nrows_left]).all():
+            if (np.arange(len(trimmed_rows[-1])) + 1) == end_rows[nrows_left].all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
             else:  #Just finish off with what actually happened - something fired out
-                allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
+                #allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
+                trimmed_rows = trimmed_rows[:len(allrows_spliced)]
         else:
             allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
 
