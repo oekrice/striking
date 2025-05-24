@@ -71,6 +71,16 @@ Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral G
 Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral SC7.m4a
 Bristol, S Mary V, Redcliffe;12;audio/Track-5 20250504-203132.mp3
 Bristol, S Mary V, Redcliffe;12;audio/BristolRedcliffe.20250504-1715.6.beai (1).mp3
+Aldeburgh, S Peter & S Paul;8;audio/SG NT.m4a
+Aldeburgh, S Peter & S Paul;8;audio/SG NE District.m4a
+Yoxford, S Peter;6;audio/SG Buxhall.m4a
+Meanwood, Holy Trinity;5;audio/Meanwood Plain Hunt.m4a
+Meanwood, Holy Trinity;5;audio/Meanwood Stedman.m4a
+Saltburn by the Sea, Emmanuel;8;audio/SaltburnYorkshire.m4a
+Saltburn by the Sea, Emmanuel;8;audio/Saltburnpb.m4a
+Saltburn by the Sea, Emmanuel;8;audio/Grandsiresaltburn.m4a
+
+
 
 
 

@@ -683,11 +683,14 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
                 Data.freq_data = np.array([Paras.dt, Paras.fcut_length, 0., 0.])
                 Data.freq_data = np.concatenate((Data.freq_data, np.zeros(Paras.nbells)))
 
-        if len(strikes) > 0:
+        if len(strikes) > 0 and np.max(strikes) - np.min(strikes) > 10:
             if np.median(confs) > 0.5 or len(allstrikes) == 0:
                 allstrikes.append(strikes)
                 allconfs.append(confs)
-                
+        else:
+            go = False
+            continue
+
         if len(allstrikes) == 0:
             Paras.ringing_finished = True
             return [], []
@@ -699,10 +702,10 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
 
         nrows_count = int(min(len(allcadences), 20))
         Data.cadence_ref = np.mean(allcadences[-nrows_count:])
-        
+
         change_start = np.mean(strikes) - Data.cadence_ref*((Paras.nbells - 1)/2)
         change_end = np.mean(strikes) + Data.cadence_ref*((Paras.nbells - 1)/2)
-        
+
         rats = (strikes - change_start)/(change_end - change_start)
                 
         if handstroke:

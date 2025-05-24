@@ -52,10 +52,10 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = False
+st.session_state.testing_mode = True
 #Establish persistent variables
 if st.session_state.testing_mode:
-    input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
+    input_matrix = np.loadtxt("test_cases_retro.txt", delimiter = ';', dtype = str)    
     init_test = 0
     single_test = False
 

@@ -263,9 +263,13 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
         bestmatch = 0.
         possible_methods = method_data[method_data['Lead Length'] == 12]
         possible_methods = possible_methods[possible_methods['Type'] == "S"]
-        possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
+        if nbells%2 == 0:
+            possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
+        else:
+            possible_methods = possible_methods[possible_methods['Stage'] == nbells]
         possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Place Notation']])
         possible_stages = [stage for stage in possible_methods['Stage']] 
+        pbest = 0
         for start in range(12):  #Run through the possible start points of the quick six. Normal Stedman start is 9, Erin is 0
             lead_rows = trimmed_rows[start:start + 13]
             check_notation = find_place_notation(lead_rows)
