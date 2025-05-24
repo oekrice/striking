@@ -46,9 +46,10 @@ class audio_data():
         else:
             limit = 3e7
 
-        if raw_file.size > limit:
-            st.error("Recording is too long... sorry. Hopefully  better server will remove this confounded limitation.")
-            st.stop()
+        if not st.session_state.testing_mode:
+            if raw_file.size > limit:
+                st.error("Recording is too long... sorry. Hopefully  better server will remove this confounded limitation.")
+                st.stop()
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
             f.write(raw_file.getvalue())        

@@ -23,7 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes
+from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes, test_error
 
 
 def establish_initial_rhythm(Paras, final = False):
@@ -99,15 +99,24 @@ def do_reinforcement(Paras, Data):
         '''
         if not all_is_well:
             st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
-            st.stop()
+            if st.session_state.testing_mode:
+                test_error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            else:
+                st.stop()
 
         if len(strikes) == 0:
             st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
-            st.stop()
+            if st.session_state.testing_mode:
+                test_error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            else:
+                st.stop()
 
         if np.shape(strikes)[1] < 6:
             st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
-            st.stop()
+            if st.session_state.testing_mode:
+                test_error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
+            else:
+                st.stop()
 
         #Check and fix handstrokes if necessary
         diff1s = strikes[:,1::2] - strikes[:,0:-1:2]
@@ -182,7 +191,10 @@ def do_reinforcement(Paras, Data):
         else:
             #st.session_state.reinforce = 0
             st.error("Frequency analysis failed for some reason. If the percentage is reasonably high this is probably due to bad audio or bad ringing. If it is low then check the correct tower/bells are selected.")
-            st.stop()
+            if st.session_state.testing_mode:
+                test_error("Frequency analysis failed for some reason. If the percentage is reasonably high this is probably due to bad audio or bad ringing. If it is low then check the correct tower/bells are selected.")
+            else:
+                st.stop()
             
         if st.session_state.reinforce_frequency_data is not None:
             #Determine colours:
@@ -258,15 +270,21 @@ def find_final_strikes(Paras, nested = False):
             all_is_well = check_initial_rounds(Data.strikes)
             if not all_is_well:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                st.session_state.analysis_status = 0
-                st.stop()
+                if st.session_state.testing_mode:
+                    test_error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                else:
+                    st.session_state.analysis_status = 0
+                    st.stop()
 
          if len(np.shape(Data.strikes)) > 1:
 
             if len(Data.strikes[:,0]) == 0:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
-                st.session_state.analysis_status = 0
-                st.stop()
+                if st.session_state.testing_mode:
+                    test_error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
+                else:
+                    st.session_state.analysis_status = 0
+                    st.stop()
 
             for row in range(0,len(Data.strikes[0])):
                  allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())

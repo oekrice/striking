@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import os
 import gc
-import sys
+import io
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
@@ -51,6 +51,18 @@ if not os.path.exists('./striking_data/'):
     os.system('mkdir ./striking_data/')
 
 #Establish persistent variables
+
+st.session_state.testing_mode = False
+#Establish persistent variables
+if st.session_state.testing_mode:
+    input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
+    init_test = 0
+    single_test = False
+
+    if "test_counter" not in st.session_state:
+        st.session_state.test_counter = init_test
+    if "single_test" not in st.session_state:
+        st.session_state.single_test = single_test
 
 if "counter" not in st.session_state:
     st.session_state.counter = 0
@@ -122,6 +134,23 @@ if 'fs' not in st.session_state:
 if 'audio_filename' not in st.session_state:
     st.session_state.audio_filename = None
     
+if st.session_state.testing_mode:
+    st.session_state.analysis_status = 0
+    st.session_state.reinforce_status = 0
+    if st.session_state.test_counter >= len(input_matrix):
+        print('___________________________________________')
+        print('Tests complete with no serious errors')
+        st.session_state.test_counter = 0
+        st.stop()
+    if single_test:
+        if init_test != st.session_state.test_counter:
+            print('___________________________________________')
+            print('Tests complete with no serious errors')
+            st.stop()
+    print('___________________________________________')
+    print('TESTING CASE', st.session_state.test_counter)
+    print('Fname:', input_matrix[st.session_state.test_counter][2])
+
 gc.collect()
 
 Audio = None
@@ -141,6 +170,14 @@ def reset_nominals():
     #st.session_state.isfile = False
     #st.session_state.reinforce = 0
 
+def reset_on_upload():
+    st.session_state.reinforce_frequency_data = None
+    st.session_state.reinforce_status = 0
+    st.session_state.analysis_status = 0 #If new file is uploaded, reset status
+    st.session_state.trim_flag = False
+    st.session_state.allstrikes = None  
+    st.session_state.allcerts = None  
+
 st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
@@ -157,6 +194,12 @@ tower_names = nominal_data["Tower Name"].tolist()
 
 default_index = tower_names.index("Brancepeth, S Brandon")
 
+if st.session_state.testing_mode:
+    reset_nominals()
+    reset_on_upload()
+    tower_name = input_matrix[st.session_state.test_counter][0]
+    default_index = tower_names.index(tower_name)
+
 existing_selected = False
 if st.session_state.tower_name is not None:
     if st.session_state.tower_name != "Unknown Tower":
@@ -164,10 +207,14 @@ if st.session_state.tower_name is not None:
         index = tower_names.index(st.session_state.tower_name)
         #st.session_state.nominals_confirmed = True
 
-if not existing_selected:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+if st.session_state.testing_mode:
+    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+
 else:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    if not existing_selected:
+        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    else:
+        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 
@@ -198,33 +245,54 @@ if st.session_state.tower_selected:
 
     nbells_save = 0; max_bell = 0
 
-    allchecked = []
-    for row in range(nrows):
-        #Need more than one row sometimes (if more than 8?)
-        start = row*per_row
-        end = min(len(bell_names), (row+1)*per_row)
-        cols = st.columns(end-start)
-        #Display checkboxes
-        for i in range(start, end):
-            with cols[i%per_row]:
-                if len(st.session_state.checked) > 0:
-                    if bell_names[i] in st.session_state.checked:
-                        checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                        max_bell = max(max_bell, int(bell_names[i]))    
-                    else:
-                        checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                else:
-                    if bell_names[i].isnumeric():
-                        checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                        max_bell = max(max_bell, int(bell_names[i]))    
-                    else:
-                        checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                if checked:
-                    allchecked.append(bell_names[i])
+    if st.session_state.testing_mode:
+        st.session_state.nominals_confirmed = False
+
+        nbells_select = int(input_matrix[st.session_state.test_counter][1])
+        for row in range(nrows):
+            #Need more than one row sometimes (if more than 8?)
+            start = row*per_row
+            end = min(len(bell_names), (row+1)*per_row)
+            cols = st.columns(end-start)
+            #Display checkboxes
+            for i in range(start, end):
+                                
+                if bell_names[i].isnumeric():
                     mincheck = min(i, mincheck)
                     maxcheck = max(i, maxcheck)
                     bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
-    st.session_state.checked = allchecked
+
+        mincheck = maxcheck-nbells_select + 1
+        max_bell = maxcheck + 1
+        bell_nominals = bell_nominals[-nbells_select:]
+    else:
+        allchecked = []
+        for row in range(nrows):
+            #Need more than one row sometimes (if more than 8?)
+            start = row*per_row
+            end = min(len(bell_names), (row+1)*per_row)
+            cols = st.columns(end-start)
+            #Display checkboxes
+            for i in range(start, end):
+                with cols[i%per_row]:
+                    if len(st.session_state.checked) > 0:
+                        if bell_names[i] in st.session_state.checked:
+                            checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            max_bell = max(max_bell, int(bell_names[i]))    
+                        else:
+                            checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                    else:
+                        if bell_names[i].isnumeric():
+                            checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            max_bell = max(max_bell, int(bell_names[i]))    
+                        else:
+                            checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                    if checked:
+                        allchecked.append(bell_names[i])
+                        mincheck = min(i, mincheck)
+                        maxcheck = max(i, maxcheck)
+                        bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
+        st.session_state.checked = allchecked
 
     nbells_save = len(bell_nominals)
     bell_nominals = sorted(bell_nominals, reverse = True)
@@ -246,12 +314,14 @@ if st.session_state.tower_selected:
         st.write('Please select four or more bells')
         st.stop()
 
-    if st.button("Confirm Tower and Frequencies", disabled = st.session_state.nominals_confirmed):
+    if st.session_state.testing_mode:
         st.session_state.nominals_confirmed = True
         st.session_state.bell_nominals = edited_nominals
-        st.rerun()
-    #if st.session_state.nominals_confirmed:
-    #    st.write("Nominal frequencies confirmed (remove this later)")
+    else:
+        if st.button("Confirm Tower and Frequencies", disabled = st.session_state.nominals_confirmed):
+            st.session_state.nominals_confirmed = True
+            st.session_state.bell_nominals = edited_nominals
+            st.rerun()
     
 #@st.cache_data(ttl=60)
 def process_audio_files(raw_file, doprints):
@@ -322,24 +392,24 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
-    def reset_on_upload():
-        st.session_state.reinforce_frequency_data = None
-        st.session_state.reinforce_status = 0
-        st.session_state.analysis_status = 0 #If new file is uploaded, reset status
-        st.session_state.trim_flag = False
-        st.session_state.allstrikes = None  
-        st.session_state.allcerts = None  
 
     #st.write(st.session_state.audio_signal is not None)
-
-    raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
-           
+    if st.session_state.testing_mode:
+        test_fname = input_matrix[st.session_state.test_counter][2]
+        with open (test_fname, "rb") as f:
+            file_bytes = f.read()
+            raw_file = io.BytesIO(file_bytes)
+            raw_file.name = test_fname
+    else:
+        raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
+    
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     
     if raw_file is not None:
         process_audio_files(raw_file, doprints = True)  
         del raw_file
-        st.rerun()
+        if not st.session_state.testing_mode:
+            st.rerun()
         
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
@@ -391,10 +461,13 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
 
     if st.session_state.use_existing_freqs < 0:
         
-        if st.session_state.reinforce_status == 0 or st.session_state.reinforce_status == 2:
-            st.button("Find new frequency profiles and strike times", on_click = change_reinforce)
-        else: 
-            st.button("Stop finding frequencies", on_click = change_reinforce)
+        if st.session_state.testing_mode:
+            change_reinforce()
+        else:
+            if st.session_state.reinforce_status == 0 or st.session_state.reinforce_status == 2:
+                st.button("Find new frequency profiles and strike times", on_click = change_reinforce)
+            else: 
+                st.button("Stop finding frequencies", on_click = change_reinforce)
                      
         if st.session_state.reinforce_status > 0:
             #Create placeholders for frequency detection text
@@ -434,7 +507,8 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
                 st.session_state.reinforce_status = 0
                         
             del Data   #Can probably delete some other stuff as well...
-            st.rerun()
+            if not st.session_state.testing_mode:
+                st.rerun()
                         
         if st.session_state.reinforce_status == 2:   #At least some frequency reinforcement has happened, print out some things to this end
                              
@@ -489,10 +563,13 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 st.session_state.analysis_status = 1
             return
     
-        if st.session_state.analysis_status != 1:
-            st.empty().button("Find strike times", on_click = change_analysis)
+        if st.session_state.testing_mode:
+            st.session_state.analysis_status = 1
         else:
-            st.empty().button("Stop", on_click = change_analysis)
+            if st.session_state.analysis_status != 1:
+                st.empty().button("Find strike times", on_click = change_analysis)
+            else:
+                st.empty().button("Stop", on_click = change_analysis)
             
     st.analysis_log = st.empty()
     st.analysis_sublog = st.empty()
@@ -525,7 +602,8 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         st.session_state.reinforce_frequency_data = np.array([Paras.dt, Paras.fcut_length, np.mean(np.array(st.session_state.allcerts)[1:]), np.min(np.array(st.session_state.allcerts)[1:])])
         st.session_state.reinforce_frequency_data = np.concatenate((st.session_state.reinforce_frequency_data, bellconfs_individual))
 
-        st.rerun()
+        if not st.session_state.testing_mode:
+            st.rerun()
 
     if st.session_state.analysis_status == 2:
         st.analysis_log.write('**Audio Analysed**')
@@ -579,14 +657,16 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
                 np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
                 st.session_state.already_saved = True
-                st.rerun()
+                if not st.session_state.testing_mode:
+                    st.rerun()
 
             if st.save_button.button("Save bell frequency profiles", disabled = st.session_state.already_saved):
                 np.save('%s%s_freqs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_test_frequencies)
                 np.save('%s%s_freqprobs.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_profile)
                 np.save('%s%s_freq_quality.npy' % ('./frequency_data/', freq_filename), st.session_state.reinforce_frequency_data)
                 st.session_state.already_saved = True
-                st.rerun()
+                if not st.session_state.testing_mode:
+                    st.rerun()
                 
         if st.session_state.tower_name is None:
             st.session_state.tower_name = "Unknown Tower"
@@ -638,8 +718,8 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     st.session_state.cached_rawdata[update_index] = []
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
                 st.session_state.incache = True
-                st.rerun()
-
+                if not st.session_state.testing_mode:
+                    st.rerun()
             else:
                 #Introduce name check
                 #if st.button("Save this striking data to the cache for analysis"):
@@ -659,7 +739,8 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     st.session_state.cached_rawdata.append([])
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
                 st.session_state.incache = True
-                st.rerun()
+                if not st.session_state.testing_mode:
+                    st.rerun()
         else:
             st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse this striking]")
 
@@ -682,32 +763,14 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
 
         st.write("**To analyse another touch, change the tower or upload a new file**")
 
-        if False:
-            with st.expander("View all rows and detection confidences"):
-                for ri, row in enumerate(orders):
-                    rowconf = st.session_state.allcerts[:,ri]
-                    string = ''
-                    for bell in row:
-                        if bell < 10:
-                            string = string + str(bell)
-                        elif bell == 10:
-                            string = string + '0'
-                        elif bell == 11:
-                            string = string + 'E'
-                        elif bell == 12:
-                            string = string + 'T'
-                        elif bell == 13:
-                            string = string + 'A'
-                        elif bell == 14:
-                            string = string + 'B'
-                        elif bell == 15:
-                            string = string + 'C'
-                        elif bell == 16:
-                            string = string + 'D'
-                            
-                    c = find_colour(np.mean(rowconf))
-                    confstring = ('%d' % np.mean(rowconf)*100 )
-                    st.write(':%s[%s -- %d %%]' % (c ,string, np.mean(rowconf)*100))
-
-
-
+        if st.session_state.testing_mode:
+            print('Rows detected:', len(st.session_state.allstrikes[0]))
+            if len(methods) > 0 and quality > 0.8:
+                print(str(nchanges) + " " + method_title + ", %.1f %% match" % (100*quality))
+            else:
+                print('No method detected')
+            print('Confidence: ', "%.1f %% " % (100*np.mean(st.session_state.allcerts)))
+            st.session_state.test_counter += 1
+            st.rerun()
+        else:
+            st.stop()

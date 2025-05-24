@@ -11,6 +11,11 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 import time
 
+def test_error(text):
+    print(text)
+    st.session_state.test_counter += 1
+    st.rerun()
+
 #Added text so Streamlit detects a commit again again
 def find_colour(value):
     #For prettiness purposes
@@ -194,7 +199,11 @@ def find_first_strikes(Paras, Data):
     
     if len(lonesome_peaks) < 4:
         st.error('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
-        st.stop()
+        if st.session_state.testing_mode:
+            test_error('Not found reliable enough rounds. Apologies. Try trimming audio from the start?')
+        else:
+            st.stop()
+
 
     #plt.scatter(lonesome_peaks,-0.25*np.ones(len(lonesome_peaks)), c = 'green')
 
@@ -226,7 +235,10 @@ def find_first_strikes(Paras, Data):
 
     if len(first_guesses) < 6:
         st.error('Not enough changes detected to proceed...')
-        st.stop()
+        if st.session_state.testing_mode:
+            test_error('Not enough changes detected to proceed...')
+        else:
+            st.stop()
     #At this point there are half-decent guesses for each of the rows. 
     #Now need to adjust for handstroke gaps, and redo the above step
     nrows_check = int(min(6, 2*len(first_guesses)//2 - 4))
@@ -861,9 +873,11 @@ def do_frequency_analysis(Paras, Data):
         prominences = peak_prominences(probs_clean, peaks)[0]
 
         if len(peaks) == 0:
-            st.error('Frequency reinforcement failed. Sorry... Try changing the audio parameters a bit?')
-            time.sleep(10.0)
-            st.rerun()
+            st.error('Frequency reinforcement failed. Sorry...')
+            if st.session_state.testing_mode:
+                test_error('Frequency reinforcement failed. Sorry...')
+            else:
+                st.stop()
             
         peaks = peaks[prominences > 0.25*np.max(prominences)]
         

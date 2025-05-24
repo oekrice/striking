@@ -842,7 +842,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         end_notation = method_data[method_data['Name'] == methods_spliced[-1][0]]['Interior Notation'].values[0]
         end_rows = generate_rows(allrows_spliced[-1], end_notation)
         if len(end_rows) > nrows_left:  #This is a good match - do this
-            if (np.arange(len(trimmed_rows[-1])) + 1) == end_rows[nrows_left].all():
+            if (np.arange(len(trimmed_rows[-1])) + 1 == end_rows[nrows_left]).all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
             else:  #Just finish off with what actually happened - something fired out
                 #allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
