@@ -483,7 +483,8 @@ def find_first_strikes(Paras, Data):
 
     return strikes, strike_certs
 
-def find_strike_times(Paras, Data, final = False, doplots = 0):
+
+def find_strike_times(Paras, Data, final = False):
     #Go through the rounds in turn instead of doing it bellwise
     #Allows for nicer plotting and stops mistakely hearing louder bells. Hopefully.
         
@@ -687,8 +688,14 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
             if np.median(confs) > 0.5 or len(allstrikes) == 0:
                 allstrikes.append(strikes)
                 allconfs.append(confs)
+            else:
+                go = False
+                if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
+                    Paras.ringing_finished = True
         else:
             go = False
+            if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
+                Paras.ringing_finished = True
             continue
 
         if len(allstrikes) == 0:
@@ -733,7 +740,7 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
         Data.freq_data = np.array([Paras.dt, Paras.fcut_length, np.mean(allconfs[1:]), np.min(allconfs[1:])])
         Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
         
-    if len(allstrikes) == 0:
+    if len(allstrikes) < 2:
         Paras.ringing_finished = True
         return [], []
     
@@ -774,6 +781,104 @@ def find_strike_times(Paras, Data, final = False, doplots = 0):
          Paras.first_strikes[:,:] = np.array(allstrikes).T[:,:len(Paras.first_strikes[0])]
 
     return np.array(allstrikes).T, np.array(allconfs).T   
+
+def check_for_misses(allstrikes, allcerts):
+    #This function checks if a bell has found its way into the wrong change. If so it will produce the 'correct' strikes up to that point and disregard the rest. One hopes.
+    #Can look through allstrikes in its entirety!  Will need to implement some kind of checker to stop it getting stuck in a loop
+
+    #Two ways to check -- either have the 'rounds problem' of a bell staying at the front/back too long
+    #OR look for an outlier in the cadences, and work backwards until the last point at which that bell wasn't at the respective end
+    #The former seems to probably be the better approach
+    allrows = np.array(allstrikes)
+    nrows_cut = len(allrows)
+    nbells = len(allrows[0])
+    yvalues = np.arange(nbells) + 1
+    allcadences = []
+    prev_order = yvalues
+    ndiffs = 0
+    for ri, row in enumerate(allrows):
+        allcadences.append((np.max(row) - np.min(row))/(nbells-1))
+        order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        ndiffs += (1 - len(np.where(order == prev_order)[0])/nbells)
+        prev_order = order
+
+    if ndiffs/len(allrows) < 0.2:   #This is probably just rounds and calls -- leave it be
+        return allstrikes, allcerts
+    
+    mean_cadence = np.mean(allcadences)
+
+    maxcounts = np.zeros(nbells, dtype = int)   #Counts of bells in each position (other than rounds)
+    prev_order = yvalues
+    for ri, row in enumerate(allrows):
+        errorback = False; errorfront = False
+        order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        if (not (order == yvalues).all()) and ri > 2:   #Obviously rounds is probably fine
+            sameplaces = np.where(order == prev_order)[0]
+            diffplaces = [val for val in yvalues-1 if val not in sameplaces]
+            maxcounts[sameplaces] = maxcounts[sameplaces] + 1
+            maxcounts[diffplaces] = 0
+            #print(ri, order, row, sameplaces, maxcounts)
+        else:
+            maxcounts = np.zeros(nbells, dtype = int)
+        prev_order = order
+        #Now check for anomananomananomalies
+        if maxcounts[-1] > 2:
+            if order[-1] != nbells-1:  #The tenor can be behind, that's fine
+                errorback = True
+        if maxcounts[0] > 2:
+            errorfront = True
+        #Now need to check if moving the offending bell would actually make any sense. Do retroactively from the point at which it became problematic. 
+        #We know ri > 2 so most things are safe            
+        frontdiffs = 0; backdiffs = 0
+        if errorback:
+            #The offending bell is stuck at the back and so should actually be glued to the next change. Should be really obvious if either of these are wrong.
+            for back_count in range(2,0,-1):
+                new_test = allrows[ri - back_count].copy()
+                new_test[order[-1] - 1] = allrows[ri - back_count -1][order[-1] - 1]
+                new_range = np.max(new_test) - np.min(new_test); old_range = np.max(allrows[ri - back_count ]) - np.min(allrows[ri - back_count ])
+                backdiffs = max(backdiffs, (old_range - new_range))
+        if errorfront:
+            #The offending bell is at the front of the change. Attach it to the end of the last one instead and see if that works
+            for back_count in range(2,0,-1):
+                new_test = allrows[ri - back_count].copy()
+                new_test[order[-1] - 1] = allrows[ri - back_count + 1][order[-1] - 1]
+                new_range = np.max(new_test) - np.min(new_test); old_range = np.max(allrows[ri - back_count ]) - np.min(allrows[ri - back_count ])
+                frontdiffs  = max(frontdiffs, (old_range - new_range))
+        dofront = False; doback = False
+        if frontdiffs > mean_cadence and backdiffs > mean_cadence:
+            if backdiffs > frontdiffs:
+                doback = True
+        elif frontdiffs > mean_cadence:
+            dofront = True
+        elif backdiffs > mean_cadence:
+            doback = True
+
+        # if errorfront or errorback:
+        #     for ri_plot, row in enumerate(allrows):
+        #         order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        #     #print(errorfront, errorback, frontdiffs, backdiffs)
+        #     #print('________________________________')
+
+        if doback:
+            #Actually make the swap
+            print('Swapping back', ri)
+            allrows[ri-3][order[-1] - 1] = allrows[ri - 4][order[-1] - 1]
+            allrows = allrows[:ri-2]
+            nrows_cut = len(allrows)
+            break
+
+        if dofront:
+            #Actually make the swap
+            print('Swapping front', ri)
+            allrows[ri-3][order[0] - 1] = allrows[ri - 2][order[0] - 1]
+            allrows = allrows[:ri-2]
+            nrows_cut = len(allrows)
+            break
+
+    allstrikes = allrows.tolist()
+    allcerts = np.array(allcerts)[:nrows_cut,:].tolist()
+
+    return allstrikes, allcerts
 
 def do_frequency_analysis(Paras, Data):
     #Now takes existing strikes data to do this (to make reinforcing easier)

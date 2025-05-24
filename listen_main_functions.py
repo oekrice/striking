@@ -23,7 +23,7 @@ import time
 import pandas as pd
 from listen_classes import data
 
-from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes, test_error
+from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes, test_error, check_for_misses
 
 
 def establish_initial_rhythm(Paras, final = False):
@@ -86,7 +86,7 @@ def do_reinforcement(Paras, Data):
         
         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = False)
                 
-        strikes, strike_certs = find_strike_times(Paras, Data, final = False, doplots = 1) #Finds strike times in integer space
+        strikes, strike_certs = find_strike_times(Paras, Data, final = False) #Finds strike times in integer space
     
         #Determine whether this is actually rounds or if something's got mixed up...
         all_is_well = check_initial_rounds(strikes)
@@ -214,7 +214,7 @@ def find_final_strikes(Paras, nested = False):
      tmin = Paras.ringing_start*Paras.dt
      tmax = tmin + Paras.overall_tcut + Paras.ringing_start*Paras.dt
      allstrikes = []; allcerts = []
-     Paras.allcadences = []
+     allcadences = []
      Paras.stop_flag = False
      Paras.local_tmin = Paras.overall_tmin
      Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
@@ -225,48 +225,49 @@ def find_final_strikes(Paras, nested = False):
 
      counter = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
-         if tmax >= Paras.overall_tmax - 1.0:  #Last one
-             Paras.stop_flag = True
+        if tmax >= Paras.ringing_end - 1.0:  #Last one
+            Paras.stop_flag = True
              
-         Paras.local_tmin = tmin + Paras.overall_tmin
-         Paras.local_tint = round((tmin+Paras.overall_tmin)/Paras.dt) 
+        Paras.local_tmin = tmin + Paras.overall_tmin
+        Paras.local_tint = round((tmin+Paras.overall_tmin)/Paras.dt) 
 
-         Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
+        Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
          
-         Data.test_frequencies = st.session_state.final_freqs
-         Data.frequency_profile = st.session_state.final_freqprobs
+        Data.test_frequencies = st.session_state.final_freqs
+        Data.frequency_profile = st.session_state.final_freqprobs
              
-         if counter == 0:
-             #Adjust the first strikes as appropriate
-             Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - round(tmin/Paras.dt)
+        if counter == 0:
+            #Adjust the first strikes as appropriate
+            Paras.first_strikes = Paras.first_strikes + Paras.ringing_start - round(tmin/Paras.dt)
 
-         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
+        Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = True)
                            
-         if len(allstrikes) == 0:  #Look for changes after this time
-             Data.handstroke_first = st.session_state.handstroke_first
-         else:
-             if len(allstrikes)%2 == 0:
-                 Data.handstroke_first = st.session_state.handstroke_first
-             else:
-                 Data.handstroke_first = not(st.session_state.handstroke_first)
-             Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
-             Data.cadence_ref = Paras.cadence_ref
+        if len(allstrikes) == 0:  #Look for changes after this time
+            Data.handstroke_first = st.session_state.handstroke_first
+        else:
+            if len(allstrikes)%2 == 0:
+                Data.handstroke_first = st.session_state.handstroke_first
+            else:
+                Data.handstroke_first = not(st.session_state.handstroke_first)
+            Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
+            Data.cadence_ref = Paras.cadence_ref
 
-         Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True, doplots = 2) #Finds strike times in integer space
+        Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True) #Finds strike times in integer space
 
-
-         if len(np.shape(Data.strikes)) == 0:
-             Paras.stop_flag = True
-             Paras.ringing_finished = True
-         elif len(Data.strikes[0]) < 2:
-             Paras.stop_flag = True
-             Paras.ringing_finished = True
-         elif np.median(Data.strike_certs[:,-1]) < 0.5:
-             Paras.stop_flag = True
-             Paras.ringing_finished = True
+        if len(Data.strikes) == 0:
+            Paras.stop_flag = True
+            Paras.ringing_finished = True
+        elif len(np.shape(Data.strikes)) == 0:
+            Paras.stop_flag = True
+            Paras.ringing_finished = True
+        elif len(Data.strikes[0]) < 2:
+            Paras.stop_flag = True
+            Paras.ringing_finished = True
+        elif np.median(Data.strike_certs[:,-1]) < 0.25: #Can see if this can be fixed... who knows?
+            Paras.stop_flag = True
+            Paras.ringing_finished = True
         
-         
-         if st.session_state.allstrikes is None:
+        if st.session_state.allstrikes is None:
             all_is_well = check_initial_rounds(Data.strikes)
             if not all_is_well:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
@@ -276,7 +277,7 @@ def find_final_strikes(Paras, nested = False):
                     st.session_state.analysis_status = 0
                     st.stop()
 
-         if len(np.shape(Data.strikes)) > 1:
+        if len(np.shape(Data.strikes)) > 1:
 
             if len(Data.strikes[:,0]) == 0:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
@@ -287,11 +288,11 @@ def find_final_strikes(Paras, nested = False):
                     st.stop()
 
             for row in range(0,len(Data.strikes[0])):
-                 allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())
-                 allcerts.append(Data.strike_certs[:,row].tolist())
-                 Paras.allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
+                allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())
+                allcerts.append(Data.strike_certs[:,row].tolist())
+                allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
                  
-         if counter == 0 and not nested:
+        if counter == 0 and not nested:
              #print('First transform test:')
              diff1s = Data.strikes[:,1::2] - Data.strikes[:,0:-1:2]
              diff2s = Data.strikes[:,2::2] - Data.strikes[:,1:-1:2]
@@ -306,25 +307,32 @@ def find_final_strikes(Paras, nested = False):
                  st.session_state.handstroke_first = handstroke_first
                  find_final_strikes(Paras, nested = True)
                  return
+
+        #This is probably the best place to be retroactive. allstrikes has the strikes in ABSOLUTE form. Not sure where the 'first' one comes from for the next round
+        #At this point it's probably wise to add the retroactive checker. Just go back and change the offending row, then continue from there? Can go arbitrarily far back if necessary.
+        #The raw Data.strikes are NOT adjusted by the start time
+        #Everything else should figure out automatically based on allstrikes, and the session state will do so as well
+
+        allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
              
+        tmin = min(allstrikes[-1])*Paras.dt - 5.0
+        tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
              
-         tmin = min(allstrikes[-1])*Paras.dt - 5.0
-         tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
-             
-         #Update global class things
-         nrows_count = int(min(len(Paras.allcadences), 20))
-         Paras.cadence_ref = np.mean(Paras.allcadences[-nrows_count:])
-         Paras.allstrikes = np.array(allstrikes)
+        #Update global class things
+
+        nrows_count = int(min(len(allcadences), 20))
+        Paras.cadence_ref = np.mean(allcadences[-nrows_count:])
+        Paras.allstrikes = np.array(allstrikes)
          
-         progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs)
-         progress_fraction = min(1, progress_fraction)
-         st.analysis_sublog.progress(progress_fraction, text = 'Complete until time %d seconds, after %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
-         #st.analysis_sublog.write('Complete until time %d seconds with %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
+        progress_fraction = (np.max(allstrikes[-1])*Paras.dt - Paras.ringing_start*Paras.dt)/(len(st.session_state.trimmed_signal)/st.session_state.fs)
+        progress_fraction = min(1, progress_fraction)
+        st.analysis_sublog.progress(progress_fraction, text = 'Complete until time %d seconds, after %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
+        #st.analysis_sublog.write('Complete until time %d seconds with %d rows' % (np.max(allstrikes[-1])*Paras.dt, len(Paras.allstrikes)))
          
-         st.session_state.allstrikes = np.array(allstrikes).T
-         st.session_state.allcerts = np.array(allcerts).T
+        st.session_state.allstrikes = np.array(allstrikes).T
+        st.session_state.allcerts = np.array(allcerts).T
      
-         counter += 1
+        counter += 1
 
      del allstrikes; del allcerts
      Data = None

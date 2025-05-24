@@ -116,10 +116,11 @@ if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 10
     
 #Remove the large things from memory -- need a condition on this!
-st.session_state.trimmed_signal = None
-st.session_state.audio_signal = None
-Paras = None
-Data = None
+if False:
+    st.session_state.trimmed_signal = None
+    st.session_state.audio_signal = None
+    Paras = None
+    Data = None
 
 touch_titles = []
 raw_titles = []

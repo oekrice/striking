@@ -52,7 +52,7 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = True
+st.session_state.testing_mode = False
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases_retro.txt", delimiter = ';', dtype = str)    
@@ -543,10 +543,10 @@ else:
     st.session_state.good_frequencies_selected = False
     
 if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None and st.session_state.nominals_confirmed or (st.session_state.analysis_status == 2):
-
     if st.session_state.allcerts is None and st.session_state.analysis_status == 2:
         st.session_state.analysis_status = 0
     #st.write(st.session_state.analysis_status)
+
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
         if st.session_state.use_existing_freqs < 0:
             st.empty().write('New frequency profile calculated. Ready to find strike times.')
@@ -562,7 +562,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             else:
                 st.session_state.analysis_status = 1
             return
-    
+
         if st.session_state.testing_mode:
             st.session_state.analysis_status = 1
         else:
