@@ -563,6 +563,7 @@ def find_strike_times(Paras, Data, final = False):
         certs = np.zeros(Paras.nbells) #To know when to stop
         
         count += 1
+        peaks_range = []; sigs_range = []
         if len(Paras.allstrikes) == 0 and len(allstrikes) < 4:  #Establish first strikes overall.
             #IMPROVE ON THIS - DETERMINE FROM THE INIT AUDIO BIT
             #print(Paras.first_strikes[:,0])
@@ -690,16 +691,16 @@ def find_strike_times(Paras, Data, final = False):
                 allconfs.append(confs)
             else:
                 go = False
-                if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
-                    Paras.ringing_finished = True
+                #if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
+                #    Paras.ringing_finished = True
         else:
             go = False
-            if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
-                Paras.ringing_finished = True
+            #if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
+            #    Paras.ringing_finished = True
             continue
 
         if len(allstrikes) == 0:
-            Paras.ringing_finished = True
+            #Paras.ringing_finished = True
             return [], []
          
         #Determine likely location of the next change END
@@ -741,7 +742,7 @@ def find_strike_times(Paras, Data, final = False):
         Data.freq_data = np.concatenate((Data.freq_data, bellconfs_individual))
         
     if len(allstrikes) < 2:
-        Paras.ringing_finished = True
+        #Paras.ringing_finished = True
         return [], []
     
     spacings = 1e6*np.ones((len(allstrikes), Paras.nbells, 2))
@@ -801,7 +802,6 @@ def check_for_misses(allstrikes, allcerts):
         order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
         ndiffs += (1 - len(np.where(order == prev_order)[0])/nbells)
         prev_order = order
-
     if ndiffs/len(allrows) < 0.2:   #This is probably just rounds and calls -- leave it be
         return allstrikes, allcerts
     
@@ -823,10 +823,24 @@ def check_for_misses(allstrikes, allcerts):
         prev_order = order
         #Now check for anomananomananomalies
         if maxcounts[-1] > 2:
-            if order[-1] != nbells-1:  #The tenor can be behind, that's fine
+            if order[-1] != nbells:  #The tenor can be behind, that's fine
                 errorback = True
         if maxcounts[0] > 2:
             errorfront = True
+        
+        if ri > 4:
+            if np.sum(maxcounts[:-1]) > nbells*2:
+                print('Fixing rounds to default')
+                #This is probably rounds! Just assume as much... Much easier. Let the tenor be the correct one, other bells might have skipped strokes. In this case that is incorrect... Alas 
+                rounds_row = allrows[ri-3].copy()
+                for bell in range(nbells - 1):
+                    if rounds_row[bell] > rounds_row[-1]:
+                        rounds_row[bell] = allrows[ri-4][bell]
+                allrows[ri-3] = rounds_row
+                allrows = allrows[:ri-2]
+                nrows_cut = len(allrows)
+                break
+
         #Now need to check if moving the offending bell would actually make any sense. Do retroactively from the point at which it became problematic. 
         #We know ri > 2 so most things are safe            
         frontdiffs = 0; backdiffs = 0
@@ -848,20 +862,20 @@ def check_for_misses(allstrikes, allcerts):
         if frontdiffs > mean_cadence and backdiffs > mean_cadence:
             if backdiffs > frontdiffs:
                 doback = True
+            else:
+                dofront = True
         elif frontdiffs > mean_cadence:
             dofront = True
         elif backdiffs > mean_cadence:
             doback = True
 
         # if errorfront or errorback:
-        #     for ri_plot, row in enumerate(allrows):
-        #         order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
-        #     #print(errorfront, errorback, frontdiffs, backdiffs)
-        #     #print('________________________________')
+        #     print(errorfront, errorback, frontdiffs, backdiffs, maxcounts)
+        #     print('________________________________')
 
         if doback:
             #Actually make the swap
-            print('Swapping back', ri)
+            print('Swapping back', ri, frontdiffs, backdiffs)
             allrows[ri-3][order[-1] - 1] = allrows[ri - 4][order[-1] - 1]
             allrows = allrows[:ri-2]
             nrows_cut = len(allrows)

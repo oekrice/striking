@@ -916,7 +916,7 @@ def check_lead_ends(methods, calls, nbells, method_data):
 
     return methods
 
-#@st.cache_data
+@st.cache_data
 def find_method_things(raw_data):
     
     method_data = pd.read_csv('./method_data/clean_methods.csv')

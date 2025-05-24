@@ -219,7 +219,7 @@ def find_final_strikes(Paras, nested = False):
      Paras.local_tmin = Paras.overall_tmin
      Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
      Paras.ringing_finished = False
-     
+     length_log = []
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
      st.analysis_sublog.progress(0, text = 'Initial rhythm established, finding all strikes')
 
@@ -252,6 +252,7 @@ def find_final_strikes(Paras, nested = False):
             Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
             Data.cadence_ref = Paras.cadence_ref
 
+        print(tmin, tmax)
         Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True) #Finds strike times in integer space
 
         if len(Data.strikes) == 0:
@@ -313,8 +314,14 @@ def find_final_strikes(Paras, nested = False):
         #The raw Data.strikes are NOT adjusted by the start time
         #Everything else should figure out automatically based on allstrikes, and the session state will do so as well
 
-        allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
-             
+        if len(length_log) > 0:
+            if len(allstrikes) != length_log[-1]:
+                allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
+        else:
+            allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
+        length_log.append(len(allstrikes))
+        print(length_log)
+
         tmin = min(allstrikes[-1])*Paras.dt - 5.0
         tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
              
