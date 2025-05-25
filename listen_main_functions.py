@@ -224,8 +224,7 @@ def find_final_strikes(Paras, nested = False):
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
      st.analysis_sublog.progress(0, text = 'Initial rhythm established, finding all strikes')
 
-     print('overall end', Paras.overall_end*Paras.dt)
-     counter = 0
+     counter = 0; last_switch = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
         Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
         if tmax >= (Paras.overall_end - 1.0)*Paras.dt:  #Last one
@@ -319,11 +318,15 @@ def find_final_strikes(Paras, nested = False):
 
         if len(length_log) > 0:
             if len(allstrikes) != length_log[-1]:
-                allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
+                allstrikes, allcerts, switch_id = check_for_misses(allstrikes, allcerts, last_switch)   #This is the magic function!
         else:
-            allstrikes, allcerts = check_for_misses(allstrikes, allcerts)   #This is the magic function!
+            allstrikes, allcerts, switch_id = check_for_misses(allstrikes, allcerts, last_switch)   #This is the magic function!
+
+        if switch_id > 0:
+            last_switch = switch_id
+            
         length_log.append(len(allstrikes))
-        print(length_log)
+        print('Length log', length_log)
 
         tmin = min(allstrikes[-1])*Paras.dt - 5.0
         tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)

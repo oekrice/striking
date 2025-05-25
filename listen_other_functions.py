@@ -677,7 +677,8 @@ def find_strike_times(Paras, Data, final = False):
                      
                     
             if np.median(certs) < 0.01:
-                   
+                
+                strikes = []   #Not confident enough -- the difference between certs and confs was lost on me here...
                 if len(allconfs) > 1:
                     bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
 
@@ -775,7 +776,7 @@ def find_strike_times(Paras, Data, final = False):
 
     return np.array(allstrikes).T, np.array(allconfs).T   
 
-def check_for_misses(allstrikes, allcerts):
+def check_for_misses(allstrikes, allcerts, last_switch):
     #This function checks if a bell has found its way into the wrong change. If so it will produce the 'correct' strikes up to that point and disregard the rest. One hopes.
     #Can look through allstrikes in its entirety!  Will need to implement some kind of checker to stop it getting stuck in a loop
 
@@ -797,98 +798,245 @@ def check_for_misses(allstrikes, allcerts):
     if ndiffs/len(allrows) < 0.2:   #This is probably just rounds and calls -- leave it be
         return allstrikes, allcerts
     
-    mean_cadence = np.mean(allcadences)
-
-    maxcounts = np.zeros(nbells, dtype = int)   #Counts of bells in each position (other than rounds)
+    #Try running through to get an overall maxcounts
+    maxcounts = np.zeros((len(allrows), nbells), dtype = int)   #Counts of bells in each position (other than rounds)
     prev_order = yvalues
+    orders = []; lengths = []
     for ri, row in enumerate(allrows):
-        errorback = False; errorfront = False
         order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        print(ri, order)
+        orders.append(order)
+        lengths.append(np.max(row) - np.min(row))
         if (not (order == yvalues).all()) and ri > 2:   #Obviously rounds is probably fine
             sameplaces = np.where(order == prev_order)[0]
             diffplaces = [val for val in yvalues-1 if val not in sameplaces]
-            maxcounts[sameplaces] = maxcounts[sameplaces] + 1
-            maxcounts[diffplaces] = 0
-            #print(ri, order, row, sameplaces, maxcounts)
+            maxcounts[ri, sameplaces] = maxcounts[ri - 1][sameplaces] + 1
+            if order[-1] == nbells-1:   #Account for tenor behind
+                maxcounts[ri,-1] = 0
+            maxcounts[ri, diffplaces] = 0
         else:
-            maxcounts = np.zeros(nbells, dtype = int)
+            maxcounts[ri] = np.zeros(nbells, dtype = int)
         prev_order = order
-        #Now check for anomananomananomalies
-        if maxcounts[-1] > 2:
-            if order[-1] != nbells:  #The tenor can be behind, that's fine
-                errorback = True
-        if maxcounts[0] > 2:
-            errorfront = True
-        
-        if ri > 4:
-            if np.sum(maxcounts[:-1]) > nbells*2:
-                print('Fixing rounds to default')
-                #This is probably rounds! Just assume as much... Much easier. Let the tenor be the correct one, other bells might have skipped strokes. In this case that is incorrect... Alas 
-                rounds_row = allrows[ri-3].copy()
-                for bell in range(nbells - 1):
-                    if rounds_row[bell] > rounds_row[-1]:
-                        rounds_row[bell] = allrows[ri-4][bell]
-                allrows[ri-3] = rounds_row
-                allrows = allrows[:ri-2]
-                nrows_cut = len(allrows)
-                break
+    navg = min(len(allrows), 10)
+    avg_length = np.mean(np.array(lengths)[:navg])
+    avg_cadence = avg_length/(nbells - 1)
+    static_counts = np.zeros(len(allrows), dtype = int)
+    prev_order = yvalues
+    for ri, length in enumerate(lengths):
+        row = allrows[ri]
+        order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+        if (order == prev_order).all() and ri > 2 and (not (order == yvalues).all()):   
+            static_counts[ri] = static_counts[ri-1] + 1
+        prev_order = order
+    
+    def find_lengths(row_section):
+        lengths = np.zeros(len(row_section))
+        for ril, row in enumerate(row_section):
+            lengths[ril] = np.max(row) - np.min(row)
+        return lengths
 
-        #Now need to check if moving the offending bell would actually make any sense. Do retroactively from the point at which it became problematic. 
-        #We know ri > 2 so most things are safe            
-        frontdiffs = 0; backdiffs = 0
-        if errorback:
-            #The offending bell is stuck at the back and so should actually be glued to the next change. Should be really obvious if either of these are wrong.
-            for back_count in range(2,0,-1):
-                new_test = allrows[ri - back_count].copy()
-                new_test[order[-1] - 1] = allrows[ri - back_count -1][order[-1] - 1]
-                new_range = np.max(new_test) - np.min(new_test); old_range = np.max(allrows[ri - back_count ]) - np.min(allrows[ri - back_count ])
-                backdiffs = max(backdiffs, (old_range - new_range))
-        if errorfront:
-            #The offending bell is at the front of the change. Attach it to the end of the last one instead and see if that works
-            for back_count in range(2,0,-1):
-                new_test = allrows[ri - back_count].copy()
-                new_test[order[0] - 1] = allrows[ri - back_count + 1][order[0] - 1]
-                new_range = np.max(new_test) - np.min(new_test); old_range = np.max(allrows[ri - back_count ]) - np.min(allrows[ri - back_count ])
-                frontdiffs  = max(frontdiffs, (old_range - new_range))
-        dofront = False; doback = False
-        if frontdiffs > mean_cadence and backdiffs > mean_cadence:
-            if backdiffs > frontdiffs:
-                doback = True
+    def lookfor_rounds(min_index, static_counts, allrows):
+        #Checks for a rotation of rounds after the min_index threshold.
+        isnotrounds = False
+        if np.max(static_counts) > 2:
+            #This may be some rotated rounds -- have a look for such.
+            for fi_rounds, roundsbutnot_count in enumerate(static_counts):
+                if roundsbutnot_count  > 2 and fi_rounds >= min_index: #In the same position for three blows. Take this one as the first occasion.
+                    isnotrounds = True
+                    for backward_count in range(fi_rounds,0,-1):
+                        if static_counts[backward_count] == 0:
+                            start_index = backward_count
+                            break
+                    for forward_count in range(fi_rounds, len(static_counts),1):
+                        if static_counts[forward_count] > 0:
+                            end_index = forward_count
+                        else:
+                            break
+                    print('rounds switch range', fi_rounds, start_index, end_index)
+                    break
+        #With this information, check for bells before the tenor
+        if isnotrounds:
+            reference_rows = allrows[start_index:end_index]  #Take one fewer than the end in case this does go as far as the end
+            bells_after = reference_rows[0] > reference_rows[0,-1]
+            shift_rows = reference_rows.copy()
+            if np.sum(bells_after) < nbells/2:
+                #Use an earlier time for these bells
+                shift_rows[:,bells_after] = allrows[start_index-1:end_index-1, bells_after]
             else:
-                dofront = True
-        elif frontdiffs > mean_cadence:
-            dofront = True
-        elif backdiffs > mean_cadence:
-            doback = True
-        elif maxcounts[0] > 6 and errorfront:
-            dofront = True
-        elif maxcounts[-1] > 6 and errorback:
-            doback = True
+                bells_before = np.invert(bells_after)
+                shift_rows[:,bells_before] = allrows[start_index+1:end_index+1, bells_before]
+            #Test these orders and if they're fine, continue without anything else. Should do a stroke checker too maybe? Will check with Saltburn.
+            new_orders = np.zeros(np.shape(shift_rows))
+            roundscount = 0
+            for rir, row in enumerate(shift_rows):
+                new_orders[rir] = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+                if (new_orders[rir] == yvalues).all():
+                    roundscount += 1
+            if roundscount/(len(shift_rows) - 1) > 1.0:
+                #Trim correct allstrikes down
+                return True, start_index, shift_rows[0]   #Flag for genuine shift, index if so and the rows which have shifted
+            else:
+                return False, end_index, shift_rows[0]
+        else:
+            return False, -1, allrows[0]
 
-        if errorfront or errorback:
-             print(ri, errorfront, errorback, frontdiffs, backdiffs, maxcounts)
-             print('________________________________')
+    def lookfor_front(min_index, maxcounts, allrows):
 
-        if doback:
-            #Actually make the swap. Need to go back the correct amount, which is tricky
-            print('Swapping back', ri, frontdiffs, backdiffs)
-            allrows[ri-maxcounts[-1]][order[-1] - 1] = allrows[ri - maxcounts[-1] - 1][order[-1] - 1]
-            allrows = allrows[:ri-2]
-            nrows_cut = len(allrows)
-            break
+        #THREE options: Either look for front, back or reset to rounds. Whichever is first or more prominent will be chosen for action. Do not do more than one!
+        isfront = False
+        if np.max(maxcounts[:,0]) > 2:
+            for fi_front, front_count in enumerate(maxcounts[:,0]):
+                if front_count > 2 and fi_front >= min_index: #In the same position for three blows. Take this one as the first occasion.
+                    isfront = True
+                    for backward_count in range(fi_front,0,-1):
+                        if maxcounts[backward_count,0] == 0:
+                            start_index = backward_count
+                            break
+                    for forward_count in range(fi_front, len(maxcounts),1):
+                        if maxcounts[forward_count,0] > 0:
+                            end_index = forward_count
+                        else:
+                            break
+                    print('front switch range', fi_front, start_index, end_index)
+                    break
+        #Now need to rate these options based on swapping things around
+        front_diff = 0
+        if isfront:
+            #Determine reference rows etc.
+            reference_rows = allrows[start_index:end_index]  #Take one fewer than the end in case this does go as far as the end
+            shift_bell = int(orders[start_index][0] - 1)
+            print('front shift bell', shift_bell)
+            shift_rows = reference_rows.copy()
+            shift_rows[:,shift_bell] = allrows[start_index+1:end_index+1, shift_bell]
+            old_lengths = find_lengths(reference_rows)
+            new_lengths = find_lengths(shift_rows)
+            front_diff = np.mean(new_lengths[1:]) - np.mean(old_lengths[1:])
+            print('front difference', front_diff)
+            if front_diff < -avg_cadence:
+                return True, start_index, shift_rows[0]   #Flag for genuine shift, index if so and the rows which have shifted
+            else:
+                return False, end_index, shift_rows[0]
+        else:
+            return False, -1, allrows[0]
 
-        if dofront:
-            #Actually make the swap
-            print('Swapping front', ri)
-            allrows[ri-maxcounts[-1]][order[0] - 1] = allrows[ri - maxcounts[-1] + 1][order[0] - 1]
-            allrows = allrows[:ri-2]
-            nrows_cut = len(allrows)
-            break
+    def lookfor_back(min_index, maxcounts, allrows):
+        isback = False
+        if np.max(maxcounts[:,-1]) > 2:
+            for fi_back, back_count in enumerate(maxcounts[:,-1]):
+                if back_count  > 2 and fi_back >= min_index: #In the same position for three blows. Take this one as the first occasion.
+                    isback = True
+                    for backward_count in range(fi_back,0,-1):
+                        if maxcounts[backward_count,-1] == 0:
+                            start_index = backward_count
+                            break
+                    for forward_count in range(fi_back, len(maxcounts),1):
+                        if maxcounts[forward_count,-1] > 0:
+                            end_index = forward_count
+                        else:
+                            break
+                    print('back switch range', fi_back, start_index, end_index)
+                    break
 
-    allstrikes = allrows.tolist()
-    allcerts = np.array(allcerts)[:nrows_cut,:].tolist()
+        #Now need to rate these options based on swapping things around
+        back_diff = 0
+        if isback:
+            #Determine reference rows etc.
+            reference_rows = allrows[start_index:end_index]  #Take one fewer than the end in case this does go as far as the end
+            shift_bell = int(orders[start_index][-1] - 1)
+            print('back shift bell', shift_bell)
+            shift_rows = reference_rows.copy()
+            shift_rows[:,shift_bell] = allrows[start_index-1:end_index-1, shift_bell]
+            old_lengths = find_lengths(reference_rows)
+            new_lengths = find_lengths(shift_rows)
+            back_diff = np.mean(new_lengths[1:]) - np.mean(old_lengths[1:])
+            print('back difference', back_diff)
+            if back_diff < -avg_cadence:
+                return True, start_index, shift_rows[0]   #Flag for genuine shift, index if so and the rows which have shifted
+            else:
+                return False, end_index, shift_rows[0]
+        else:
+            return False, -1, allrows[0]
 
-    return allstrikes, allcerts
+    #Container for looking for rounds
+    gorounds = True
+    rounds_switch_flag, rounds_switch_index, rounds_shift_row = False, -1, allrows[0]
+    min_index = last_switch
+    while gorounds:
+        switch_flag, switch_index, shift_row = lookfor_rounds(min_index, static_counts, allrows)
+        if switch_flag:  #This is a genuine switch -- exit the main function? Depends if theres a different genuine switch first!
+            rounds_switch_flag, rounds_switch_index, rounds_shift_row = switch_flag, switch_index, shift_row 
+            gorounds = False
+        elif switch_index > 0:   #There was a potential switch but no good, so keep looking
+            min_index = switch_index + 1
+        else:
+            gorounds = False
+    #And back
+    goback = True
+    back_switch_flag, back_switch_index, back_shift_row = False, -1, allrows[0]
+    min_index = last_switch
+    while goback:
+        switch_flag, switch_index, shift_row = lookfor_back(min_index, maxcounts, allrows)
+        if switch_flag:  #This is a genuine switch -- exit the main function? Depends if theres a different genuine switch first!
+            back_switch_flag, back_switch_index, back_shift_row = switch_flag, switch_index, shift_row 
+            goback = False
+        elif switch_index > 0:   #There was a potential switch but no good, so keep looking
+            min_index = switch_index + 1
+        else:
+            goback = False
+    #And front
+    gofront = True
+    front_switch_flag, front_switch_index, front_shift_row = False, -1, allrows[0]
+    min_index = last_switch
+    while gofront:
+        switch_flag, switch_index, shift_row = lookfor_front(min_index, maxcounts, allrows)
+        if switch_flag:  #This is a genuine switch -- exit the main function? Depends if theres a different genuine switch first!
+            front_switch_flag, front_switch_index, front_shift_row = switch_flag, switch_index, shift_row 
+            gofront = False
+        elif switch_index > 0:   #There was a potential switch but no good, so keep looking
+            min_index = switch_index + 1
+        else:
+            gofront = False
+
+    print('Rounds', rounds_switch_flag, rounds_switch_index, rounds_shift_row)
+    print('Back', back_switch_flag, back_switch_index, back_shift_row)
+    print('Front', front_switch_flag, front_switch_index, front_shift_row)
+
+    #Rounds takes priority a little -- if within 5 changes of the others perhaps. 
+    rounds_switch_test = rounds_switch_index - 5
+    if not rounds_switch_flag:
+        rounds_switch_index = 100000
+    if not front_switch_flag:
+        front_switch_index = 100000
+    if not back_switch_flag:
+        back_switch_index = 100000
+
+    if rounds_switch_flag and rounds_switch_test <= min(back_switch_index, front_switch_index):
+        print('Switching rounds')
+        allstrikes = allstrikes[:rounds_switch_index+1]
+        allcerts = allcerts[:rounds_switch_index+1]
+        allstrikes[rounds_switch_index] = rounds_shift_row
+        #allcerts[rounds_switch_index] = 0.0
+        last_switch = rounds_switch_index
+
+    elif back_switch_flag and back_switch_test <= min(front_switch_index, rounds_switch_index):
+        print('Switch back')
+        allstrikes = allstrikes[:back_switch_index+1]
+        allcerts = allcerts[:back_switch_index+1]
+        allstrikes[back_switch_index] = rounds_shift_row
+        #allcerts[back_switch_index][0] = 0.0
+        last_switch = back_switch_index
+
+    elif front_switch_flag and front_switch_test <= min(back_switch_index, rounds_switch_index):
+        print('Switch front')
+        allstrikes = allstrikes[:front_switch_index+1]
+        allcerts = allcerts[:front_switch_index+1]
+        allstrikes[front_switch_index] = rounds_shift_row
+        #allcerts[front_switch_index][0] = 0.0
+        last_switch = front_switch_index
+        pass
+    
+    input()
+    return allstrikes, allcerts, last_switch
 
 def do_frequency_analysis(Paras, Data):
     #Now takes existing strikes data to do this (to make reinforcing easier)

@@ -113,7 +113,7 @@ if "uploader_key" not in st.session_state:
 if "rhythm_variation_time" not in st.session_state:
     st.session_state.rhythm_variation_time = 4
 if "handstroke_gap_variation_time" not in st.session_state:
-    st.session_state.handstroke_gap_variation_time = 10
+    st.session_state.handstroke_gap_variation_time = 6
     
 #Remove the large things from memory -- need a condition on this!
 if False:
@@ -314,7 +314,7 @@ if st.session_state.current_touch >= 0:
         with st.expander("Statistical Options"):
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 6, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time
                 ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
                 if "Individual Model" not in  raw_data.columns.tolist():
@@ -325,7 +325,7 @@ if st.session_state.current_touch >= 0:
             if selection == "Team Model":
 
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 6, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time
                 ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
                 if "Team Model" not in  raw_data.columns.tolist():
