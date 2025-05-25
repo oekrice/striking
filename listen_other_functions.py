@@ -1002,13 +1002,13 @@ def check_for_misses(allstrikes, allcerts, last_switch):
     print('Front', front_switch_flag, front_switch_index, front_shift_row)
 
     #Rounds takes priority a little -- if within 5 changes of the others perhaps. 
-    rounds_switch_test = rounds_switch_index - 5
     if not rounds_switch_flag:
         rounds_switch_index = 100000
     if not front_switch_flag:
         front_switch_index = 100000
     if not back_switch_flag:
         back_switch_index = 100000
+    rounds_switch_test = rounds_switch_index - 5
 
     if rounds_switch_flag and rounds_switch_test <= min(back_switch_index, front_switch_index):
         print('Switching rounds')
@@ -1018,23 +1018,27 @@ def check_for_misses(allstrikes, allcerts, last_switch):
         #allcerts[rounds_switch_index] = 0.0
         last_switch = rounds_switch_index
 
-    elif back_switch_flag and back_switch_test <= min(front_switch_index, rounds_switch_index):
+    elif back_switch_flag and back_switch_index <= min(front_switch_index, rounds_switch_test):
         print('Switch back')
         allstrikes = allstrikes[:back_switch_index+1]
         allcerts = allcerts[:back_switch_index+1]
-        allstrikes[back_switch_index] = rounds_shift_row
+        allstrikes[back_switch_index] = back_shift_row
         #allcerts[back_switch_index][0] = 0.0
         last_switch = back_switch_index
 
-    elif front_switch_flag and front_switch_test <= min(back_switch_index, rounds_switch_index):
+    elif front_switch_flag and front_switch_index <= min(back_switch_index, rounds_switch_test):
         print('Switch front')
         allstrikes = allstrikes[:front_switch_index+1]
         allcerts = allcerts[:front_switch_index+1]
-        allstrikes[front_switch_index] = rounds_shift_row
+        allstrikes[front_switch_index] = front_shift_row
         #allcerts[front_switch_index][0] = 0.0
         last_switch = front_switch_index
-        pass
-    
+
+    # print('New orders')
+    # for ri, row in enumerate(allrows):
+    #     order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
+    #     print(ri, order)
+
     input()
     return allstrikes, allcerts, last_switch
 
