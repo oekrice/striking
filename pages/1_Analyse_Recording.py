@@ -52,10 +52,10 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = False
+st.session_state.testing_mode = True
 #Establish persistent variables
 if st.session_state.testing_mode:
-    input_matrix = np.loadtxt("test_cases_retro.txt", delimiter = ';', dtype = str)    
+    input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
     init_test = 0
     single_test = False
 
@@ -370,16 +370,19 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profile which matches the selected bells:' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):.')
         allstrings = ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])]
-        options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 1)
-        
+        if best_freq_quality > 0.975:
+            options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 1)
+        else:
+            options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 0)
+
     elif frequency_counter > 1:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):')
         allstrings = ["Make new profile"]
-        if best_freq_quality > 0.96:
+        if best_freq_quality > 0.975:
             maxind = np.where(allquals == np.max(allquals))[0][0]
         else:
-            maxind = 0
+            maxind = -1
         for qi, qual in enumerate(allquals):
             allstrings.append(":%s[Profile %d: %.1f%% match]" % (allcs[qi], qi + 1, 100*qual))
         options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = int(maxind + 1))
@@ -595,9 +598,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
             
         find_final_strikes(Paras)
-        print('Before filter', len(st.session_state.allstrikes[0]))
         filter_final_strikes(Paras)
-        print('After filter', len(st.session_state.allstrikes[0]))
 
         if len(st.session_state.allstrikes) == 0:
             st.session_state.analysis_status = 0
@@ -678,7 +679,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.tower_name = "Unknown Tower"
 
         if len(methods) > 0:
-            if quality > 0.8:
+            if quality > 0.7:
                 nchanges = len(allrows_correct) - 1
 
                 if len(methods) == 1:   #Single method

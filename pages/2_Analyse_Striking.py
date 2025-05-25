@@ -226,7 +226,7 @@ if st.session_state.current_touch >= 0:
     if len(methods) > 0:
         nchanges = len(allrows_correct) - 1
         end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
-        if quality > 0.8:
+        if quality > 0.7:
 
             if len(methods) == 1:   #Single method
                 method_title = methods[0][0]
@@ -246,17 +246,21 @@ if st.session_state.current_touch >= 0:
                 else:
                     method_title = "Spliced"
                 lead_length = 2*int(hunt_types[0][1] + 1)
-            st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            if quality > 0.85:
+                st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            else:
+                st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + " (sort of)**")
+
             with st.expander("View Composition"):
                 st.html(comp_html)
         else:
             st.write("**Probably a method but not entirely sure what...**")
             method_flag = False
             lead_length = 24
-            start_row = 0; end_row = len(allrows_correct)
+            start_row = 0; end_row = int(len(allstrikes)/nbells)
     else:
         st.method_message.write("**No method detected**")
-        start_row = 0; end_row = len(allrows_correct)
+        start_row = 0; end_row = int(len(allstrikes)/nbells)
         lead_length = 24
 
     if "Individual Model" not in  raw_data.columns.tolist():

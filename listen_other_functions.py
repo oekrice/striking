@@ -796,7 +796,7 @@ def check_for_misses(allstrikes, allcerts, last_switch):
         ndiffs += (1 - len(np.where(order == prev_order)[0])/nbells)
         prev_order = order
     if ndiffs/len(allrows) < 0.2:   #This is probably just rounds and calls -- leave it be
-        return allstrikes, allcerts
+        return allstrikes, allcerts, last_switch
     
     #Try running through to get an overall maxcounts
     maxcounts = np.zeros((len(allrows), nbells), dtype = int)   #Counts of bells in each position (other than rounds)
@@ -804,7 +804,7 @@ def check_for_misses(allstrikes, allcerts, last_switch):
     orders = []; lengths = []
     for ri, row in enumerate(allrows):
         order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
-        print(ri, order)
+        #print(ri, order)
         orders.append(order)
         lengths.append(np.max(row) - np.min(row))
         if (not (order == yvalues).all()) and ri > 2:   #Obviously rounds is probably fine
@@ -852,7 +852,7 @@ def check_for_misses(allstrikes, allcerts, last_switch):
                             end_index = forward_count
                         else:
                             break
-                    print('rounds switch range', fi_rounds, start_index, end_index)
+                    #print('rounds switch range', fi_rounds, start_index, end_index)
                     break
         #With this information, check for bells before the tenor
         if isnotrounds:
@@ -897,7 +897,7 @@ def check_for_misses(allstrikes, allcerts, last_switch):
                             end_index = forward_count
                         else:
                             break
-                    print('front switch range', fi_front, start_index, end_index)
+                    #print('front switch range', fi_front, start_index, end_index)
                     break
         #Now need to rate these options based on swapping things around
         front_diff = 0
@@ -905,14 +905,14 @@ def check_for_misses(allstrikes, allcerts, last_switch):
             #Determine reference rows etc.
             reference_rows = allrows[start_index:end_index]  #Take one fewer than the end in case this does go as far as the end
             shift_bell = int(orders[start_index][0] - 1)
-            print('front shift bell', shift_bell)
+            #print('front shift bell', shift_bell)
             shift_rows = reference_rows.copy()
             shift_rows[:,shift_bell] = allrows[start_index+1:end_index+1, shift_bell]
             old_lengths = find_lengths(reference_rows)
             new_lengths = find_lengths(shift_rows)
             front_diff = np.mean(new_lengths[1:]) - np.mean(old_lengths[1:])
-            print('front difference', front_diff)
-            if front_diff < -avg_cadence:
+            #print('front difference', front_diff)
+            if front_diff < -avg_cadence*1.25:
                 return True, start_index, shift_rows[0]   #Flag for genuine shift, index if so and the rows which have shifted
             else:
                 return False, end_index, shift_rows[0]
@@ -934,7 +934,7 @@ def check_for_misses(allstrikes, allcerts, last_switch):
                             end_index = forward_count
                         else:
                             break
-                    print('back switch range', fi_back, start_index, end_index)
+                    #print('back switch range', fi_back, start_index, end_index)
                     break
 
         #Now need to rate these options based on swapping things around
@@ -943,14 +943,14 @@ def check_for_misses(allstrikes, allcerts, last_switch):
             #Determine reference rows etc.
             reference_rows = allrows[start_index:end_index]  #Take one fewer than the end in case this does go as far as the end
             shift_bell = int(orders[start_index][-1] - 1)
-            print('back shift bell', shift_bell)
+            #print('back shift bell', shift_bell)
             shift_rows = reference_rows.copy()
             shift_rows[:,shift_bell] = allrows[start_index-1:end_index-1, shift_bell]
             old_lengths = find_lengths(reference_rows)
             new_lengths = find_lengths(shift_rows)
             back_diff = np.mean(new_lengths[1:]) - np.mean(old_lengths[1:])
-            print('back difference', back_diff)
-            if back_diff < -avg_cadence:
+            #print('back difference', back_diff)
+            if back_diff < -avg_cadence*1.25:
                 return True, start_index, shift_rows[0]   #Flag for genuine shift, index if so and the rows which have shifted
             else:
                 return False, end_index, shift_rows[0]
@@ -997,9 +997,9 @@ def check_for_misses(allstrikes, allcerts, last_switch):
         else:
             gofront = False
 
-    print('Rounds', rounds_switch_flag, rounds_switch_index, rounds_shift_row)
-    print('Back', back_switch_flag, back_switch_index, back_shift_row)
-    print('Front', front_switch_flag, front_switch_index, front_shift_row)
+    #print('Rounds', rounds_switch_flag, rounds_switch_index, rounds_shift_row)
+    #print('Back', back_switch_flag, back_switch_index, back_shift_row)
+    #print('Front', front_switch_flag, front_switch_index, front_shift_row)
 
     #Rounds takes priority a little -- if within 5 changes of the others perhaps. 
     if not rounds_switch_flag:
@@ -1011,35 +1011,29 @@ def check_for_misses(allstrikes, allcerts, last_switch):
     rounds_switch_test = rounds_switch_index - 5
 
     if rounds_switch_flag and rounds_switch_test <= min(back_switch_index, front_switch_index):
-        print('Switching rounds')
+        #print('Switching rounds')
         allstrikes = allstrikes[:rounds_switch_index+1]
         allcerts = allcerts[:rounds_switch_index+1]
-        allstrikes[rounds_switch_index] = rounds_shift_row
+        allstrikes[rounds_switch_index] = rounds_shift_row + 2
         #allcerts[rounds_switch_index] = 0.0
         last_switch = rounds_switch_index
 
     elif back_switch_flag and back_switch_index <= min(front_switch_index, rounds_switch_test):
-        print('Switch back')
+        #print('Switch back')
         allstrikes = allstrikes[:back_switch_index+1]
         allcerts = allcerts[:back_switch_index+1]
-        allstrikes[back_switch_index] = back_shift_row
+        allstrikes[back_switch_index] = back_shift_row + 2
         #allcerts[back_switch_index][0] = 0.0
         last_switch = back_switch_index
 
     elif front_switch_flag and front_switch_index <= min(back_switch_index, rounds_switch_test):
-        print('Switch front')
+        #print('Switch front')
         allstrikes = allstrikes[:front_switch_index+1]
         allcerts = allcerts[:front_switch_index+1]
-        allstrikes[front_switch_index] = front_shift_row
+        allstrikes[front_switch_index] = front_shift_row + 2
         #allcerts[front_switch_index][0] = 0.0
         last_switch = front_switch_index
 
-    # print('New orders')
-    # for ri, row in enumerate(allrows):
-    #     order = np.array([val for _, val in sorted(zip(row, yvalues), reverse = False)])
-    #     print(ri, order)
-
-    input()
     return allstrikes, allcerts, last_switch
 
 def do_frequency_analysis(Paras, Data):

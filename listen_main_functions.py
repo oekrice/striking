@@ -85,7 +85,8 @@ def do_reinforcement(Paras, Data):
         #print('Finding strike probabilities...')
         
         Data.strike_probabilities = find_strike_probabilities(Paras, Data, init = False, final = False)
-                
+        Data.end_flag = False
+
         strikes, strike_certs = find_strike_times(Paras, Data, final = False) #Finds strike times in integer space
     
         #Determine whether this is actually rounds or if something's got mixed up...
@@ -324,9 +325,8 @@ def find_final_strikes(Paras, nested = False):
 
         if switch_id > 0:
             last_switch = switch_id
-            
+
         length_log.append(len(allstrikes))
-        print('Length log', length_log)
 
         tmin = min(allstrikes[-1])*Paras.dt - 5.0
         tmax = min(tmin + Paras.overall_tcut, Paras.overall_tmax)
