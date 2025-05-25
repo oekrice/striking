@@ -677,7 +677,6 @@ def find_strike_times(Paras, Data, final = False):
                      
                     
             if np.median(certs) < 0.01:
-                go = False
                    
                 if len(allconfs) > 1:
                     bellconfs_individual = np.mean(np.array(allconfs)[1:,:], axis = 0)
@@ -691,17 +690,9 @@ def find_strike_times(Paras, Data, final = False):
                 allconfs.append(confs)
             else:
                 go = False
-                #if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
-                #    Paras.ringing_finished = True
         else:
             go = False
-            #if (len(Data.strike_probabilities[0]) - np.max(allstrikes))*Paras.dt > 5.0:
-            #    Paras.ringing_finished = True
             continue
-
-        if len(allstrikes) == 0:
-            #Paras.ringing_finished = True
-            return [], []
          
         #Determine likely location of the next change END
         #Need to be resilient to method mistakes etc... 
@@ -732,8 +723,9 @@ def find_strike_times(Paras, Data, final = False):
         start = next_start - 1.5*round(Data.cadence_ref)
         end  =  next_end   + 3.5*round(Data.cadence_ref)
 
-        if next_end + 0.5*round(Data.cadence_ref) > len(Data.strike_probabilities[0]):   #This is nearing the end of the reasonable time
-            go = False
+        if not Data.end_flag:
+            if end > len(Data.strike_probabilities[0]) - 2.5/Paras.dt:   #This is nearing the end of the reasonable time for this cut, so don't bother any more. UNLESS it's the final one
+                go = False
 
     if len(allconfs) > 1:
         
@@ -855,7 +847,7 @@ def check_for_misses(allstrikes, allcerts):
             #The offending bell is at the front of the change. Attach it to the end of the last one instead and see if that works
             for back_count in range(2,0,-1):
                 new_test = allrows[ri - back_count].copy()
-                new_test[order[-1] - 1] = allrows[ri - back_count + 1][order[-1] - 1]
+                new_test[order[0] - 1] = allrows[ri - back_count + 1][order[0] - 1]
                 new_range = np.max(new_test) - np.min(new_test); old_range = np.max(allrows[ri - back_count ]) - np.min(allrows[ri - back_count ])
                 frontdiffs  = max(frontdiffs, (old_range - new_range))
         dofront = False; doback = False
@@ -868,15 +860,19 @@ def check_for_misses(allstrikes, allcerts):
             dofront = True
         elif backdiffs > mean_cadence:
             doback = True
+        elif maxcounts[0] > 6 and errorfront:
+            dofront = True
+        elif maxcounts[-1] > 6 and errorback:
+            doback = True
 
-        # if errorfront or errorback:
-        #     print(errorfront, errorback, frontdiffs, backdiffs, maxcounts)
-        #     print('________________________________')
+        if errorfront or errorback:
+             print(ri, errorfront, errorback, frontdiffs, backdiffs, maxcounts)
+             print('________________________________')
 
         if doback:
-            #Actually make the swap
+            #Actually make the swap. Need to go back the correct amount, which is tricky
             print('Swapping back', ri, frontdiffs, backdiffs)
-            allrows[ri-3][order[-1] - 1] = allrows[ri - 4][order[-1] - 1]
+            allrows[ri-maxcounts[-1]][order[-1] - 1] = allrows[ri - maxcounts[-1] - 1][order[-1] - 1]
             allrows = allrows[:ri-2]
             nrows_cut = len(allrows)
             break
@@ -884,7 +880,7 @@ def check_for_misses(allstrikes, allcerts):
         if dofront:
             #Actually make the swap
             print('Swapping front', ri)
-            allrows[ri-3][order[0] - 1] = allrows[ri - 2][order[0] - 1]
+            allrows[ri-maxcounts[-1]][order[0] - 1] = allrows[ri - maxcounts[-1] + 1][order[0] - 1]
             allrows = allrows[:ri-2]
             nrows_cut = len(allrows)
             break

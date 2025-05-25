@@ -218,21 +218,25 @@ def find_final_strikes(Paras, nested = False):
      Paras.stop_flag = False
      Paras.local_tmin = Paras.overall_tmin
      Paras.local_tint = round(Paras.overall_tmin/Paras.dt)
+     Paras.overall_end = (len(st.session_state.trimmed_signal)/st.session_state.fs)/Paras.dt
      Paras.ringing_finished = False
      length_log = []
      #st.analysis_sublog.write('Initial rhythm established, finding all strikes')
      st.analysis_sublog.progress(0, text = 'Initial rhythm established, finding all strikes')
 
+     print('overall end', Paras.overall_end*Paras.dt)
      counter = 0
      while not Paras.stop_flag and not Paras.ringing_finished:
-        if tmax >= Paras.ringing_end - 1.0:  #Last one
+        Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
+        if tmax >= (Paras.overall_end - 1.0)*Paras.dt:  #Last one
             Paras.stop_flag = True
-             
+            Data.end_flag = True
+        else:
+            Data.end_flag = False
+
         Paras.local_tmin = tmin + Paras.overall_tmin
         Paras.local_tint = round((tmin+Paras.overall_tmin)/Paras.dt) 
 
-        Data = data(Paras, tmin = tmin, tmax = tmax) #This class contains all the important stuff, with outputs and things
-         
         Data.test_frequencies = st.session_state.final_freqs
         Data.frequency_profile = st.session_state.final_freqprobs
              
@@ -252,7 +256,6 @@ def find_final_strikes(Paras, nested = False):
             Data.last_change = np.array(allstrikes[-1]) - round(tmin/Paras.dt)
             Data.cadence_ref = Paras.cadence_ref
 
-        print(tmin, tmax)
         Data.strikes, Data.strike_certs = find_strike_times(Paras, Data, final = True) #Finds strike times in integer space
 
         if len(Data.strikes) == 0:
@@ -261,7 +264,7 @@ def find_final_strikes(Paras, nested = False):
         elif len(np.shape(Data.strikes)) == 0:
             Paras.stop_flag = True
             Paras.ringing_finished = True
-        elif len(Data.strikes[0]) < 2:
+        elif len(Data.strikes[0]) < 1:
             Paras.stop_flag = True
             Paras.ringing_finished = True
         elif np.median(Data.strike_certs[:,-1]) < 0.25: #Can see if this can be fixed... who knows?
@@ -292,7 +295,7 @@ def find_final_strikes(Paras, nested = False):
                 allstrikes.append((Data.strikes[:,row] + round(tmin/Paras.dt)).tolist())
                 allcerts.append(Data.strike_certs[:,row].tolist())
                 allcadences.append((np.max(allstrikes[-1]) - np.min(allstrikes[-1]))/(Paras.nbells-1))
-                 
+  
         if counter == 0 and not nested:
              #print('First transform test:')
              diff1s = Data.strikes[:,1::2] - Data.strikes[:,0:-1:2]
@@ -359,10 +362,23 @@ def filter_final_strikes(Paras):
                 predicted_ratio = 0.5*(change_ratios[bell,ri-1] + change_ratios[bell,ri + 1])
                 predicted_location = np.min(st.session_state.allstrikes[:,ri]) + predicted_ratio*(np.max(st.session_state.allstrikes[:,ri]) - np.min(st.session_state.allstrikes[:,ri]))
                 st.session_state.allstrikes[bell,ri] = predicted_location
-    #Check that last row is indeed real
+    #Check that last row is indeed real. For some reason it detects fake rows with much confidence sometimes...
     if np.median(st.session_state.allcerts[:,-1]) < 0.5:
         st.session_state.allstrikes = st.session_state.allstrikes[:,:-1]
         st.session_state.allcerts = st.session_state.allcerts[:,:-1]
+    #Check order
+    yvalues = np.arange(len(st.session_state.allstrikes[:,0])) + 1
+    penultimate_order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,-2], yvalues), reverse = False)])
+    ultimate_order = np.array([val for _, val in sorted(zip(st.session_state.allstrikes[:,-1], yvalues), reverse = False)])
+    if (penultimate_order == yvalues).all() and not (ultimate_order == yvalues).all():
+        st.session_state.allstrikes = st.session_state.allstrikes[:,:-1]
+        st.session_state.allcerts = st.session_state.allcerts[:,:-1]
+    #Check timing
+    diffs = np.sort(st.session_state.allstrikes[:,-1])[1:] - np.sort(st.session_state.allstrikes[:,-1])[:-1]
+    if np.min(diffs) < 1:
+        st.session_state.allstrikes = st.session_state.allstrikes[:,:-1]
+        st.session_state.allcerts = st.session_state.allcerts[:,:-1]
+
     return
 
 def save_strikes(Paras):

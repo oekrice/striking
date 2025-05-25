@@ -24,7 +24,7 @@ import gc
 import io
 
 from listen_classes import audio_data, parameters
-from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
+from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
 from listen_other_functions import find_colour
 from methods import find_method_things
 
@@ -592,6 +592,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
             
         find_final_strikes(Paras)
+        print('Before filter', len(st.session_state.allstrikes[0]))
+        filter_final_strikes(Paras)
+        print('After filter', len(st.session_state.allstrikes[0]))
 
         if len(st.session_state.allstrikes) == 0:
             st.session_state.analysis_status = 0
