@@ -376,7 +376,10 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):')
         allstrings = ["Make new profile"]
-        maxind = np.where(allquals == np.max(allquals))[0][0]
+        if best_freq_quality > 0.96:
+            maxind = np.where(allquals == np.max(allquals))[0][0]
+        else:
+            maxind = 0
         for qi, qual in enumerate(allquals):
             allstrings.append(":%s[Profile %d: %.1f%% match]" % (allcs[qi], qi + 1, 100*qual))
         options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = int(maxind + 1))
