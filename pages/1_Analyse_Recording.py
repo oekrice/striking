@@ -52,7 +52,7 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = True
+st.session_state.testing_mode = False
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
@@ -370,7 +370,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profile which matches the selected bells:' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):.')
         allstrings = ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])]
-        if best_freq_quality > 0.975:
+        if best_freq_quality > 0.97:
             options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 1)
         else:
             options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 0)
@@ -379,7 +379,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):')
         allstrings = ["Make new profile"]
-        if best_freq_quality > 0.975:
+        if best_freq_quality > 0.97:
             maxind = np.where(allquals == np.max(allquals))[0][0]
         else:
             maxind = -1
