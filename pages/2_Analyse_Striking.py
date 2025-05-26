@@ -113,13 +113,14 @@ if "uploader_key" not in st.session_state:
 if "rhythm_variation_time" not in st.session_state:
     st.session_state.rhythm_variation_time = 4
 if "handstroke_gap_variation_time" not in st.session_state:
-    st.session_state.handstroke_gap_variation_time = 10
+    st.session_state.handstroke_gap_variation_time = 6
     
 #Remove the large things from memory -- need a condition on this!
-st.session_state.trimmed_signal = None
-st.session_state.audio_signal = None
-Paras = None
-Data = None
+if False:
+    st.session_state.trimmed_signal = None
+    st.session_state.audio_signal = None
+    Paras = None
+    Data = None
 
 touch_titles = []
 raw_titles = []
@@ -225,7 +226,7 @@ if st.session_state.current_touch >= 0:
     if len(methods) > 0:
         nchanges = len(allrows_correct) - 1
         end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
-        if quality > 0.8:
+        if quality > 0.7:
 
             if len(methods) == 1:   #Single method
                 method_title = methods[0][0]
@@ -245,17 +246,21 @@ if st.session_state.current_touch >= 0:
                 else:
                     method_title = "Spliced"
                 lead_length = 2*int(hunt_types[0][1] + 1)
-            st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            if quality > 0.85:
+                st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + "**")
+            else:
+                st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + " (sort of)**")
+
             with st.expander("View Composition"):
                 st.html(comp_html)
         else:
             st.write("**Probably a method but not entirely sure what...**")
             method_flag = False
             lead_length = 24
-            start_row = 0; end_row = len(allrows_correct)
+            start_row = 0; end_row = int(len(allstrikes)/nbells)
     else:
         st.method_message.write("**No method detected**")
-        start_row = 0; end_row = len(allrows_correct)
+        start_row = 0; end_row = int(len(allstrikes)/nbells)
         lead_length = 24
 
     if "Individual Model" not in  raw_data.columns.tolist():
@@ -313,7 +318,7 @@ if st.session_state.current_touch >= 0:
         with st.expander("Statistical Options"):
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 6, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time
                 ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
                 if "Individual Model" not in  raw_data.columns.tolist():
@@ -324,7 +329,7 @@ if st.session_state.current_touch >= 0:
             if selection == "Team Model":
 
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
-                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 10, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
+                st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 6, format = "%d changes", step = 2, key = 200 + st.session_state.current_touch)
                 st.session_state.rhythm_variation_time = rhythm_variation_time
                 ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = st.session_state.rhythm_variation_time*nbells, ngaps = st.session_state.handstroke_gap_variation_time)
                 if "Team Model" not in  raw_data.columns.tolist():

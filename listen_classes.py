@@ -150,7 +150,8 @@ class parameters(object):
 
         self.reinforce_tmax = reinforce_tmax
         
-        self.overall_tcut = 60.0  #How frequently (seconds) to do update rounds etc.
+        self.overall_tcut = 60.0
+
         self.probs_adjust_factor = 2.0   #Power of the bells-hitting-each-other factor. Less on higher numbers seems favourable.
         
         if True:#not st.session_state.trim_flag:

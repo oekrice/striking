@@ -24,7 +24,7 @@ import gc
 import io
 
 from listen_classes import audio_data, parameters
-from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes
+from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
 from listen_other_functions import find_colour
 from methods import find_method_things
 
@@ -370,13 +370,19 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profile which matches the selected bells:' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):.')
         allstrings = ["Make new profile", ":%s[Profile 1: %.1f%% match]" % (allcs[0], 100*allquals[0])]
-        options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 1)
-        
+        if best_freq_quality > 0.97:
+            options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 1)
+        else:
+            options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = 0)
+
     elif frequency_counter > 1:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):')
         allstrings = ["Make new profile"]
-        maxind = np.where(allquals == np.max(allquals))[0][0]
+        if best_freq_quality > 0.97:
+            maxind = np.where(allquals == np.max(allquals))[0][0]
+        else:
+            maxind = -1
         for qi, qual in enumerate(allquals):
             allstrings.append(":%s[Profile %d: %.1f%% match]" % (allcs[qi], qi + 1, 100*qual))
         options = st.radio("Choose existing profile or make a new one (can change your mind later):", allstrings, on_change = stop_analysis, index = int(maxind + 1))
@@ -543,10 +549,10 @@ else:
     st.session_state.good_frequencies_selected = False
     
 if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None and st.session_state.nominals_confirmed or (st.session_state.analysis_status == 2):
-
     if st.session_state.allcerts is None and st.session_state.analysis_status == 2:
         st.session_state.analysis_status = 0
     #st.write(st.session_state.analysis_status)
+
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
         if st.session_state.use_existing_freqs < 0:
             st.empty().write('New frequency profile calculated. Ready to find strike times.')
@@ -562,7 +568,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             else:
                 st.session_state.analysis_status = 1
             return
-    
+
         if st.session_state.testing_mode:
             st.session_state.analysis_status = 1
         else:
@@ -592,6 +598,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
             
         find_final_strikes(Paras)
+        filter_final_strikes(Paras)
 
         if len(st.session_state.allstrikes) == 0:
             st.session_state.analysis_status = 0
@@ -672,7 +679,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.tower_name = "Unknown Tower"
 
         if len(methods) > 0:
-            if quality > 0.8:
+            if quality > 0.7:
                 nchanges = len(allrows_correct) - 1
 
                 if len(methods) == 1:   #Single method

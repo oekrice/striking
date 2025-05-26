@@ -71,7 +71,26 @@ Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral G
 Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral SC7.m4a
 Bristol, S Mary V, Redcliffe;12;audio/Track-5 20250504-203132.mp3
 Bristol, S Mary V, Redcliffe;12;audio/BristolRedcliffe.20250504-1715.6.beai (1).mp3
-
+Aldeburgh, S Peter & S Paul;8;audio/SG NT.m4a
+Aldeburgh, S Peter & S Paul;8;audio/SG NE District.m4a
+Yoxford, S Peter;6;audio/SG Buxhall.m4a
+Meanwood, Holy Trinity;5;audio/Meanwood Plain Hunt.m4a
+Meanwood, Holy Trinity;5;audio/Meanwood Stedman.m4a
+Saltburn by the Sea, Emmanuel;8;audio/SaltburnYorkshire.m4a
+Saltburn by the Sea, Emmanuel;8;audio/Saltburnpb.m4a
+Saltburn by the Sea, Emmanuel;8;audio/Grandsiresaltburn.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth PH7 2.m4a
+Brancepeth, S Brandon;6;audio/Brancepeth LB6.m4a
+Brancepeth, S Brandon;8;audio/Brancepeth PB7 2.m4a
+Durham, S Nicholas;6;audio/LB6 nics.m4a
+Durham, S Oswald;8;audio/Ossies Bristol-1.m4a
+Durham, S Oswald;8;audio/Ossie's spliced.m4a
+Durham, S Oswald;8;audio/Ossies Yorkshire-1.m4a
+Durham, S Oswald;8;audio/Ossies_grandsire.m4a
+Collingham, S Oswald;6;audio/Collingham 1.m4a
+Collingham, S Oswald;6;audio/Collingham 2.m4a
+Collingham, S Oswald;6;audio/Collingham 3.m4a
+Collingham, S Oswald;8;audio/Collingham 5.m4a
 
 
 

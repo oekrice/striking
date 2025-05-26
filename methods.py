@@ -263,9 +263,13 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
         bestmatch = 0.
         possible_methods = method_data[method_data['Lead Length'] == 12]
         possible_methods = possible_methods[possible_methods['Type'] == "S"]
-        possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
+        if nbells%2 == 0:
+            possible_methods = possible_methods[possible_methods['Stage'] == nbells - 1]
+        else:
+            possible_methods = possible_methods[possible_methods['Stage'] == nbells]
         possible_notations = np.array([nots.rsplit(',', 1)[0] + '.' + nots.rsplit(',', 1)[1] for nots in possible_methods['Place Notation']])
         possible_stages = [stage for stage in possible_methods['Stage']] 
+        pbest = 0
         for start in range(12):  #Run through the possible start points of the quick six. Normal Stedman start is 9, Erin is 0
             lead_rows = trimmed_rows[start:start + 13]
             check_notation = find_place_notation(lead_rows)
@@ -752,6 +756,7 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
 
         allrows_single[-1] = lead_end_options[best_call]
 
+
         #Finally, try to make up any last rows if it gets into rounds (if it doesn't work, just leave this out -- things may have fired out etc.)
         if len(trimmed_rows) > len(allrows_single):
             nrows_left = len(trimmed_rows) - len(allrows_single)
@@ -761,12 +766,8 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
                 #Be more fussy here -- should be rounds (or not at all?)
                 if (np.arange(len(trimmed_rows[-1])) + 1 == end_rows[nrows_left]).all():
                     allrows_single = np.concatenate((allrows_single[:-1], end_rows[:nrows_left+1]), axis = 0)
-                else:  #Just cut off to the last known bit of the method
-                    trimmed_rows = trimmed_rows[:len(allrows_single)]
-                    #allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
             else:
-                allrows_single = np.concatenate((allrows_single[:], trimmed_rows[len(allrows_single):]), axis = 0)
-
+                allrows_single = np.concatenate((allrows_single[:-1], end_rows[:]), axis = 0)
     else:
         best_calls_single = None
         qualities_single = None
@@ -844,15 +845,16 @@ def find_composition(trimmed_rows, hunt_types, methods_notspliced, methods_splic
         if len(end_rows) > nrows_left:  #This is a good match - do this
             if (np.arange(len(trimmed_rows[-1])) + 1 == end_rows[nrows_left]).all():
                 allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:nrows_left+1]), axis = 0)
-            else:  #Just finish off with what actually happened - something fired out
-                #allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
-                trimmed_rows = trimmed_rows[:len(allrows_spliced)]
         else:
-            allrows_spliced = np.concatenate((allrows_spliced[:], trimmed_rows[len(allrows_spliced):]), axis = 0)
+            allrows_spliced = np.concatenate((allrows_spliced[:-1], end_rows[:]), axis = 0)
 
-    spliced_quality = compare_set(trimmed_rows, allrows_spliced)
     if allrows_single is not None:
-        single_quality = compare_set(trimmed_rows, allrows_single)
+        comparison_length = min(len(allrows_single), min(len(trimmed_rows), len(allrows_spliced)))
+    else:
+        comparison_length = min(len(trimmed_rows), len(allrows_spliced))
+    spliced_quality = compare_set(trimmed_rows[:comparison_length], allrows_spliced[:comparison_length])
+    if allrows_single is not None:
+        single_quality = compare_set(trimmed_rows[:comparison_length], allrows_single[:comparison_length])
 
     if single_quality is not None:
         if np.sum(spliced_quality) > np.sum(single_quality):
