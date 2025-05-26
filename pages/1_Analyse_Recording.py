@@ -33,7 +33,7 @@ st.set_page_config(page_title="Analyse Recording", page_icon="🎤")
 st.markdown("## Analyse a Recording")
 #st.sidebar.header("Analyse Striking")
 st.write("This page is to find strike times from a recording of bellringing")
-with st.expander('Instructions for use'):
+with st.expander('How to use this'):
     st.markdown(
         """
         1. Select the tower and bells being rung -- take care to uncheck bells if only ringing the back 6 of an 8 etc..
@@ -227,13 +227,13 @@ if st.session_state.tower_name is not None:
         #st.session_state.nominals_confirmed = True
 
 if st.session_state.testing_mode:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 else:
     if not existing_selected:
-        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
     else:
-        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 

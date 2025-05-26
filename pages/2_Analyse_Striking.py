@@ -313,17 +313,18 @@ if st.session_state.current_touch >= 0:
     
     if len(existing_models) > 0:
                 
-        selection = st.selectbox("Select striking model:", options = existing_models, index = existing_models.index("Team Model"))   #Can set default for this later?
-        
-        #st.write(raw_data["Actual Time"][0:100:12])
-        raw_target = np.array(raw_data[selection])
-        raw_bells = np.array(raw_data["Bell No"])
-        correct_bells = np.array(raw_data["Corrected Bells"])
-        #Plot blue line
-        nstrikes = len(raw_actuals)
-        nrows = int(nstrikes//nbells)
     
         with st.expander("Statistical Options"):
+
+            selection = st.selectbox("Select striking model:", options = existing_models, index = existing_models.index("Team Model"))   #Can set default for this later?
+            #st.write(raw_data["Actual Time"][0:100:12])
+            raw_target = np.array(raw_data[selection])
+            raw_bells = np.array(raw_data["Bell No"])
+            correct_bells = np.array(raw_data["Corrected Bells"])
+            #Plot blue line
+            nstrikes = len(raw_actuals)
+            nrows = int(nstrikes//nbells)
+
             if selection == "Individual Model":
                 rhythm_variation_time = st.slider("Rhythm variation time:", min_value = 2, max_value = 10, value=4, format = "%d changes", step = 1)
                 st.session_state.handstroke_gap_variation_time = st.slider("Handstroke gap variation time:", min_value = 4, max_value = 20, value = 6, format = "%d changes", step = 2, key = 100 + st.session_state.current_touch)
