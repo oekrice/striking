@@ -29,19 +29,25 @@ from listen_other_functions import find_colour
 from methods import find_method_things
 
 st.set_page_config(page_title="Analyse Recording", page_icon="🎤")
-st.markdown("## Analyse Recording")
+st.markdown("## Analyse a Recording")
 #st.sidebar.header("Analyse Striking")
-st.markdown(
-    """
-    This page is to find strike times from uploaded (or perhaps live at some point...) audio.
-    1. Select the tower and bells being rung.
-    2. Upload the audio file for the recording. Ringing must start within 1 minute of the start of the (trimmed) recording, and **must begin with at least three whole pulls of approximate rounds**.   
-    3. Choose whether to use existing frequency profiles (if they exist) or learn new ones.
-    4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
-    5. Once decent frequencies are found, the code will attempt to strike times throughout. 
-    6. These strike times can then be analysed on the other page, or downloaded as a .csv for use later.   
-    """
-)
+st.write("This page is to find strike times from a recording of bellringing")
+with st.expander('Instructions for use'):
+    st.markdown(
+        """
+        1. Select the tower and bells being rung -- take care to uncheck bells if only ringing the back 6 of an 8 etc..
+        2. Upload the recording of ringing. Ringing must start **within 1 minute** of the start of the (trimmed) recording, and **must begin with at least three whole pulls of approximate rounds**.   
+        3. Choose whether to use existing frequency profiles (if they exist) or learn new ones.
+        4. If the latter, you'll be given the option to do this. This can be quite slow, especially for more than 8 bells.
+        5. Once decent frequencies are found, the code will attempt to strike times throughout. 
+        6. These strike times can then be analysed on the other page, or downloaded as a .csv for use later.   \\
+        $~$ \\
+        If the analysis fails, this might just be doomed to failure, but you could try:
+        * Trimming the recording such that it starts with good rounds (useful if it takes a while to settle, there is loud talking or a change in volume near the start).
+        * Generating new frequencies from this specific recording. Things can sound different from different recording locations so this can sometimes work.
+        * If learning the frequencies isn't working, try using a clearer recording to learn them and then use those profiles with the less-good recording.
+        """
+    )
 
 if not os.path.exists('./tmp/'):
     os.system('mkdir ./tmp/')
@@ -421,12 +427,12 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
 
     if st.session_state.trimmed_signal is not None:
-        st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Trimmed audio length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+        st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
     elif st.session_state.audio_signal is not None:
         #Put some prints to indicate a file has been uploaded
-        st.write('Audio file "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Imported audio length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+        st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
 
     if ['uploaded_file'] in st.session_state:
         del st.session_state['uploaded_file']
@@ -450,13 +456,13 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             st.session_state.reinforce_status = 0
         return
         
-    st.write("Audio parameters:")
+    st.write("Recording parameters:")
     tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
-    overall_tmin, overall_tmax = st.slider("Trim audio for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
+    overall_tmin, overall_tmax = st.slider("Trim recording for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
         
     if st.session_state.use_existing_freqs < 0:
-        reinforce_tmax = st.slider("Length of recording used for frequency analysis -- longer is slower but more accurate (don't include bad ringing):", min_value = 45.0, max_value = min(120.0, tmax), step = 1., value=(60.0), format = "%ds")
+        reinforce_tmax = st.slider("Length of recording used for frequency analysis -- longer is slower but more accurate (but don't include bad ringing!):", min_value = 45.0, max_value = min(120.0, tmax), step = 1., value=(60.0), format = "%ds")
         nreinforces = int(st.slider("Max number of frequency analysis steps -- may not need this many and will stop automatically if so:", min_value = 2, max_value = 15, value = 10, step = 1))
     else:
         reinforce_tmax = 90.0
@@ -613,7 +619,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.rerun()
 
     if st.session_state.analysis_status == 2:
-        st.analysis_log.write('**Audio Analysed**')
+        st.analysis_log.write('**Recording Analysed**')
         st.analysis_sublog.progress(100, text = 'Analysis complete')
         c = find_colour(np.mean(st.session_state.allcerts))
 
@@ -655,7 +661,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.save_option = st.empty()
             st.save_button = st.empty()
 
-            st.save_option.write("Save these bell frequency profiles for future use? Only do so if you're confident this analysis is accurate")
+            st.save_option.write("Save these bell frequency profiles for future use? Only do so if you're confident this analysis is accurate and there don't already exist better profiles.")
     
             #Redefine to be based on an entire touch given that's what matters
             st.session_state.reinforce_frequency_data[2] = np.mean(st.session_state.allcerts)

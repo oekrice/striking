@@ -65,6 +65,8 @@ def find_ringing_times(Paras, Data):
     #Use this to determine the start time of the ringing -- time afte
     peaks, _= find_peaks(loudsmooth, width = round(10.0/Paras.dt))  #Prolonged peak in noise - probably ringing
     
+    if len(peaks) == 0:
+        return 0, len(Data.transform)
     #I can't find an inbuilt finctino to do this, bafflingly
     peak = sorted(peaks)[-1]
     rlim = peak; llim = peak

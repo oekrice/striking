@@ -131,8 +131,10 @@ for i in range(len(st.session_state.cached_data)):
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
+selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
+
 uploaded_files = st.file_uploader(
-    "Upload timing data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+    "Upload data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 
 dealwith_upload()
 
@@ -140,7 +142,6 @@ if len(touch_titles) == 0:
     st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Audio page')
     st.stop()
 
-selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
 
 if selection is None:
     st.stop()
@@ -251,16 +252,19 @@ if st.session_state.current_touch >= 0:
             else:
                 st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + " (sort of)**")
 
+            if nchanges/int(len(raw_actuals)/nbells) < 0.25:
+                start_row = 0; end_row = int(len(raw_actuals)/nbells)
+
             with st.expander("View Composition"):
                 st.html(comp_html)
         else:
             st.write("**Probably a method but not entirely sure what...**")
             method_flag = False
             lead_length = 24
-            start_row = 0; end_row = int(len(allstrikes)/nbells)
+            start_row = 0; end_row = int(len(raw_actuals)/nbells)
     else:
         st.method_message.write("**No method detected**")
-        start_row = 0; end_row = int(len(allstrikes)/nbells)
+        start_row = 0; end_row = int(len(raw_actuals)/nbells)
         lead_length = 24
 
     if "Individual Model" not in  raw_data.columns.tolist():
@@ -650,7 +654,7 @@ if st.session_state.current_touch >= 0:
                 fig3, axs3 = plt.subplots(3, figsize = (12,7))
                 bar_width = 0.3
         
-                data_titles = ['Avg. Error', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
+                data_titles = ['Avg. Error (positive is slow, negative is quick)', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
         
                 x = np.arange(nbells)
                 for plot_id in range(3):
