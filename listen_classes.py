@@ -46,7 +46,7 @@ class audio_data():
         else:
             limit = 3e7
 
-        if False:#not st.session_state.testing_mode:
+        if not st.session_state.testing_mode:
             if raw_file.size > limit:
                 st.error("Recording is too long... sorry. Hopefully  better server will remove this confounded limitation.")
                 st.stop()

@@ -61,7 +61,6 @@ def find_ringing_times(Paras, Data):
     loudsmooth = gaussian_filter1d(loudsum, round(2.0/Paras.dt), axis = 0)
     loudsmooth[0] = 0.0; loudsmooth[-1] = 0.0 #For checking peaks
     
-    
     threshold = np.max(loudsmooth)*0.8
     #Use this to determine the start time of the ringing -- time afte
     peaks, _= find_peaks(loudsmooth, width = round(10.0/Paras.dt))  #Prolonged peak in noise - probably ringing
