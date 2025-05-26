@@ -131,7 +131,8 @@ for i in range(len(st.session_state.cached_data)):
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
-selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
+if len(touch_titles) > 0:
+    selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
 
 uploaded_files = st.file_uploader(
     "Upload data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
