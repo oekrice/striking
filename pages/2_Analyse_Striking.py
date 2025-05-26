@@ -118,12 +118,12 @@ if "rhythm_variation_time" not in st.session_state:
 if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 6
     
-#Remove the large things from memory -- need a condition on this!
-if False:
-    st.session_state.trimmed_signal = None
-    st.session_state.audio_signal = None
-    Paras = None
-    Data = None
+#Remove the large things from memory -- need a condition on this maybe?
+st.session_state.trimmed_signal = None
+st.session_state.audio_signal = None
+st.session_state.raw_file = None
+Paras = None
+Data = None
 
 touch_titles = []
 raw_titles = []

@@ -22,6 +22,7 @@ import pandas as pd
 import os
 import gc
 import io
+import random
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
@@ -100,6 +101,8 @@ if 'trim_flag' not in st.session_state:
     st.session_state.trim_flag = False   
 if 'checked' not in st.session_state:
     st.session_state.checked = []  
+if 'raw_file' not in st.session_state:
+    st.session_state.raw_file = None  
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
     st.session_state.reinforce_test_frequencies = None   
@@ -183,7 +186,15 @@ def reset_on_upload():
     st.session_state.trim_flag = False
     st.session_state.allstrikes = None  
     st.session_state.allcerts = None  
+    st.session_state.audio_signal = None
+    st.session_state.trimmed_signal = None
+    st.session_state.raw_file = None
 
+def reset_file():
+    st.session_state.audio_signal = None
+    st.session_state.trimmed_signal = None
+    st.session_state.raw_file = None
+    
 st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
@@ -404,7 +415,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
-
+    input_option = 0
     #st.write(st.session_state.audio_signal is not None)
     if st.session_state.testing_mode:
         test_fname = input_matrix[st.session_state.test_counter][2]
@@ -413,8 +424,17 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
             raw_file = io.BytesIO(file_bytes)
             raw_file.name = test_fname
     else:
-        raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
-    
+        #Decide between uploading a file and recording directly
+        input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
+        if input_option == "Upload":
+            raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
+        else:
+            raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key + 10000)
+            if raw_file is not None:
+                #Name for the uploaded file... Tower plus random number?
+                tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
+                raw_file.name = ('%s_record_%04d.wav' % (tower_short, int(random.random()*10000)))
+                st.session_state.raw_file = raw_file
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     
     if raw_file is not None:
@@ -425,15 +445,26 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
+    if input_option == "Record" and (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
+        st.audio(st.session_state.raw_file)
 
-    if st.session_state.trimmed_signal is not None:
-        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
-    elif st.session_state.audio_signal is not None:
-        #Put some prints to indicate a file has been uploaded
-        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
-
+    if input_option == 0:
+        if st.session_state.trimmed_signal is not None:
+            st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+            st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+        elif st.session_state.audio_signal is not None:
+            #Put some prints to indicate a file has been uploaded
+            st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+            st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+    else:
+        if st.session_state.trimmed_signal is not None:
+            st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+        elif st.session_state.audio_signal is not None:
+            #Put some prints to indicate a file has been uploaded
+            st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+        
     if ['uploaded_file'] in st.session_state:
         del st.session_state['uploaded_file']
 
