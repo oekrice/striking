@@ -232,7 +232,6 @@ if st.session_state.current_touch >= 0:
         nchanges = len(allrows_correct) - 1
         end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
         if quality > 0.7:
-
             if len(methods) == 1:   #Single method
                 method_title = methods[0][0]
                 if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
@@ -357,7 +356,7 @@ if st.session_state.current_touch >= 0:
         
         st.message = st.empty()
         st.message_2 = st.empty()
-        st.message.write("Calculating stats things...")
+        st.message.write("Calculating stats and things...")
         #Blue Line
         st.blueline = st.empty()
         
@@ -368,12 +367,17 @@ if st.session_state.current_touch >= 0:
         cadence = np.mean(diffs)*(2*nbells)/(2*nbells + 1)   #Mean interbell gap (ish)
 
         time_errors = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
-
+        time_errors_filtered = np.zeros((nbells, int(len(np.array(raw_actuals))/nbells)))   #Errors through time for the whole touch
+        lead_times = np.zeros((time_errors.shape), dtype = bool)
         for plot_id in range(3):
             for bell in range(1,nbells+1):#nbells):
                 
                 bellstrikes = np.where(raw_bells == bell)[0]
                 targetstrikes = np.where(correct_bells == bell)[0]
+
+                #Find the times at which bellstrikes are leading, as tru false array
+                lead_bell = [True if val in np.arange(0,len(bellstrikes)*nbells,nbells) else False for val in bellstrikes]
+                lead_times[bell-1] = lead_bell
 
                 if use_method_info:
                     errors = np.array(raw_actuals[bellstrikes] - raw_target[targetstrikes])
@@ -412,8 +416,7 @@ if st.session_state.current_touch >= 0:
                 if remove_confidence:
                     errors[confs < 0.9] = 0.0
                     count -= np.sum(confs < 0.9)
-
-                                        
+             
                 if remove_mistakes:
                     #Adjust stats to disregard these properly
                     count -= np.sum(errors > maxlim)
@@ -436,6 +439,132 @@ if st.session_state.current_touch >= 0:
         shifted_quality = 1.0/(1.0 + np.exp(-k*(overall_quality - x0)))
         st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
+
+        #Do plain-text appraisal of the striking. Give the most accurate and most consistent bells, and oddstruckness. Will add leading if that's a thing too
+        @st.cache_data
+        def obtain_striking_markdown(alldiags, time_errors, lead_times):
+            bell_consistencies = alldiags[1,0,:]
+            bell_accuracies = alldiags[2,0,:]
+
+            most_consistent = np.where(bell_consistencies == np.min(bell_consistencies))[0][0]
+            most_accurate = np.where(bell_accuracies == np.min(bell_accuracies))[0][0]
+
+            lines = []
+            lines.append('<u>Striking Report</u>: <br>')
+            if most_consistent == most_accurate:
+                lines.append('Bell %d was the most consistent and accurate <br>' % (most_consistent + 1))
+            else:
+                lines.append('Bell %d was the most accurate <br>' % (most_accurate + 1))
+                lines.append('Bell %d was the most consistent <br>' % (most_consistent + 1))
+
+            lines.append('  <br>')
+            maxlim = cadence*0.75
+            minlim = -cadence*0.75
+
+            threshold_1 = 0.7; threshold_2 = 0.8
+            overall_oddstrucknesses = np.zeros((nbells, 3), dtype = int)
+
+            def number_to_words(number):
+                if number == -2:
+                    return 'consistently quick'
+                elif number == -1:
+                    return 'quick'
+                elif number == 2:
+                    return 'consistently slow'
+                elif number == 1:
+                    return 'slow'
+                else:
+                    return ''
+
+            def produce_strings(bell, lines, errors_all, errors_hand, errors_back, lead = False):
+
+                if len(errors_all) < 20: #Not enough stats to go off
+                    return lines
+                all_prop = np.sum(errors_all > 0)/len(errors_all)
+                hand_prop = np.sum(errors_hand > 0)/len(errors_hand)
+                back_prop = np.sum(errors_back > 0)/len(errors_back)
+                if all_prop > threshold_2:
+                    overall_oddstrucknesses[bell,0] = 2
+                elif all_prop > threshold_1:
+                    overall_oddstrucknesses[bell,0] = 1
+                elif all_prop < 1.0-threshold_2:
+                    overall_oddstrucknesses[bell,0] = -2
+                elif all_prop < 1.0-threshold_1:
+                    overall_oddstrucknesses[bell,0] = -1
+
+                if hand_prop > threshold_2:
+                    overall_oddstrucknesses[bell,1] = 2
+                elif hand_prop > threshold_1:
+                    overall_oddstrucknesses[bell,1] = 1
+                elif hand_prop < 1.0-threshold_2:
+                    overall_oddstrucknesses[bell,1] = -2
+                elif hand_prop < 1.0-threshold_1:
+                    overall_oddstrucknesses[bell,1] = -1
+
+                if back_prop > threshold_2:
+                    overall_oddstrucknesses[bell,2] = 2
+                elif back_prop > threshold_1:
+                    overall_oddstrucknesses[bell,2] = 1
+                elif back_prop < 1.0-threshold_2:
+                    overall_oddstrucknesses[bell,2] = -2
+                elif back_prop < 1.0-threshold_1:
+                    overall_oddstrucknesses[bell,2] = -1
+            
+                #Figure out a way of writing all the things consistently and grammatically nice
+                if (overall_oddstrucknesses[bell][1] == overall_oddstrucknesses[bell][2]) and overall_oddstrucknesses[bell][1] != 0:
+                    text = number_to_words(overall_oddstrucknesses[bell][1])
+                    if not lead:
+                        lines.append('Bell %d was generally %s. <br>' % (bell+1, text))
+                    else:
+                        lines.append('Bell %d was generally %s leading. <br>' % (bell+1, text))
+                else:
+                    text1 = None; text2 = None
+                    if overall_oddstrucknesses[bell][1] != 0:
+                        text1 = number_to_words(overall_oddstrucknesses[bell][1])
+                    if overall_oddstrucknesses[bell][2] != 0:
+                        text2 = number_to_words(overall_oddstrucknesses[bell][2])
+
+                    if text1 is not None:
+                        if not lead:
+                            lines.append('Bell %d was %s at handstroke <br>' % (bell+1, text1))
+                        else:
+                            lines.append('Bell %d was %s at handstroke leads<br>' % (bell+1, text1))
+                    if text2 is not None:
+                        if not lead:
+                            lines.append('Bell %d was %s at backstroke <br>' % (bell+1, text2))
+                        else:
+                            lines.append('Bell %d was %s at backstroke leads<br>' % (bell+1, text2))
+                return lines
+
+            #Filter out leading blows. Bit tricky...
+            #Determine confidence intervals
+            for bell in range(nbells):
+                errors_all = time_errors[bell,:]
+                hand_leads = lead_times[bell,:-1:2]
+                back_leads = lead_times[bell,1::2]
+                leading_all = time_errors[bell][lead_times[bell]]
+
+                if remove_mistakes:
+                    #Adjust stats to disregard these properly
+                    errors_all[errors_all > maxlim] = 0.0
+                    errors_all[errors_all < minlim] = 0.0
+
+                errors_hand = time_errors[bell,:-1:2]
+                errors_back = time_errors[bell,1::2]
+
+                leading_hand = errors_hand[hand_leads]
+                leading_back = errors_back[back_leads]
+
+                lines = produce_strings(bell, lines, errors_all, errors_hand, errors_back, lead = False)
+                lines = produce_strings(bell, lines, leading_all, leading_hand, leading_back, lead = True)
+
+            markdown_html = '<pre>' +  ' '.join(lines) + '</pre>'
+            st.html(markdown_html)
+                    
+            return
+
+        with st.expander('View Plaintext Striking Report'):
+            obtain_striking_markdown(alldiags, time_errors, lead_times)
 
         #Want error through time for each bell, and do as a snazzy plot?
         @st.cache_data
@@ -692,7 +821,6 @@ if st.session_state.current_touch >= 0:
             plot_bar_charts(alldiags)            
 
         with st.expander("View Histograms"):
-
             @st.cache_data
             def plot_histograms(errors, x_range, nbins):
 
@@ -705,16 +833,24 @@ if st.session_state.current_touch >= 0:
                     fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
                     for bell in range(1,nbells+1):#nbells):
                         #Extract data for this bell
+
                         bellstrikes = np.where(raw_bells == bell)[0]
+                        targetstrikes = np.where(correct_bells == bell)[0]
 
                         bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
                         bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
+
+                        targetstrikes = targetstrikes[targetstrikes/nbells >= min_include_change]
+                        targetstrikes = targetstrikes[targetstrikes/nbells <= max_include_change]
 
                         if len(bellstrikes) < 2:
                             st.error('Increase range -- stats are all wrong')
                             st.stop()
 
-                        errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+                        if use_method_info:
+                            errors = np.array(raw_actuals[bellstrikes] - raw_target[targetstrikes])
+                        else:
+                            errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
 
                         #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
                         maxlim = cadence*0.75
@@ -755,7 +891,7 @@ if st.session_state.current_touch >= 0:
                     plt.close()
 
             x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")
-            nbins_default = min(100, max(int(len(errors)/5),10))
+            nbins_default = min(100, max(int(len(errors)/2.5),10))
             nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= nbins_default, format = "%d", step = 1)
             plot_histograms(errors,x_range,nbins)
 
