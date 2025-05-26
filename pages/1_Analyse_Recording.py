@@ -97,6 +97,8 @@ if 'analysis_status' not in st.session_state:
     st.session_state.analysis_status = 0   
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+if "recorder_key" not in st.session_state:
+    st.session_state.recorder_key = 0
 if 'trim_flag' not in st.session_state:
     st.session_state.trim_flag = False   
 if 'checked' not in st.session_state:
@@ -194,7 +196,7 @@ def reset_file():
     st.session_state.audio_signal = None
     st.session_state.trimmed_signal = None
     st.session_state.raw_file = None
-    
+
 st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
@@ -429,7 +431,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         if input_option == "Upload":
             raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
         else:
-            raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key + 10000)
+            raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
             if raw_file is not None:
                 #Name for the uploaded file... Tower plus random number?
                 tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
@@ -447,6 +449,8 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     if input_option == "Record" and (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
         st.audio(st.session_state.raw_file)
+    if input_option == "Record" and st.session_state.raw_file is not None:
+        st.download_button("Download this recording to device", st.session_state.raw_file, file_name = st.session_state.raw_file.name)
 
     if input_option == 0:
         if st.session_state.trimmed_signal is not None:
@@ -458,11 +462,11 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
             st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
     else:
         if st.session_state.trimmed_signal is not None:
-            st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            #st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
             st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
         elif st.session_state.audio_signal is not None:
             #Put some prints to indicate a file has been uploaded
-            st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            #st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
             st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
         
     if ['uploaded_file'] in st.session_state:
