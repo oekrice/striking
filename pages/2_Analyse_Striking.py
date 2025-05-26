@@ -95,7 +95,10 @@ st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("## Analyse Striking")
 
 st.write(
-    """This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab or from an uploaded .csv."""
+    """
+    This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab or from an uploaded .csv. \\
+    The 'ideal' times will be calculated and various statistics shown. If you have any suggestions for anything else you'd like to see, please let me know.
+    """
 )
 
 if 'cached_strikes' not in st.session_state:
