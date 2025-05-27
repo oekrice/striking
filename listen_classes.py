@@ -139,6 +139,7 @@ class parameters(object):
         self.strike_gamma = 1  #How much to care about prominence
         self.strike_gamma_init = 1.5  #How much to care about prominence for the initial rounds
         
+        
         self.freq_tcut = 0.2 #How many times the average cadence to cut off for FREQUENCIES (should be identical strikes really)
         self.freq_smoothing = 2 #How much to smooth the data when looking for frequencies (as an INTEGER)
         self.beta = 1   #How much to care whether strikes are certain when looking at frequencies

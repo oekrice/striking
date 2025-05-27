@@ -430,7 +430,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         #Decide between uploading a file and recording directly
         input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
         if input_option == "Upload":
-            raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            raw_file = st.file_uploader("Upload recording of ringing for analysis", on_change = reset_on_upload, key = st.session_state.uploader_key)
         else:
             raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
             if raw_file is not None:
