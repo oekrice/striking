@@ -26,6 +26,7 @@ import random
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
+from rwp_model import find_ideal_times_rwp
 from listen_other_functions import find_colour
 from methods import find_method_things
 
@@ -59,7 +60,7 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = True
+st.session_state.testing_mode = False
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
@@ -452,7 +453,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     if input_option == "Record" and st.session_state.raw_file is not None:
         st.download_button("Download this recording to device", st.session_state.raw_file, file_name = st.session_state.raw_file.name)
 
-    if input_option == 0:
+    if input_option == "Upload":
         if st.session_state.trimmed_signal is not None:
             st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
             st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
@@ -503,7 +504,12 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         reinforce_tmax = 90.0
         nreinforces = 5
 
-    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, reinforce_tmax, nreinforces)
+    if st.session_state.use_existing_freqs < 0:
+        npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow with little benefit)", value = False)
+    else:
+        npicks_mode = False
+
+    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, reinforce_tmax, nreinforces, npicks_mode)
     Paras.fname = str(st.session_state.tower_id)
 
     if st.session_state.use_existing_freqs < 0:
@@ -820,6 +826,19 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             else:
                 print('No method detected')
             print('Confidence: ', "%.1f %% " % (100*np.mean(st.session_state.allcerts)))
+            allstrikes_save = []
+
+            for bell in range(len(st.session_state.allstrikes)):
+                diff1s = st.session_state.allstrikes[0][2::2] - st.session_state.allstrikes[0][0:-2:2]
+                diff2s = st.session_state.allstrikes[0][3::2] - st.session_state.allstrikes[0][1:-2:2]
+            for row in range(len(st.session_state.allstrikes[0])):
+                allstrikes_save = allstrikes_save + sorted((st.session_state.allstrikes[:,row]).tolist())
+            allstrikes_save = np.array(allstrikes_save)
+            ideal_times = find_ideal_times_rwp(allstrikes_save, Paras.nbells, key = 0)
+            errors = allstrikes_save - ideal_times
+            standard_deviation = np.sqrt(np.sum(errors**2)/len(errors))
+
+            print('Approx SD', 1000*standard_deviation*Paras.dt)
             st.session_state.test_counter += 1
             st.rerun()
         else:

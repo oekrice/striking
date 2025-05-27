@@ -413,6 +413,11 @@ if st.session_state.current_touch >= 0:
             highlight_bells = st.pills("Highlight Bells", options, selection_mode="multi")
             plot_blue_line(raw_target, raw_actuals, Strike_Data.raw_bells, nbells, lead_length, min_plot_change, max_plot_change, highlight_bells, view_numbers = view_numbers)
 
+        #Bar Chart
+        with st.expander("View Error Bar Charts"):
+            st.empty()
+            plot_bar_charts(Strike_Data.alldiags, Strike_Data.nbells, titles)
+                        
         with st.expander("View Bell Errors Through Time"):
             st.empty()
             min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = nrows, value=(0, nrows), format = "%d", step = 2, key = 500 + st.session_state.current_touch)
@@ -435,11 +440,6 @@ if st.session_state.current_touch >= 0:
             if len(highlight_bells) > 0 and strokes_plot is not None:
                     plot_errors_time(Strike_Data.time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth)
         
-        #Bar Chart
-        with st.expander("View Error Bar Charts"):
-            st.empty()
-            plot_bar_charts(Strike_Data.alldiags, Strike_Data.nbells, titles)            
-
         with st.expander("View Histograms"):
             st.empty()
             x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")

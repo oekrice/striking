@@ -114,12 +114,12 @@ class parameters(object):
     #Also all variables that can theoretically be easily changed
     
     #Want only one of these to exist at once -- so define as a singleton
-    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
+    def __new__(cls, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces, npicks_mode):
         if not hasattr(cls, 'instance'):
             cls.instance = super(parameters, cls).__new__(cls)
         return cls.instance
     
-    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces):
+    def __init__(self, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces, npicks_mode):
                 
         self.dt = 0.01
         self.fcut_length = 0.125  #Length of each transform slice (in seconds)
@@ -143,8 +143,12 @@ class parameters(object):
         self.freq_smoothing = 2 #How much to smooth the data when looking for frequencies (as an INTEGER)
         self.beta = 1   #How much to care whether strikes are certain when looking at frequencies
         self.freq_filter = 2#How much to filter the frequency profiles (in INT)
-        self.n_frequency_picks = 15  #Number of frequencies to look for (per bell)
-        
+
+        if npicks_mode:
+            self.n_frequency_picks = 20  #Number of frequencies to look for (per bell)
+        else:
+            self.n_frequency_picks = 10  #Number of frequencies to look for (per bell)
+            
         self.rounds_probs_smooth = 2  
         self.rounds_tcut = 0.5 #How many times the average cadence to cut off find in rounds
         self.rounds_leeway = 1.5 #How far to allow a strike before it is more improbable
