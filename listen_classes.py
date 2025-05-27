@@ -100,6 +100,7 @@ class audio_data():
             
             st.session_state.audio_filename = raw_file.name[:-4]
             st.session_state.uploader_key += 1
+            st.session_state.recorder_key += 1
 
             del self.fs
             del self.data

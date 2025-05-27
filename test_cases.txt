@@ -93,7 +93,9 @@ Collingham, S Oswald;6;audio/Collingham 3.m4a
 Collingham, S Oswald;8;audio/Collingham 5.m4a
 Woolpit, Blessed Virgin Mary;6;audio/VE Day Bob Minor at Woolpit 2025-05-05 (1).m4a
 Woolpit, Blessed Virgin Mary;6;audio/Woolpit Call Changes 2024 05 04.m4a
-
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;10;audio/Cathedral PB9.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;10;audio/Cathedral Changes.m4a
+Durham, Cath Ch of Christ, Blessed Virgin Mary, & S Cuthbert;8;audio/Cathedral G7-1.m4a
 
 
 

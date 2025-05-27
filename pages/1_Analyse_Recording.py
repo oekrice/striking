@@ -22,6 +22,7 @@ import pandas as pd
 import os
 import gc
 import io
+import random
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
@@ -32,7 +33,7 @@ st.set_page_config(page_title="Analyse Recording", page_icon="🎤")
 st.markdown("## Analyse a Recording")
 #st.sidebar.header("Analyse Striking")
 st.write("This page is to find strike times from a recording of bellringing")
-with st.expander('Instructions for use'):
+with st.expander('How to use this'):
     st.markdown(
         """
         1. Select the tower and bells being rung -- take care to uncheck bells if only ringing the back 6 of an 8 etc..
@@ -58,11 +59,11 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = False
+st.session_state.testing_mode = True
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
-    init_test = 0
+    init_test = 6
     single_test = False
 
     if "test_counter" not in st.session_state:
@@ -96,10 +97,14 @@ if 'analysis_status' not in st.session_state:
     st.session_state.analysis_status = 0   
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+if "recorder_key" not in st.session_state:
+    st.session_state.recorder_key = 0
 if 'trim_flag' not in st.session_state:
     st.session_state.trim_flag = False   
 if 'checked' not in st.session_state:
     st.session_state.checked = []  
+if 'raw_file' not in st.session_state:
+    st.session_state.raw_file = None  
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
     st.session_state.reinforce_test_frequencies = None   
@@ -183,6 +188,14 @@ def reset_on_upload():
     st.session_state.trim_flag = False
     st.session_state.allstrikes = None  
     st.session_state.allcerts = None  
+    st.session_state.audio_signal = None
+    st.session_state.trimmed_signal = None
+    st.session_state.raw_file = None
+
+def reset_file():
+    st.session_state.audio_signal = None
+    st.session_state.trimmed_signal = None
+    st.session_state.raw_file = None
 
 st.session_state.counter += 1
 
@@ -214,13 +227,13 @@ if st.session_state.tower_name is not None:
         #st.session_state.nominals_confirmed = True
 
 if st.session_state.testing_mode:
-    st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 else:
     if not existing_selected:
-        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
     else:
-        st.session_state.tower_name = st.selectbox('Select tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 
@@ -404,7 +417,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
-
+    input_option = 0
     #st.write(st.session_state.audio_signal is not None)
     if st.session_state.testing_mode:
         test_fname = input_matrix[st.session_state.test_counter][2]
@@ -413,8 +426,17 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
             raw_file = io.BytesIO(file_bytes)
             raw_file.name = test_fname
     else:
-        raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
-    
+        #Decide between uploading a file and recording directly
+        input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
+        if input_option == "Upload":
+            raw_file = st.file_uploader("Upload recording of ringing for analysis, or record directly (works on Android sometimes)", on_change = reset_on_upload, key = st.session_state.uploader_key)
+        else:
+            raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            if raw_file is not None:
+                #Name for the uploaded file... Tower plus random number?
+                tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
+                raw_file.name = ('%s_record_%04d.wav' % (tower_short, int(random.random()*10000)))
+                st.session_state.raw_file = raw_file
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     
     if raw_file is not None:
@@ -425,15 +447,28 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         
     #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
+    if input_option == "Record" and (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
+        st.audio(st.session_state.raw_file)
+    if input_option == "Record" and st.session_state.raw_file is not None:
+        st.download_button("Download this recording to device", st.session_state.raw_file, file_name = st.session_state.raw_file.name)
 
-    if st.session_state.trimmed_signal is not None:
-        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
-    elif st.session_state.audio_signal is not None:
-        #Put some prints to indicate a file has been uploaded
-        st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
-        st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
-
+    if input_option == 0:
+        if st.session_state.trimmed_signal is not None:
+            st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+            st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+        elif st.session_state.audio_signal is not None:
+            #Put some prints to indicate a file has been uploaded
+            st.write('File "%s" read in successfully.' % st.session_state.audio_filename)
+            st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+    else:
+        if st.session_state.trimmed_signal is not None:
+            #st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            st.write('Trimmed recording length: %d seconds.' % (len(st.session_state.trimmed_signal)/st.session_state.fs))
+        elif st.session_state.audio_signal is not None:
+            #Put some prints to indicate a file has been uploaded
+            #st.write('File "%s" recorded successfully.' % st.session_state.audio_filename)
+            st.write('Imported recording length: %d seconds.' % (len(st.session_state.audio_signal)/st.session_state.fs))
+        
     if ['uploaded_file'] in st.session_state:
         del st.session_state['uploaded_file']
 
@@ -560,11 +595,12 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
     #st.write(st.session_state.analysis_status)
 
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
-        if st.session_state.use_existing_freqs < 0:
+        if st.session_state.use_existing_freqs < 0 and st.session_state.analysis_status != 2:
             st.empty().write('New frequency profile calculated. Ready to find strike times.')
-        else:
+        elif st.session_state.analysis_status != 2:
             st.empty().write('Existing frequency profile loaded. Ready to find strike times.')
-            
+        else:
+            st.empty().write("Strike times already found but you're welcome to try again if it's gone wrong.")
         def change_analysis():
             if st.session_state.analysis_status == 1:
                 if st.session_state.final_freqs is not None:
@@ -646,10 +682,11 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             goodenough = False
         if len(st.session_state.allstrikes[0]) < 60.0:
             goodenough = False
-        
+        if (quality > 0.95 and len(allrows_correct) > 60):
+            goodenough = True
+
         #If it's good, give an option to save out so it can be used next time
         if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough and freq_filename is not None and st.session_state.reinforce_frequency_data is not None:
-            
             #Check for an automatic save. If these are better than the existing AND either 98% + or ge. than 60 changes of a method with good match
             save_automatically = False
             if np.mean(st.session_state.allcerts) > best_freq_quality:

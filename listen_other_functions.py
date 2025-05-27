@@ -109,6 +109,8 @@ def find_rough_cadence(Paras, Data):
         back_bell_cutoff = max(2,int(len(Data.strike_probabilities)/4))
 
         peaks, _ = find_peaks(loudsmooth) 
+        if len(peaks) < 2:
+            return np.nan
         avg_peak_distance = np.sum(peaks[1:] - peaks[:-1])/len(peaks[1:])
         cadences.append(avg_peak_distance)
     #plt.close()
@@ -122,6 +124,13 @@ def find_first_strikes(Paras, Data):
 
     #Want to plot prominences and things to check if these is an obvious pattern
     rough_cadence = find_rough_cadence(Paras, Data)   #This gives an impression of how long it is between successive changes
+    if np.isnan(rough_cadence):
+        st.error("Can't detect any ringing... Apologies")
+        if st.session_state.testing_mode:
+            test_error("Can't detect any ringing... Apologies")
+        else:
+            st.stop()
+
     npeaks_ish = int((len(Data.strike_probabilities[0]) - Paras.ringing_start*Paras.dt)/rough_cadence)
 
     #fig = plt.figure()
