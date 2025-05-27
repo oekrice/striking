@@ -59,7 +59,7 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = True
+st.session_state.testing_mode = False
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
