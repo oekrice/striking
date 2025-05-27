@@ -22,6 +22,7 @@ import pandas as pd
 
 from strike_model import find_ideal_times
 from strike_model_band import find_ideal_times_band
+from rwp_model import find_ideal_times_rwp
 from methods import find_method_things, print_composition
 from data_visualisations import calculate_stats, obtain_striking_markdown, plot_errors_time, plot_bar_charts, plot_histograms, plot_boxes, plot_blue_line
 
@@ -139,9 +140,12 @@ for i in range(len(st.session_state.cached_data)):
 if len(touch_titles) > 0:
     selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
 
-uploaded_files = st.file_uploader(
-    "Upload data from device", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
-
+    uploaded_files = st.file_uploader(
+        "Or upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+else:
+    uploaded_files = st.file_uploader(
+        "Upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+    
 dealwith_upload()
 
 if len(touch_titles) == 0:
@@ -277,20 +281,19 @@ if st.session_state.current_touch >= 0:
         start_row = 0; end_row = int(len(raw_actuals)/nbells)
         lead_length = 24
 
-    if "Individual Model" not in  raw_data.columns.tolist():
-        #st.write(len(raw_data['Actual Time'])//nbells)
-        count_test = st.session_state.rhythm_variation_time*nbells; gap_test = st.session_state.handstroke_gap_variation_time
-        ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test, key = st.session_state.current_touch)
-        raw_data['Individual Model'] = ideal_times
-        existing_models.append('Individual Model')
-
     if "Team Model" not in  raw_data.columns.tolist():
-        #st.write(len(raw_data['Actual Time'])//nbells)
         count_test = st.session_state.rhythm_variation_time*nbells; gap_test = st.session_state.handstroke_gap_variation_time
         ideal_times = find_ideal_times_band(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test, key = st.session_state.current_touch)
         raw_data['Team Model'] = ideal_times
         existing_models.append('Team Model')
     
+    ideal_times = find_ideal_times_rwp(raw_data['Actual Time'], nbells, key = st.session_state.current_touch)
+    if "RWP Model" not in  raw_data.columns.tolist():
+        #st.write(len(raw_data['Actual Time'])//nbells)
+        ideal_times = find_ideal_times_rwp(raw_data['Actual Time'], nbells, key = st.session_state.current_touch)
+        raw_data["RWP Model"] = ideal_times
+        existing_models.append("RWP Model")
+
     if "Corrected Bells" not in  raw_data.columns.tolist():
         #Add the correct order the bells should be in, based on the method analysis
         corrected_order = raw_data["Bell No"].values.copy()  #The original order
@@ -317,6 +320,12 @@ if st.session_state.current_touch >= 0:
             raw_data['Metronomic Model'] = all_metros
             existing_models.append('Metronomic Model')
     
+    if "Individual Model" not in  raw_data.columns.tolist():
+        count_test = st.session_state.rhythm_variation_time*nbells; gap_test = st.session_state.handstroke_gap_variation_time
+        ideal_times = find_ideal_times(raw_data['Actual Time'], nbells, ncount = count_test, ngaps = gap_test, key = st.session_state.current_touch)
+        raw_data['Individual Model'] = ideal_times
+        existing_models.append('Individual Model')
+
     if len(existing_models) > 0:
                 
         with st.expander("Statistical Options"):

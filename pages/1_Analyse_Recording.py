@@ -59,11 +59,11 @@ if not os.path.exists('./striking_data/'):
 
 #Establish persistent variables
 
-st.session_state.testing_mode = False
+st.session_state.testing_mode = True
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
-    init_test = 0
+    init_test = 6
     single_test = False
 
     if "test_counter" not in st.session_state:
@@ -595,9 +595,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
     #st.write(st.session_state.analysis_status)
 
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
-        if st.session_state.use_existing_freqs < 0 and st.session_state.analysis_status == 0:
+        if st.session_state.use_existing_freqs < 0 and st.session_state.analysis_status != 2:
             st.empty().write('New frequency profile calculated. Ready to find strike times.')
-        elif st.session_state.analysis_status == 0:
+        elif st.session_state.analysis_status != 2:
             st.empty().write('Existing frequency profile loaded. Ready to find strike times.')
         else:
             st.empty().write("Strike times already found but you're welcome to try again if it's gone wrong.")
@@ -682,10 +682,11 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             goodenough = False
         if len(st.session_state.allstrikes[0]) < 60.0:
             goodenough = False
-        
+        if (quality > 0.95 and len(allrows_correct) > 60):
+            goodenough = True
+
         #If it's good, give an option to save out so it can be used next time
         if st.session_state.use_existing_freqs == -1 and not st.session_state.already_saved and goodenough and freq_filename is not None and st.session_state.reinforce_frequency_data is not None:
-            
             #Check for an automatic save. If these are better than the existing AND either 98% + or ge. than 60 changes of a method with good match
             save_automatically = False
             if np.mean(st.session_state.allcerts) > best_freq_quality:
