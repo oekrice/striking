@@ -28,15 +28,21 @@ def run():
     )
 
     st.markdown('''
-                ## BReNDA 0.9.3 
+                ## BReNDA 0.9.4 
                 ### Bell REcording with Novel Data Analysis 
                 ''')
     st.markdown('''
-                **Latest update (0.9.3):** \\
+                **Update (0.9.3):** \\
                 Added a new module to retroactively find places where the change becomes ill-defined, such as particularly choppy ringing or firing out and restarting.
                 Also automated more of the frequency reinforcement, and fixed some bugs with the method detection when things fire out.
                 ''')
-    
+    st.markdown('''
+                **Update (0.9.4):** \\
+                Added several new frontend features:
+                * In-browser recording added (a popular request)
+                * Added RWP striking model as an option on the Analyse Striking page
+                * Added a plain text striking report for each touch, identifying things which can be improved for each bell. Works using confidence intervals so can identify plenty which isn't obvious from the graphs themselves
+                ''')
     st.write('### How to use this app')
     st.markdown('''
         There are two 'pages' which can be accessed with the below links or the sidebar on the left (a bit clunky on a phone, apologies).
