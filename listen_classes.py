@@ -143,7 +143,7 @@ class parameters(object):
         self.freq_smoothing = 2 #How much to smooth the data when looking for frequencies (as an INTEGER)
         self.beta = 1   #How much to care whether strikes are certain when looking at frequencies
         self.freq_filter = 2#How much to filter the frequency profiles (in INT)
-        self.n_frequency_picks = 10  #Number of frequencies to look for (per bell)
+        self.n_frequency_picks = 15  #Number of frequencies to look for (per bell)
         
         self.rounds_probs_smooth = 2  
         self.rounds_tcut = 0.5 #How many times the average cadence to cut off find in rounds

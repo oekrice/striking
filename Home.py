@@ -42,6 +42,7 @@ def run():
                 * In-browser recording added (a popular request)
                 * Added RWP striking model as an option on the Analyse Striking page
                 * Added a plain text striking report for each touch, identifying things which can be improved for each bell. Works using confidence intervals so can identify plenty which isn't obvious from the graphs themselves
+                * Made some minor changes to the timing identification to try to improve the accuracy. Now usually within 5ms of HawkEar, from what I've tested.
                 ''')
     st.write('### How to use this app')
     st.markdown('''
