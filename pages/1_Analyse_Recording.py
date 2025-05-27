@@ -595,11 +595,12 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
     #st.write(st.session_state.analysis_status)
 
     if st.session_state.good_frequencies_selected and st.session_state.trimmed_signal is not None:
-        if st.session_state.use_existing_freqs < 0:
+        if st.session_state.use_existing_freqs < 0 and st.session_state.analysis_status == 0:
             st.empty().write('New frequency profile calculated. Ready to find strike times.')
-        else:
+        elif st.session_state.analysis_status == 0:
             st.empty().write('Existing frequency profile loaded. Ready to find strike times.')
-            
+        else:
+            st.empty().write("Strike times already found but you're welcome to try again if it's gone wrong.")
         def change_analysis():
             if st.session_state.analysis_status == 1:
                 if st.session_state.final_freqs is not None:
