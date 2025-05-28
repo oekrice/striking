@@ -16,6 +16,7 @@ This software is provided "as is", without warranty of any kind, express or impl
 If you would like to license or publish this software commerically, please contact oliverricesolar@gmail.com
 '''
 
+#Comment so it detects a commit
 import streamlit as st
 from streamlit.logger import get_logger
 
