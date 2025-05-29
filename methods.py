@@ -921,7 +921,7 @@ def check_lead_ends(methods, calls, nbells, method_data):
 
     return methods
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def find_method_things(raw_data):
     
     method_data = pd.read_csv('./method_data/clean_methods.csv')
@@ -977,7 +977,7 @@ def find_method_things(raw_data):
 
     return methods, hunt_types, calls, start_row, end_row, allrows, count
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def print_composition(methods, hunt_types, calls, relevant_rows):
     #Should output a markdown of the calling and composition lead-by-lead.
     #All touches output simple PSPPBPPSP etc. 

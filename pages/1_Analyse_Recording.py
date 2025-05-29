@@ -211,7 +211,7 @@ st.session_state.counter += 1
 
 progress_counter = 0   #How far through the thing is
 
-@st.cache_data               
+@st.cache_data(ttl=300)               
 def read_bell_data():
     nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
     return nominal_import
@@ -354,7 +354,6 @@ if st.session_state.tower_selected:
             st.session_state.bell_nominals = edited_nominals
             st.rerun()
     
-#@st.cache_data(ttl=60)
 def process_audio_files(raw_file, doprints):
     #Function that needs caching to avoid the need to keep uploading and converting things
     audio_data(raw_file, doprints)
@@ -699,7 +698,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             goodenough = False
         if len(st.session_state.allstrikes[0]) < 60.0:
             goodenough = False
-        if (quality > 0.95 and len(allrows_correct) > 60):
+        if (quality > 0.9 and len(allrows_correct) > 60):
             goodenough = True
 
         #If it's good, give an option to save out so it can be used next time
@@ -821,7 +820,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         #Create strike data in the right format (like the Strikeometer)
         striking_df, orders = save_strikes(Paras)
         #striking_df.attrs = {"Tower Name": st.session_state.tower_name, "Touch Length": st.session_state.touch_length, "File Name": st.session_state.audio_filename}
-        @st.cache_data
+        @st.cache_data(ttl=300)
         def convert_for_download(df):
             return df.to_csv().encode("utf-8")
 

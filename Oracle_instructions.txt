@@ -51,11 +51,15 @@ RUN: sudo systemctl enable --now nginx
 
 #Install certbot (this didn't work before but I'm more awake today...)
 #-----------------------------------------------
+RUN: sudo dnf install epel-release
+RUN: sudo dnf config-manager --set-enabled ol9_developer_EPEL
+RUN: sudo dnf update
 RUN: sudo dnf install -y snapd
 RUN: sudo systemctl enable --now snapd.socket
 RUN: sudo ln -s /var/lib/snapd/snap /snap
 RUN: sudo systemctl start snapd
 RUN: sudo snap install --classic certbot
+
 
 CHANGE DNS RECORD IN Squarespace TO POINT AT THIS IP -- don't need txt though
 NAVIATE TO SECURITY RULES IN ORACLE
@@ -63,8 +67,13 @@ Add ingress rule:
 Type CIDR, Source 0.0.0.0/0, TCP, Destination Port 80:443 and save
 DO NOT ADD 8501 unless testing!
 
+!All good until here
+#Test and reset nginx
+RUN: sudo nginx -t
+RUN: sudo systemctl reload nginx  
+
 #File should be in the GitHub (and I'll update it as appropriate), one hopes, but need to copy to the right place
-RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?
+RUN: sudo cp brenda_setup.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?    
 RUN: sudo /snap/bin/certbot --nginx -d brenda.oekrice.com -d brenda.oekrice.com
 RUN: sudo /snap/bin/certbot renew --dry-run    #Just to test
 Follow prompts. Should be OK... Check Brenda file is still all right
@@ -72,9 +81,9 @@ Follow prompts. Should be OK... Check Brenda file is still all right
 #Allow streamlit and other things through the firewall
 RUN: sudo dnf install firewalld
 RUN: sudo firewall-cmd --zone=public --permanent --add-port=8501/tcp 
-RUN: sudo firewall-cmd --zone=public --permanent --add-port=80/tcp
-RUN: sudo firewall-cmd --zone=public --permanent --add-port=443/tcp
-RUN: sudo firewall-cmd --reload
+sudo firewall-cmd --zone=public --permanent --add-port=80/tcp
+sudo firewall-cmd --zone=public --permanent --add-port=443/tcp
+sudo firewall-cmd --reload
 
 RUN: sudo setsebool -P httpd_can_network_connect 1   #Allows them to talk to each other  - IMPORTANT
 
@@ -110,7 +119,10 @@ RUN: sudo systemctl stop nginx
 RUN: sudo systemctl disable nginx
 
 #To go:
-RUN: sudo docker compose up -d --build 
+RUN: cd ..
+RUN: sudo COMPOSE_BAKE=true docker compose up --build 
+or
+RUN: sudo COMPOSE_BAKE=true docker compose up -dd --build   #For actual having it running
 #To stop all:
 #Not sure, doesn't seem to work
 

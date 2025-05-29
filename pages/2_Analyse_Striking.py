@@ -302,7 +302,7 @@ if st.session_state.current_touch >= 0:
         raw_data["Corrected Bells"] = corrected_order
         
     if "Metronomic Model" not in  raw_data.columns.tolist():
-        @st.cache_data
+        @st.cache_data(ttl=300)
         def find_metronomic(raw_data):
             nrows = int(len(raw_data['Actual Time'])//nbells)
             all_metros = []
@@ -451,7 +451,7 @@ if st.session_state.current_touch >= 0:
             st.empty()
             plot_boxes(Strike_Data.time_errors, nbells, titles)
 
-        @st.cache_data
+        @st.cache_data(ttl=300)
         def convert_for_download(df):
             return df.to_csv().encode("utf-8")
 

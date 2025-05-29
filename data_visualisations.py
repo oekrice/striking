@@ -111,7 +111,7 @@ def calculate_stats(Strike_Data):
     return Strike_Data
 
 #Do plain-text appraisal of the striking. Give the most accurate and most consistent bells, and oddstruckness. Will add leading if that's a thing too
-@st.cache_data
+@st.cache_data(ttl=300)
 def obtain_striking_markdown(alldiags, time_errors, lead_times, cadence, remove_mistakes):
     nbells = np.shape(time_errors)[0]
     bell_consistencies = alldiags[1,0,:]
@@ -235,7 +235,7 @@ def obtain_striking_markdown(alldiags, time_errors, lead_times, cadence, remove_
     return
 
 #Want error through time for each bell, and do as a snazzy plot?
-@st.cache_data
+@st.cache_data(ttl=300)
 def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth):
     #Just do both strokes to start with because easy
     fig5, ax5 = plt.subplots(1, figsize = (10,5))
@@ -311,7 +311,7 @@ def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, h
 
     return
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def plot_bar_charts(alldiags, nbells, titles):
     fig3, axs3 = plt.subplots(3, figsize = (12,8))
     bar_width = 0.3
@@ -347,7 +347,7 @@ def plot_bar_charts(alldiags, nbells, titles):
     plt.clf()
     plt.close()
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def plot_histograms(errors, x_range, nbins, nbells, raw_bells, correct_bells, min_include_change, max_include_change, use_method_info, remove_mistakes, cadence, raw_actuals, raw_target, titles):
 
     for plot_id in range(3):
@@ -416,7 +416,7 @@ def plot_histograms(errors, x_range, nbins, nbells, raw_bells, correct_bells, mi
         plt.clf()
         plt.close()
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def plot_boxes(errors, nbells, titles):
     fig4, axs4 = plt.subplots(3, figsize = (12,8))
     for plot_id in range(3):
@@ -448,7 +448,7 @@ def plot_boxes(errors, nbells, titles):
     plt.clf()
     plt.close()
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def plot_blue_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_length, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
     
     bell_names = ['1','2','3','4','5','6','7','8','9','0','E','T','A','B','C','D']
