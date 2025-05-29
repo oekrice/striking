@@ -1,0 +1,6 @@
+sudo nano /etc/letsencrypt/renewal-hooks/post/reload-nginx.sh
+
+#!/bin/bash
+systemctl reload nginx
+
+sudo chmod +x /etc/letsencrypt/renewal-hooks/post/reload-nginx.sh

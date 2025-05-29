@@ -1,0 +1,113 @@
+Setup instructions for Oracle VM, using nginx for HTTPS and certificates and things
+Necessary files should be kept and maintained in the git repo (for certificates etc.)
+
+#Download SSH certificates during instance creation.
+#Public IP lives under the 'instances' heading
+
+#SSH in to machine
+ssh -I $(private key name) opc@$(Public IP address)
+
+#Create SWAP file so it doesn't run out of memory during installation
+#------------------------------------------
+RUN: sudo fallocate -l 10G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+#Install docker
+#------------------------------------------
+
+#Install dnf utilities (slow one)
+RUN: sudo dnf install -y dnf-utils device-mapper-persistent-data lvm2
+#The above one is slow, and uses lots of memory
+
+#Install and enable
+RUN: sudo dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+RUN: sudo dnf install -y docker-ce docker-ce-cli containerd.io
+#The above one is VERY slow
+RUN: sudo systemctl enable --now docker
+
+#Clean up:
+RUN: sudo dnf clean all
+RUN: sudo rm -rf /var/cache/dnf
+
+
+#Get files from Github
+#------------------------------------------
+RUN: sudo dnf install -y git
+RUN: git clone https://github.com/oekrice/striking.git
+RUN: cd striking
+
+#Install HTTPS things with nginx (quite quick)
+RUN: sudo dnf install -y nginx
+RUN: sudo systemctl enable --now nginx
+RUN: sudo firewall-cmd --permanent --add-service=http
+RUN: sudo firewall-cmd --permanent --add-service=https
+RUN: sudo firewall-cmd --reload
+
+#Install nginx
+RUN: sudo dnf install -y nginx
+RUN: sudo systemctl enable --now nginx
+
+#Install certbot (this didn't work before but I'm more awake today...)
+#-----------------------------------------------
+RUN: sudo dnf install -y snapd
+RUN: sudo systemctl enable --now snapd.socket
+RUN: sudo ln -s /var/lib/snapd/snap /snap
+RUN: sudo systemctl start snapd
+RUN: sudo snap install --classic certbot
+
+CHANGE DNS RECORD IN Squarespace TO POINT AT THIS IP -- don't need txt though
+NAVIATE TO SECURITY RULES IN ORACLE
+Add ingress rule:
+Type CIDR, Source 0.0.0.0/0, TCP, Destination Port 80:443 and save
+DO NOT ADD 8501 unless testing!
+
+#File should be in the GitHub (and I'll update it as appropriate), one hopes, but need to copy to the right place
+RUN: sudo cp brenda_setup.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?
+RUN: sudo /snap/bin/certbot --nginx -d brenda.oekrice.com -d brenda.oekrice.com
+RUN: sudo /snap/bin/certbot renew --dry-run    #Just to test
+Follow prompts. Should be OK... Check Brenda file is still all right
+
+#Allow streamlit and other things through the firewall
+RUN: sudo dnf install firewalld
+RUN: sudo firewall-cmd --zone=public --permanent --add-port=8501/tcp 
+RUN: sudo firewall-cmd --zone=public --permanent --add-port=80/tcp
+RUN: sudo firewall-cmd --zone=public --permanent --add-port=443/tcp
+RUN: sudo firewall-cmd --reload
+
+RUN: sudo setsebool -P httpd_can_network_connect 1   #Allows them to talk to each other
+
+RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf
+
+RUN: mkdir frequency_data
+#Mount the volume so Docker can deal with it
+
+
+#Actually run Brenda with docker:
+RUN: docker build -t Brenda .
+RUN: sudo docker run -v "$(pwd)/frequency_data:/striking/frequency_data" -p 8501:8501 --name brenda brenda
+
+#Test and reset nginx
+RUN: sudo nginx -t
+RUN: sudo systemctl reload nginx  
+
+#That should be all!
+
+
+
+Certificates are in 
+"/etc/letsencrypt/live/brenda.oekrice.com/"
+I think...
+
+
+#Set up docker thing (NOT with compose)
+RUN: mkdir /nginx/ssl
+RUN: sudo cp /etc/letsencrypt/live/brenda.oekrice.com/fullchain.pem  /etc/nginx/ssl/
+RUN: sudo cp /etc/letsencrypt/live/brenda.oekrice.com/privkey.pem  /etc/nginx/ssl/
+
+#To run nginx on its own (with defaults):
+sudo docker run --name my-nginx -d -p 80:80 nginx
+
+
+
