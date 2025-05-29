@@ -20,7 +20,7 @@ ENV STREAMLIT_BROWSER_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 
 # Expose the default Streamlit port
-EXPOSE 8501
+EXPOSE ${STREAMLIT_SERVER_PORT}
 
 # Run the Streamlit app
-CMD ["streamlit", "run", "Home.py", "--server.enableCORS=false"]
+CMD ["sh", "-c", "streamlit run Home.py --server.port=${STREAMLIT_SERVER_PORT} --server.enableCORS=false"]

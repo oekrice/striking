@@ -64,7 +64,7 @@ Type CIDR, Source 0.0.0.0/0, TCP, Destination Port 80:443 and save
 DO NOT ADD 8501 unless testing!
 
 #File should be in the GitHub (and I'll update it as appropriate), one hopes, but need to copy to the right place
-RUN: sudo cp brenda_setup.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?
+RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?
 RUN: sudo /snap/bin/certbot --nginx -d brenda.oekrice.com -d brenda.oekrice.com
 RUN: sudo /snap/bin/certbot renew --dry-run    #Just to test
 Follow prompts. Should be OK... Check Brenda file is still all right
@@ -87,7 +87,10 @@ RUN: mkdir frequency_data
 
 #Actually run Brenda with docker:
 RUN: docker build -t Brenda .
-RUN: sudo docker run -v "$(pwd)/frequency_data:/striking/frequency_data" -p 8501:8501 --name brenda brenda
+RUN: sudo docker run -v -d "$(pwd)/frequency_data:/striking/frequency_data" -p 8501:8501 --name brenda brenda
+
+#Stop running Brenda
+RUN: sudo docker rm -f brenda
 
 #Test and reset nginx
 RUN: sudo nginx -t
@@ -98,6 +101,18 @@ RUN: sudo systemctl reload nginx
 #New attempt::::: Running with multiple processes!
 #This involves doing docker compose
 
+
+#New files are all set up (I think it's fine). 
+#To run:
+
+RUN: sudo lsof -i :80 #This checks for existing processes, might be worth killing them
+RUN: sudo systemctl stop nginx
+RUN: sudo systemctl disable nginx
+
+#To go:
+RUN: sudo docker compose up -d --build 
+#To stop all:
+#Not sure, doesn't seem to work
 
 
 #To run nginx on its own (with defaults):
