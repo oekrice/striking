@@ -20,6 +20,7 @@ If you would like to license or publish this software commerically, please conta
 import streamlit as st
 from streamlit.logger import get_logger
 
+
 LOGGER = get_logger(__name__)
 
 def run():
@@ -27,6 +28,7 @@ def run():
         page_title="Home",
         page_icon="🔔",
     )
+    
 
     st.markdown('''
                 ## BReNDA 0.9.4 

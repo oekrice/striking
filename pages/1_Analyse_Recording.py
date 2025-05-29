@@ -31,7 +31,16 @@ from listen_other_functions import find_colour
 from methods import find_method_things
 
 st.set_page_config(page_title="Analyse Recording", page_icon="🎤")
+
+st.markdown("""
+    <style>
+    [data-testid="stDeployButton"] {
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
 st.markdown("## Analyse a Recording")
+
 #st.sidebar.header("Analyse Striking")
 st.write("This page is to find strike times from a recording of bellringing")
 with st.expander('How to use this'):
@@ -298,13 +307,15 @@ if st.session_state.tower_selected:
                     if len(st.session_state.checked) > 0:
                         if bell_names[i] in st.session_state.checked:
                             checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                            max_bell = max(max_bell, int(bell_names[i]))    
+                            if bell_names[i].isnumeric():
+                                max_bell = max(max_bell, int(bell_names[i]))    
                         else:
                             checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
                     else:
                         if bell_names[i].isnumeric():
                             checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                            max_bell = max(max_bell, int(bell_names[i]))    
+                            if bell_names[i].isnumeric():
+                                max_bell = max(max_bell, int(bell_names[i]))    
                         else:
                             checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
                     if checked:
