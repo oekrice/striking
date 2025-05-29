@@ -12,7 +12,8 @@ COPY . /striking
 
 # Install dependencies
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt \
+    && rm -rf /root/.cache/pip
 
 #Try to remove headers
 ENV STREAMLIT_SERVER_HEADLESS=true
