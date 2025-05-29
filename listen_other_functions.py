@@ -1285,12 +1285,7 @@ def find_strike_probabilities(Paras, Data, init = False, final = False):
 
     else:
         #There are multiple frequency picks to choose from here, so it's more complicated
-        difflogs = np.array(difflogs)
             
-        if final:
-            doplot = False
-        else:
-            doplot = True
         for bell in range(Paras.nbells):  
             final_poss = []; final_sigs = []; final_probs = []; final_freqs = []
             for fi, freq_test in enumerate(Data.test_frequencies):
