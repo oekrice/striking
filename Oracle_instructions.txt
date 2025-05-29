@@ -76,10 +76,11 @@ RUN: sudo firewall-cmd --zone=public --permanent --add-port=80/tcp
 RUN: sudo firewall-cmd --zone=public --permanent --add-port=443/tcp
 RUN: sudo firewall-cmd --reload
 
-RUN: sudo setsebool -P httpd_can_network_connect 1   #Allows them to talk to each other
+RUN: sudo setsebool -P httpd_can_network_connect 1   #Allows them to talk to each other  - IMPORTANT
 
-RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf
+RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf   #Copy complete Brenda conf in for SSHing
 
+#Below here to actually run things -- may end up different!
 RUN: mkdir frequency_data
 #Mount the volume so Docker can deal with it
 
@@ -94,17 +95,10 @@ RUN: sudo systemctl reload nginx
 
 #That should be all!
 
+#New attempt::::: Running with multiple processes!
+#This involves doing docker compose
 
 
-Certificates are in 
-"/etc/letsencrypt/live/brenda.oekrice.com/"
-I think...
-
-
-#Set up docker thing (NOT with compose)
-RUN: mkdir /nginx/ssl
-RUN: sudo cp /etc/letsencrypt/live/brenda.oekrice.com/fullchain.pem  /etc/nginx/ssl/
-RUN: sudo cp /etc/letsencrypt/live/brenda.oekrice.com/privkey.pem  /etc/nginx/ssl/
 
 #To run nginx on its own (with defaults):
 sudo docker run --name my-nginx -d -p 80:80 nginx
