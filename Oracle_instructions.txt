@@ -79,11 +79,11 @@ RUN: sudo firewall-cmd --reload
 RUN: sudo setsebool -P httpd_can_network_connect 1   #Allows them to talk to each other  - IMPORTANT
 
 RUN: sudo cp brenda.conf /etc/nginx/conf.d/brenda.conf   #Copy complete Brenda conf in for SSHing
+RUN: sudo cp -a oracle_root/. ../  #To be confirmed on next install (call from in Striking)
 
 #Below here to actually run things -- may end up different!
 RUN: mkdir frequency_data
 #Mount the volume so Docker can deal with it
-
 
 #Actually run Brenda with docker:
 RUN: docker build -t Brenda .
