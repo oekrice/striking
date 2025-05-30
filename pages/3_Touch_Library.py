@@ -568,7 +568,7 @@ elif ntouches == 1:
 else:
     st.write('%d touches currently in this collection:' % ntouches)
 
-for ti, info in enumerate(saved_index_list):
+for ti, info in enumerate(saved_index_list[::-1]):
     longtitle = make_longtitle_collection(info)
     st.write(longtitle)
             
