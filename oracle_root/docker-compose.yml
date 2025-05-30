@@ -7,6 +7,7 @@ services:
       - STREAMLIT_SERVER_PORT=8501
     volumes:
       - ./striking/frequency_data:/striking/frequency_data
+      - ./striking/frequency_data:/striking/saved_touches
 
   streamlit2:
     build: ./striking
@@ -16,7 +17,7 @@ services:
       - STREAMLIT_SERVER_PORT=8502
     volumes:
       - ./striking/frequency_data:/striking/frequency_data
-
+      - ./striking/frequency_data:/striking/saved_touches
   streamlit3:
     build: ./striking
     ports:
@@ -25,7 +26,7 @@ services:
       - STREAMLIT_SERVER_PORT=8503
     volumes:
       - ./striking/frequency_data:/striking/frequency_data
-
+      - ./striking/frequency_data:/striking/saved_touches
   nginx:
     image: nginx:latest
     ports:
