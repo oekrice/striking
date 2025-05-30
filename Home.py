@@ -35,8 +35,8 @@ def run():
                 ### Bell REcording with Novel Data Analysis 
                 ''')
 
-    st.markdown("This is a new app used to analyse Church Bell ringing in the English tradition. You can upload a recording of some bells and if all goes well it'll tell you what is being rung and (precisely) how well.")
-    st.markdown("In the principle of ringing being 'free at the point of use', I'm not going to charge for Brenda, but servers aren't free and I've put a lot of time into this, so if you feel like donating to the cause it would be greatly appreciated, using this link (or alternatively a pint at some point).")
+    st.markdown("This is a new app used to analyse church bell ringing in the English tradition. You can upload a recording of some bells and if all goes well it'll tell you what is being rung and (precisely) how well.")
+    st.markdown("In the principle of ringing being 'free at the point of use' I'm not going to charge for Brenda, but servers aren't free and I've put a lot of time into this, so if you feel like donating to the cause it would be greatly appreciated. If so please use [this link](%s) (or alternatively just buy me a pint or three at some point).  Check it works for your tower first though!" % 'https://donate.stripe.com/9B69ATgt4520fex6XZ7ok00') 
     st.markdown("All backend code © 2025 Oliver Rice. All rights reserved.")
     st.write('#### How to use it')
     st.markdown('''
@@ -45,7 +45,7 @@ def run():
                 
     st.page_link("pages/1_Analyse_Recording.py", label = ":blue[Analyse Recording]")
     st.markdown('''
-        Use this page to upload (or record) a recording of bellringing, 'learn' the frequencies of the bells and determine the strike times. This data can then be viewed on:
+        Use this page to upload (or record) a recording of bellringing, 'learn' the frequencies of the bells if necessaryand determine the strike times. This data can then be viewed on:
                 ''')
     st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse Striking]")
     st.markdown('''
@@ -103,7 +103,7 @@ def run():
             I am not by any means a software developer so I appreciate it's all a little rough and ready
             ''')
         st.markdown('''
-            If you'd like access to the code to make something more of this, or collobrate to achieve something more, then don't hesitate to get in touch. I'll have less time to work on this before long so I'm keen to see it progress without me.
+            If you'd like access to the code to make something more of this, or collobrate to achieve something more, then don't hesitate to get in touch. I'll have less time to work on this before long so I'm keen to see it progress with less input from me.
             ''')
 if __name__ == "__main__":
     run()
