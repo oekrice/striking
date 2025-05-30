@@ -26,15 +26,6 @@ services:
     volumes:
       - ./striking/frequency_data:/striking/frequency_data
 
-  streamlit4:
-    build: ./striking
-    ports:
-      - "8504"
-    environment:
-      - STREAMLIT_SERVER_PORT=8504
-    volumes:
-      - ./striking/frequency_data:/striking/frequency_data
-
   nginx:
     image: nginx:latest
     ports:
