@@ -20,20 +20,17 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import re
+import random
 
-from strike_model import find_ideal_times
-from strike_model_band import find_ideal_times_band
-from rwp_model import find_ideal_times_rwp
-from methods import find_method_things, print_composition
-from data_visualisations import calculate_stats, obtain_striking_markdown, plot_errors_time, plot_bar_charts, plot_histograms, plot_boxes, plot_blue_line
+import random
+import string
+from datetime import datetime
 
-
-from scipy import interpolate
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 
 import os
 
+    
 cmap = plt.cm.gnuplot2
 cmap = [
     '#1f77b4',  
@@ -55,8 +52,8 @@ def dealwith_upload():
             uploaded_files.pop(uploaded_files.index(uploaded_file))
         else:
             isfine = True
-            uploaded_file.name = uploaded_file.name.replace(" ", "_")
-            uploaded_file.name = uploaded_file.name.replace("'", "")
+            uploaded_file.name, _ = os.path.splitext(uploaded_file.name)
+            uploaded_file.name = re.sub(r'[^\w\-]', '_', uploaded_file.name)
             with open('./tmp/%s' % uploaded_file.name, 'wb') as f: 
                 f.write(uploaded_file.getvalue())        
             try:
@@ -79,6 +76,14 @@ def dealwith_upload():
                     st.session_state.cached_strikes.append([])
                     st.session_state.cached_certs.append([])
                     st.session_state.cached_rawdata.append(raw_data)
+
+                    st.session_state.cached_touch_id.append(''.join(random.choices(string.ascii_letters + string.digits, k=10)))
+                    st.session_state.cached_read_id.append(uploaded_file.name)
+                    st.session_state.cached_nchanges.append('')
+                    st.session_state.cached_methods.append('')
+                    st.session_state.cached_tower.append('')
+                    st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+
                     #st.write(strike_data)
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
            
@@ -89,16 +94,69 @@ def dealwith_upload():
         st.rerun()
     return
     
+def make_longtitle_cache(ti):
+    def get_nice_date(date_string):
+        def get_day_suffix(day):
+            if 11 <= day <= 13:
+                return 'th'
+            last_digit = day % 10
+            return {1: 'st', 2: 'nd', 3: 'rd'}.get(last_digit, 'th')
+        dt = datetime.strptime(date_string, "%m/%d/%Y, %H:%M:%S")   
+        day = dt.day
+        suffix = get_day_suffix(day)
+        nice_day = f"{day}{suffix}"    
+        return f"{nice_day} {dt.strftime('%B')} at {dt.strftime('%H:%M')}"
+    #Creates a descriptive, readable title from the metadata
+    longtitle = ''
+    longtitle = longtitle + "%s: " % st.session_state.cached_read_id[ti]
+    if st.session_state.cached_nchanges[ti] != '' and st.session_state.cached_methods[ti] != '':
+        longtitle = longtitle + "%d %s" % (int(st.session_state.cached_nchanges[ti]), st.session_state.cached_methods[ti])
+    if st.session_state.cached_tower[ti] != '':
+        longtitle = longtitle + " at %s" % (st.session_state.cached_tower[ti])
+    longtitle = longtitle + " (first analysed %s)" % get_nice_date(st.session_state.cached_datetime[ti])
+
+    return longtitle
+
+def make_longtitle_collection(touch_info):
+    print(touch_info)
+    def get_nice_date(date_string):
+        def get_day_suffix(day):
+            if 11 <= day <= 13:
+                return 'th'
+            last_digit = day % 10
+            return {1: 'st', 2: 'nd', 3: 'rd'}.get(last_digit, 'th')
+        dt = datetime.strptime(date_string, "%m/%d/%Y, %H:%M:%S")   
+        day = dt.day
+        suffix = get_day_suffix(day)
+        nice_day = f"{day}{suffix}"    
+        return f"{nice_day} {dt.strftime('%B')} at {dt.strftime('%H:%M')}"
+    #Creates a descriptive, readable title from the metadata
+    longtitle = ''
+    longtitle = longtitle + "%s: " % touch_info[1]
+    if touch_info[2] != '' and touch_info[3] != '':
+        longtitle = longtitle + "%d %s" % (int(touch_info[2]), touch_info[3])
+    if touch_info[4] != '':
+        longtitle = longtitle + " at %s" % (touch_info[4])
+    longtitle = longtitle + " (first analysed %s)" % get_nice_date(touch_info[5])
+
+    return longtitle
+
+
 def find_existing_names():
     #Finds a list of existing collection names
-    print(os.listdir('./saved_touches/'))
     return os.listdir('./saved_touches/')
+
+def change_addition_mode():
+    st.session_state.addition_mode *= -1
+    return
 
 def add_new_folder(name):
     print('Making new folder...')
     os.system('mkdir "saved_touches/%s"' % name)
+    np.savetxt("./saved_touches/%s/index.csv" % name, np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str'), fmt = '%s', delimiter = ';')
     st.session_state.collection_status = 0
     st.session_state.current_collection_name = name
+    st.session_state.input_key += 1
     return
 
 if not os.path.exists('./tmp/'):
@@ -135,7 +193,30 @@ if 'current_collection_name' not in st.session_state:
     st.session_state.current_collection_name = None   #-1 for nothing, 0 for opening an existing one and 1 for creating a new one
 if 'new_collection_name' not in st.session_state:
     st.session_state.new_collection_name = None   #-1 for nothing, 0 for opening an existing one and 1 for creating a new one
-#Remove the large things from memory -- need a condition on this maybe?
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0
+if "selected_library_touches" not in st.session_state:   #List in index space of the currently-selected touches
+    st.session_state.selected_library_touches = []
+if "addition_mode" not in st.session_state:
+    st.session_state.addition_mode = -1 
+if "new_index_list" not in st.session_state:
+    st.session_state.new_index_list = None 
+if 'cached_touch_id' not in st.session_state:
+    st.session_state.cached_touch_id = []
+if 'cached_read_id' not in st.session_state:
+    st.session_state.cached_read_id = []
+if 'cached_nchanges' not in st.session_state:
+    st.session_state.cached_nchanges = []
+if 'cached_methods' not in st.session_state:
+    st.session_state.cached_methods = []
+if 'cached_tower' not in st.session_state:
+    st.session_state.cached_tower = []
+if 'cached_datetime' not in st.session_state:
+    st.session_state.cached_datetime = []
+
+    #Remove the large things from memory -- need a condition on this maybe?
 # st.session_state.trimmed_signal = None
 # st.session_state.audio_signal = None
 # st.session_state.raw_file = None
@@ -149,7 +230,7 @@ raw_titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = '' + st.session_state.cached_data[i][2] + ''# + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    title = st.session_state.cached_read_id[i]
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
@@ -157,60 +238,157 @@ if len(touch_titles) > 0:
     selection = st.pills("Currently loaded touches:", touch_titles, default = touch_titles[st.session_state.current_touch])
     uploaded_files = st.file_uploader(
         "Or upload more from your device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+    st.session_state.current_touch = touch_titles.index(selection)
+    selected_title = selection
 else:
-    st.write('No touches are currently loaded. Load them from the library or upload a .csv from your device:')
+    st.write('No touches are currently loaded. Load them from the library, upload a .csv from your device or from analysing a recording.')
     uploaded_files = st.file_uploader(
         "Upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 
 dealwith_upload()
        
-st.session_state.current_touch = touch_titles.index(selection)
-
-selected_title = selection
-    
 existing_names = find_existing_names()
 #Open or create a method collection
-st.write('Open an existing or create a new touch collection:')
+st.write('Open an existing or create a new collection:')
             
 cols = st.columns(2)
 with cols[0]:
     if st.button('Open an existing collection'):
-        st.session_state.collection_status = 0
-
+        st.session_state.collection_status = 2   #2 is selecting a new name
+        st.session_state.current_collection_name = None
+        st.session_state.selected_library_touches = []
+        st.session_state.input_key += 1
 with cols[1]:
     if st.button('Create a new collection'):
         st.session_state.collection_status = 1            
 
-print(st.session_state.collection_status) 
+if st.session_state.collection_status == 2:
+    selected_name = st.text_input('Enter existing collection name:', key = st.session_state.input_key + 1000 )
+    if selected_name in existing_names:
+        st.session_state.current_collection_name = selected_name
+        st.session_state.selected_library_touches = []
+        st.session_state.collection_status = 0       
+        st.rerun()     
+    elif len(selected_name) > 0:
+        st.session_state.current_collection_name = selected_name
+        st.session_state.selected_library_touches = []
+        st.write("Can't find a collection with this name... Apologies")
+        st.stop()
+    else:
+        st.stop()
+
 new_collection_name = None    
 #Create a new one
 if st.session_state.collection_status == 1:
     st.write("Choose a name (a single word) for the new collection. If you'd like it not to be found by anyone else, choose something unguessable.")
-    new_collection_name = st.text_input('New collection name (no spaces or special characters)')
-    if len(new_collection_name) > 0:
-        st.session_state.new_collection_name = new_collection_name
-        new_collection_name = None
+    new_collection_name = st.text_input('New collection name (no spaces or special characters)', key = st.session_state.input_key)
+    if new_collection_name is not None:
+        new_collection_name = re.sub(r'[^\w\-]', '_', new_collection_name)
+    if new_collection_name is not None:
+        if new_collection_name not in existing_names and new_collection_name and len(new_collection_name) > 0:
+            st.write('"%s" is valid and unused. Good good.' % new_collection_name)
+            if st.button('Create new collection called "%s"' % new_collection_name):
+                st.write('New collection created with name "%s"' % new_collection_name)
+                add_new_folder(new_collection_name)
+                st.session_state.collection_status = 0
+                st.session_state.current_collection_name = new_collection_name
+                st.session_state.selected_library_touches = []                
+                st.rerun()
+            else:
+                st.stop()
+        elif new_collection_name in existing_names:
+            st.write('This collection already exists... Click the relevant button above to open it.')
+            st.stop()
+        elif len(new_collection_name) > 0:
+            st.write('Chosen name invalid for some reason.')
+            st.stop()
+        else:
+            st.stop()
+
+elif st.session_state.collection_status == 0:
+    st.write('**Viewing collection "%s"**' % st.session_state.current_collection_name)  
+else:
+    st.stop()  
+
+#I think the above logic is all sound. It's a bit tricky. Now to present a list of touches in said collection.  
+if not os.path.exists("./saved_touches/%s/index.csv" % st.session_state.current_collection_name):  
+    st.error("This collection is somehow corrupted... Apologies")
+    st.stop()
+
+if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
+    saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
+if len(np.shape(saved_index_list)) == 1:
+    saved_index_list = np.array([saved_index_list])
+
+print('Saved list', saved_index_list)
+ntouches = len(saved_index_list)
+
+if ntouches!= 0 and saved_index_list[0][0] != ' ':
+    if st.button('Load this collection for analysis on the Analyse Striking Page'):
+        pass
+
+if st.session_state.addition_mode < 0:
+    if st.button("Add touches to this collection", key = int(random.random())):
+        change_addition_mode()        
         st.rerun()
-    os.path.splitext(st.session_state.new_collection_name)
-    new_collection_name = re.sub(r'[^\w\-]', '_', st.session_state.new_collection_name)
-    print(existing_names, st.session_state.new_collection_name)
-    if new_collection_name not in existing_names and len(st.session_state.new_collection_name) > 0:
-        st.write('This name is valid and unused. Good good.')
-        st.button('Create new collection', on_click = add_new_folder(st.session_state.new_collection_name))
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
+#Listitems will be ID (random string), readable ID (nonunique), nchanges, method(s), tower, datetime. All as strings.
+#This lists the loaded touches, hopefully with some metadata...            
+if st.session_state.addition_mode > 0: 
+    #Replace these with long, metadataed titles at some point
+    if len(touch_titles) == 0:
+        st.write('No touches are loaded. Either analyse a recording, upload a csv. or load from another collection.')
+    else:
+        if saved_index_list[0][0] != ' ':
+            current_entries = saved_index_list[:,0]
+        else:
+            current_entries = []
+        select_list = []
+        for ti, title in enumerate(touch_titles):
+            longtitle = make_longtitle_cache(ti)
+            if st.session_state.cached_touch_id[ti] not in current_entries:
+                checked = st.checkbox(label = longtitle)
+            else:
+                checked = st.checkbox(label = longtitle, disabled = True)
+            if checked:
+                select_list.append(ti)
+
+        st.write("If the touch you want isn't in this list, either analyse the recording or upload a .csv")
+        if st.button("Add the selected touches", key = int(random.random())):
+            change_addition_mode()
+            current_ids = [listitem[0] for listitem in saved_index_list]
+            if saved_index_list[0][0] != ' ':
+                new_index_list = saved_index_list.tolist()
+            else:
+                new_index_list = []
+            for ti in select_list:
+                if st.session_state.cached_touch_id[ti] not in current_entries:
+                    new_list_entry = [st.session_state.cached_touch_id[ti], st.session_state.cached_read_id[ti], st.session_state.cached_nchanges[ti], st.session_state.cached_methods[ti],st.session_state.cached_tower[ti], st.session_state.cached_datetime[ti]]
+                    new_index_list.append(new_list_entry)
+
+                    print(st.session_state.cached_rawdata[ti])
+                    @st.cache_data(ttl=300)
+                    def convert_for_download(df):
+                        return df.to_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,st.session_state.cached_read_id[ti]))
+                    
+                    convert_for_download(st.session_state.cached_rawdata[ti])
+
+        
+            np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
+
+            st.rerun()
+    
+if ntouches == 0 or saved_index_list[0][0] == ' ':
+    st.write('No touches currently in this collection. Will need to add some.')
+    st.stop()
+elif ntouches == 1:
+    st.write('One touch currently in this collection:')
+else:
+    st.write('%d touches currently in this collection:' % ntouches)
+
+for ti, info in enumerate(saved_index_list):
+    longtitle = make_longtitle_collection(info)
+    st.write(longtitle)
             
             
             
