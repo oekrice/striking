@@ -23,6 +23,8 @@ import os
 import gc
 import io
 import random
+import string
+from datetime import datetime
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
@@ -61,11 +63,13 @@ with st.expander('How to use this'):
     )
 
 if not os.path.exists('./tmp/'):
-    os.system('mkdir ./tmp/')
+    os.system('mkdir tmp')
 if not os.path.exists('./frequency_data/'):
-    os.system('mkdir ./frequency_data/')
+    os.system('mkdir frequency_data')
 if not os.path.exists('./striking_data/'):
-    os.system('mkdir ./striking_data/')
+    os.system('mkdir striking_data')
+if not os.path.exists('./saved_touches/'):
+    os.system('mkdir saved_touches')
 
 #Establish persistent variables
 
@@ -144,6 +148,21 @@ if 'cached_rawdata' not in st.session_state:
     st.session_state.cached_rawdata = []  
 if 'incache' not in st.session_state:
     st.session_state.incache = False   
+if 'cached_touch_id' not in st.session_state:
+    st.session_state.cached_touch_id = []
+if 'cached_read_id' not in st.session_state:
+    st.session_state.cached_read_id = []
+if 'cached_nchanges' not in st.session_state:
+    st.session_state.cached_nchanges = []
+if 'cached_methods' not in st.session_state:
+    st.session_state.cached_methods = []
+if 'cached_tower' not in st.session_state:
+    st.session_state.cached_tower = []
+if 'cached_datetime' not in st.session_state:
+    st.session_state.cached_datetime = []
+
+
+
 
 #Audio things to be cached -- need to be careful here
 if 'audio_signal' not in st.session_state:
@@ -765,23 +784,26 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             start_row = 0; end_row = len(allrows_correct)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         cache_names = [val[2] for val in st.session_state.cached_data]
+        striking_df, orders = save_strikes(Paras)
 
         if not st.session_state.incache:
-            if st.session_state.audio_filename in cache_names:
+            if st.session_state.audio_filename in cache_names:   #This does the check. Seems reasonable
                 update_index = cache_names.index(st.session_state.audio_filename)
                 if st.session_state.handstroke_first:
                     #st.write('HANDSTROKE FIRST')
                     st.session_state.cached_strikes[update_index] = st.session_state.allstrikes
                     st.session_state.cached_certs[update_index] = st.session_state.allcerts
                     st.session_state.cached_data[update_index] = [st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename]
-                    st.session_state.cached_rawdata[update_index] = []
+                    st.session_state.cached_rawdata[update_index] = striking_df
+
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])
                 else:
                     #st.write('BACKSTROKE FIRST')
                     st.session_state.cached_strikes[update_index] = st.session_state.allstrikes[:,1:]
                     st.session_state.cached_certs[update_index] = st.session_state.allcerts[:,1:]
                     st.session_state.cached_data[update_index] = [st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename]
-                    st.session_state.cached_rawdata[update_index] = []
+                    st.session_state.cached_rawdata[update_index] = striking_df
+
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
                 st.session_state.incache = True
                 if not st.session_state.testing_mode:
@@ -795,15 +817,31 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     st.session_state.cached_strikes.append(st.session_state.allstrikes)
                     st.session_state.cached_certs.append(st.session_state.allcerts)
                     st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename])
-                    st.session_state.cached_rawdata.append([])
+                    st.session_state.cached_rawdata.append(striking_df)
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])
+
+                    st.session_state.cached_touch_id.append(''.join(random.choices(string.ascii_letters + string.digits, k=10)))
+                    st.session_state.cached_read_id.append(st.session_state.audio_filename)
+                    st.session_state.cached_nchanges.append('')
+                    st.session_state.cached_methods.append('')
+                    st.session_state.cached_tower.append(st.session_state.tower_name)
+                    st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+
                 else:
                     #st.write('BACKSTROKE FIRST')
                     st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
                     st.session_state.cached_certs.append(st.session_state.allcerts[:,1:])
                     st.session_state.cached_data.append([st.session_state.tower_name, len(st.session_state.allstrikes[0]), st.session_state.audio_filename])
-                    st.session_state.cached_rawdata.append([])
+                    st.session_state.cached_rawdata.append(striking_df)
                     st.session_state.touch_length = len(st.session_state.allstrikes[0])  - 1
+
+                    st.session_state.cached_touch_id.append(''.join(random.choices(string.ascii_letters + string.digits, k=10)))
+                    st.session_state.cached_read_id.append(st.session_state.audio_filename)
+                    st.session_state.cached_nchanges.append('')
+                    st.session_state.cached_methods.append('')
+                    st.session_state.cached_tower.append(st.session_state.tower_name)
+                    st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+                st.session_state.current_touch = -1
                 st.session_state.incache = True
                 if not st.session_state.testing_mode:
                     st.rerun()
@@ -818,7 +856,6 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         #Create strike data in the right format (like the Strikeometer)
-        striking_df, orders = save_strikes(Paras)
         #striking_df.attrs = {"Tower Name": st.session_state.tower_name, "Touch Length": st.session_state.touch_length, "File Name": st.session_state.audio_filename}
         @st.cache_data(ttl=300)
         def convert_for_download(df):

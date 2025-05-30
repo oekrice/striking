@@ -19,6 +19,7 @@ If you would like to license or publish this software commerically, please conta
 import streamlit as st
 import numpy as np
 import pandas as pd
+import re 
 
 from strike_model import find_ideal_times
 from strike_model_band import find_ideal_times_band
@@ -26,6 +27,9 @@ from rwp_model import find_ideal_times_rwp
 from methods import find_method_things, print_composition
 from data_visualisations import calculate_stats, obtain_striking_markdown, plot_errors_time, plot_bar_charts, plot_histograms, plot_boxes, plot_blue_line
 
+import random
+import string
+from datetime import datetime
 
 from scipy import interpolate
 import matplotlib.pyplot as plt
@@ -55,8 +59,8 @@ def dealwith_upload():
             uploaded_files.pop(uploaded_files.index(uploaded_file))
         else:
             isfine = True
-            uploaded_file.name = uploaded_file.name.replace(" ", "_")
-            uploaded_file.name = uploaded_file.name.replace("'", "")
+            uploaded_file.name, _ = os.path.splitext(uploaded_file.name)
+            uploaded_file.name = re.sub(r'[^\w\-]', '_', uploaded_file.name)
             with open('./tmp/%s' % uploaded_file.name, 'wb') as f: 
                 f.write(uploaded_file.getvalue())        
             try:
@@ -79,27 +83,37 @@ def dealwith_upload():
                     st.session_state.cached_strikes.append([])
                     st.session_state.cached_certs.append([])
                     st.session_state.cached_rawdata.append(raw_data)
+
+                    st.session_state.cached_touch_id.append(''.join(random.choices(string.ascii_letters + string.digits, k=10)))
+                    st.session_state.cached_read_id.append(uploaded_file.name)
+                    st.session_state.cached_nchanges.append('')
+                    st.session_state.cached_methods.append('')
+                    st.session_state.cached_tower.append('')
+                    st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
                     #st.write(strike_data)
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
            
     if len(uploaded_files) > 0:
         st.session_state.uploader_key += 1
+        st.session_state.current_touch = -1
         st.rerun()
     return
     
 if not os.path.exists('./tmp/'):
-    os.system('mkdir ./tmp/')
+    os.system('mkdir tmp')
 if not os.path.exists('./frequency_data/'):
-    os.system('mkdir ./frequency_data/')
+    os.system('mkdir frequency_data')
 if not os.path.exists('./striking_data/'):
-    os.system('mkdir ./striking_data/')
+    os.system('mkdir striking_data')
+if not os.path.exists('./saved_touches/'):
+    os.system('mkdir saved_touches')
 
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("## Analyse Striking")
 
 st.write(
     """
-    This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab or from an uploaded .csv. \\
+    This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab, from the Touch Library or from an uploaded .csv file. \\
     The 'ideal' times will be calculated and various statistics shown. If you have any suggestions for anything else you'd like to see, please let me know.
     """
 )
@@ -120,7 +134,22 @@ if "rhythm_variation_time" not in st.session_state:
     st.session_state.rhythm_variation_time = 4
 if "handstroke_gap_variation_time" not in st.session_state:
     st.session_state.handstroke_gap_variation_time = 6
-    
+if 'current_touch' not in st.session_state:
+    st.session_state.current_touch = 0
+if 'cached_touch_id' not in st.session_state:
+    st.session_state.cached_touch_id = []
+if 'cached_read_id' not in st.session_state:
+    st.session_state.cached_read_id = []
+if 'cached_nchanges' not in st.session_state:
+    st.session_state.cached_nchanges = []
+if 'cached_methods' not in st.session_state:
+    st.session_state.cached_methods = []
+if 'cached_tower' not in st.session_state:
+    st.session_state.cached_tower = []
+if 'cached_datetime' not in st.session_state:
+    st.session_state.cached_datetime = []
+
+
 #Remove the large things from memory -- need a condition on this maybe?
 # st.session_state.trimmed_signal = None
 # st.session_state.audio_signal = None
@@ -133,7 +162,7 @@ raw_titles = []
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
-    title = '' + st.session_state.cached_data[i][2] + ''# + ': ' + str(st.session_state.cached_data[i][1]) + ' changes'
+    title = st.session_state.cached_read_id[i]
     touch_titles.append(title)
     raw_titles.append(st.session_state.cached_data[i][2])
 
@@ -165,7 +194,7 @@ if len(touch_titles) > 0 and st.session_state.current_touch < 0:
 if st.session_state.current_touch < 0:
     st.write('**Select a touch from the options on the left, or upload a new one**')
 else:
-    st.write('Analysing ringing from file "%s"' % touch_titles[st.session_state.current_touch])
+    st.write('Analysing ringing from "%s"' % touch_titles[st.session_state.current_touch])
 
 if len(touch_titles) == 0:
     st.session_state.current_touch = -1
@@ -266,6 +295,9 @@ if st.session_state.current_touch >= 0:
             else:
                 st.method_message.write("**Method(s) detected: " + str(nchanges) + " " + method_title + " (sort of)**")
 
+            st.session_state.cached_methods[st.session_state.current_touch] = method_title
+            st.session_state.cached_nchanges[st.session_state.current_touch] = nchanges
+
             if nchanges/int(len(raw_actuals)/nbells) < 0.25:
                 start_row = 0; end_row = int(len(raw_actuals)/nbells)
 
@@ -273,11 +305,15 @@ if st.session_state.current_touch >= 0:
                 st.html(comp_html)
         else:
             st.write("**Probably a method but not entirely sure what...**")
+            st.session_state.cached_methods[st.session_state.current_touch] = "Unknown Method"
+            st.session_state.cached_nchanges[st.session_state.current_touch] = int(len(raw_actuals)/nbells)
             method_flag = False
             lead_length = 24
             start_row = 0; end_row = int(len(raw_actuals)/nbells)
     else:
         st.method_message.write("**No method detected**")
+        st.session_state.cached_methods[st.session_state.current_touch] = "Rounds and/or Calls"
+        st.session_state.cached_nchanges[st.session_state.current_touch] = int(len(raw_actuals)/nbells)
         start_row = 0; end_row = int(len(raw_actuals)/nbells)
         lead_length = 24
 
