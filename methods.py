@@ -1123,6 +1123,11 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 positions.append('-' + call_position_name(position, stage))
             elif call_string[ci] == 'S':
                 position = np.where(lead_ends[ci+1] == stage)[0][0]
+                position_name = call_position_name(position, stage)
+                if position_name == 'B':
+                    position_name = 'T'
+                elif position_name == 'I':
+                    position_name = 'B'
                 positions.append('s' + call_position_name(position, stage))
             else:
                 positions.append('  ')
