@@ -1122,13 +1122,15 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 position = np.where(lead_ends[ci+1] == stage)[0][0]
                 positions.append('-' + call_position_name(position, stage))
             elif call_string[ci] == 'S':
+                
                 position = np.where(lead_ends[ci+1] == stage)[0][0]
+                #Change for singles at the front, if necessary
                 position_name = call_position_name(position, stage)
                 if position_name == 'B':
                     position_name = 'T'
                 elif position_name == 'I':
                     position_name = 'B'
-                positions.append('s' + call_position_name(position, stage))
+                positions.append('s' + position_name)
             else:
                 positions.append('  ')
         return positions
@@ -1143,7 +1145,7 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
                 last_course_end = np.max(np.where(course_ends[:ci+1] == 1)[0])
             else:
                 last_course_end = 0
-            if call_string[ci] == 'B':
+            if call_string[ci] == 'B':  
                 positions.append('-' + str((ci + 1) - last_course_end))
             elif call_string[ci] == 'S':
                 positions.append('s'  + str((ci + 1)- last_course_end))
