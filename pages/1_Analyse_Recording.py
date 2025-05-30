@@ -787,7 +787,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         striking_df, orders = save_strikes(Paras)
 
         if not st.session_state.incache:
-            if st.session_state.audio_filename in cache_names:
+            if st.session_state.audio_filename in cache_names:   #This does the check. Seems reasonable
                 update_index = cache_names.index(st.session_state.audio_filename)
                 if st.session_state.handstroke_first:
                     #st.write('HANDSTROKE FIRST')

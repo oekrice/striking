@@ -108,7 +108,7 @@ def make_longtitle_cache(ti):
         return f"{nice_day} {dt.strftime('%B')} at {dt.strftime('%H:%M')}"
     #Creates a descriptive, readable title from the metadata
     longtitle = ''
-    longtitle = longtitle + "%s: " % st.session_state.cached_read_id[ti]
+    longtitle = longtitle + "**%s**: " % st.session_state.cached_read_id[ti]
     if st.session_state.cached_nchanges[ti] != '' and st.session_state.cached_methods[ti] != '':
         longtitle = longtitle + "%d %s" % (int(st.session_state.cached_nchanges[ti]), st.session_state.cached_methods[ti])
     if st.session_state.cached_tower[ti] != '':
@@ -132,7 +132,7 @@ def make_longtitle_collection(touch_info):
         return f"{nice_day} {dt.strftime('%B')} at {dt.strftime('%H:%M')}"
     #Creates a descriptive, readable title from the metadata
     longtitle = ''
-    longtitle = longtitle + "%s: " % touch_info[1]
+    longtitle = longtitle + "**%s**: " % touch_info[1]
     if touch_info[2] != '' and touch_info[3] != '':
         longtitle = longtitle + "%d %s" % (int(touch_info[2]), touch_info[3])
     if touch_info[4] != '':
@@ -215,7 +215,8 @@ if 'cached_tower' not in st.session_state:
     st.session_state.cached_tower = []
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
-
+if 'analysis_button' not in st.session_state:
+    st.session_state.analysis_button = True
     #Remove the large things from memory -- need a condition on this maybe?
 # st.session_state.trimmed_signal = None
 # st.session_state.audio_signal = None
@@ -235,10 +236,13 @@ for i in range(len(st.session_state.cached_data)):
     raw_titles.append(st.session_state.cached_data[i][2])
 
 if len(touch_titles) > 0:
-    selection = st.pills("Currently loaded touches:", touch_titles, default = touch_titles[st.session_state.current_touch])
+    selection = st.pills("Currently loaded touches:", touch_titles, default = touch_titles[-1])
+    st.session_state.current_touch = touch_titles.index(selection)
+    longtitle = make_longtitle_cache(st.session_state.current_touch)
+    st.write(longtitle)
+
     uploaded_files = st.file_uploader(
         "Or upload more from your device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
-    st.session_state.current_touch = touch_titles.index(selection)
     selected_title = selection
 else:
     st.write('No touches are currently loaded. Load them from the library, upload a .csv from your device or from analysing a recording.')
@@ -323,9 +327,40 @@ if len(np.shape(saved_index_list)) == 1:
 print('Saved list', saved_index_list)
 ntouches = len(saved_index_list)
 
-if ntouches!= 0 and saved_index_list[0][0] != ' ':
+def hide_button():   
+    #Just toggles the analysis button on and off
+    st.session_state.analysis_button = False
+    return
+
+if ntouches!= 0 and saved_index_list[0][0] != ' ' and st.session_state.analysis_button:
     if st.button('Load this collection for analysis on the Analyse Striking Page'):
-        pass
+        hide_button()
+        #Put everything from this collection into the cache (if it's not already there)
+        for touch_info in saved_index_list:
+            #Check if it's already in there
+            if touch_info[0] not in st.session_state.cached_touch_id:
+                #Load in csv
+                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[1]))
+
+                st.session_state.cached_data.append([touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]])
+                st.session_state.cached_strikes.append([])
+                st.session_state.cached_certs.append([])
+                st.session_state.cached_rawdata.append(raw_data)
+
+                st.session_state.cached_touch_id.append(touch_info[0])
+                st.session_state.cached_read_id.append(touch_info[1])
+                st.session_state.cached_nchanges.append(touch_info[2])
+                st.session_state.cached_methods.append(touch_info[3])
+                st.session_state.cached_tower.append(touch_info[4])
+                st.session_state.cached_datetime.append(touch_info[5])
+
+        st.rerun()
+
+elif not st.session_state.analysis_button:
+    st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse striking from this collection]")
+    st.session_state.analysis_button = True
+
+st.divider()
 
 if st.session_state.addition_mode < 0:
     if st.button("Add touches to this collection", key = int(random.random())):
