@@ -312,7 +312,7 @@ if st.session_state.current_touch >= 0:
             start_row = 0; end_row = int(len(raw_actuals)/nbells)
     else:
         st.method_message.write("**No method detected**")
-        st.session_state.cached_methods[st.session_state.current_touch] = "Rounds and Calls"
+        st.session_state.cached_methods[st.session_state.current_touch] = "Rounds and/or Calls"
         st.session_state.cached_nchanges[st.session_state.current_touch] = int(len(raw_actuals)/nbells)
         start_row = 0; end_row = int(len(raw_actuals)/nbells)
         lead_length = 24
