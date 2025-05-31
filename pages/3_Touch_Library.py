@@ -258,14 +258,15 @@ if len(touch_titles) > 0:
     st.session_state.current_touch = touch_titles.index(selection)
     longtitle = make_longtitle_cache(st.session_state.current_touch)
     st.write(longtitle)
-
-    uploaded_files = st.file_uploader(
-        "Or upload more from your device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
     selected_title = selection
+
+    with st.expander("Upload more touches from device"):
+        uploaded_files = st.file_uploader(
+            "Upload file:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 else:
     st.write('No touches are currently loaded. Load them from the library, upload a .csv from your device or from analysing a recording.')
     uploaded_files = st.file_uploader(
-        "Upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+        "Upload file:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 
 dealwith_upload()
        

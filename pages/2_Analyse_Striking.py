@@ -169,11 +169,12 @@ for i in range(len(st.session_state.cached_data)):
 if len(touch_titles) > 0:
     selection = st.pills("Choose a touch to analyse:", touch_titles, default = touch_titles[-1])
 
-    uploaded_files = st.file_uploader(
-        "Or upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+    with st.expander("Upload more touches from device"):
+        uploaded_files = st.file_uploader(
+            "Upload file:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
 else:
     uploaded_files = st.file_uploader(
-        "Upload data from device:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
+        "Upload file:", accept_multiple_files=True, key=f"uploader_{st.session_state.uploader_key}", type = "csv")
     
 dealwith_upload()
 
@@ -268,10 +269,12 @@ if st.session_state.current_touch >= 0:
     else:
         method_flag = False
 
+    composition_flag = False
     if len(methods) > 0:
         nchanges = len(allrows_correct) - 1
         end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
         if quality > 0.7:
+            composition_flag = True
             if len(methods) == 1:   #Single method
                 method_title = methods[0][0]
                 if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
@@ -301,8 +304,6 @@ if st.session_state.current_touch >= 0:
             if nchanges/int(len(raw_actuals)/nbells) < 0.25:
                 start_row = 0; end_row = int(len(raw_actuals)/nbells)
 
-            with st.expander("View Composition"):
-                st.html(comp_html)
         else:
             st.write("**Probably a method but not entirely sure what...**")
             st.session_state.cached_methods[st.session_state.current_touch] = "Unknown Method"
@@ -364,7 +365,7 @@ if st.session_state.current_touch >= 0:
 
     if len(existing_models) > 0:
                 
-        with st.expander("Statistical Options"):
+        with st.expander("Change Statistical Options"):
 
             selection = st.selectbox("Select striking model:", options = existing_models, index = existing_models.index("Team Model"))   #Can set default for this later?
             #st.write(raw_data["Actual Time"][0:100:12])
@@ -434,6 +435,10 @@ if st.session_state.current_touch >= 0:
         shifted_quality = 1.0/(1.0 + np.exp(-k*(overall_quality - x0)))
         st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(Strike_Data.alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
+
+        if composition_flag:
+            with st.expander("View Composition"):
+                st.html(comp_html)
 
         with st.expander('View Plaintext Striking Report'):
             st.empty()
