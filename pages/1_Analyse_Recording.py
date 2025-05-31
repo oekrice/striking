@@ -534,7 +534,10 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         nreinforces = 5
 
     if st.session_state.use_existing_freqs < 0:
-        npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow with little benefit)", value = False)
+        if len(st.session_state.bell_nominals) > 8:
+            npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = True)
+        else:
+            npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = False)
     else:
         npicks_mode = False
 
@@ -607,13 +610,13 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             st.quality_log.write('Best frequency analysis quality = :%s[%.1f%%]' % (c, 100*toprint))
             
             if toprint < 0.95:
-                st.current_log.write('This might not be good enough to provide anything useful. But may as well try...')
+                st.current_log.write('This might not be good enough to provide anything useful. Suggest using a nicer touch or doing more intense analysis. But may as well try if not...')
             elif toprint < 0.975:
-                st.current_log.write('Not perfect but it\'ll probably do.')
+                st.current_log.write('Not perfect but it\'ll probably do. If accuracy is important I\'d suggest finding a nicer recording to learn the frequencies, or run a more intense analysis.')
             else:
                 st.current_log.write('That should be fine to detect everything reasonably well.')
 
-            if st.session_state.analysis_status == 0:
+            if st.session_state.analysis_status == 0 and toprint > 0.95:
                 st.session_state.analysis_status = 1 #Automatically find strike times
             st.divider()
                     

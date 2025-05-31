@@ -133,7 +133,7 @@ RUN: sudo COMPOSE_BAKE=true docker compose up -d --build   #For actually having 
 RUN: git pull
 sudo dnf autoremove
 sudo cp -a oracle_root/. ../
-sudo COMPOSE_BAKE=true docker compose build --no-cache
+sudo COMPOSE_BAKE=true docker compose build
 sudo docker compose up -d
 sudo docker image prune -f
 sudo docker container prune -f
