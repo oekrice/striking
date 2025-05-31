@@ -113,7 +113,7 @@ st.markdown("## Analyse Striking")
 
 st.write(
     """
-    This page is for analysing the striking from the strike times either generated with the "Analyse Audio" tab, from the Touch Library or from an uploaded .csv file. \\
+    This page is for analysing the striking from the strike times either generated with the "Analyse Recording" tab, from the Touch Library or from an uploaded .csv file. \\
     The 'ideal' times will be calculated and various statistics shown. If you have any suggestions for anything else you'd like to see, please let me know.
     """
 )
@@ -178,7 +178,7 @@ else:
 dealwith_upload()
 
 if len(touch_titles) == 0:
-    st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Audio page')
+    st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Recording page')
     st.stop()
 
 

@@ -37,7 +37,7 @@ def run():
 
     st.markdown("This is a new app used to analyse church bell ringing in the English tradition. You can upload a recording of some bells and if all goes well it'll tell you what is being rung and (precisely) how well.")
     st.markdown("In the principle of ringing being 'free at the point of use' I'm not going to charge for Brenda, but servers aren't free and I've put a lot of time into this, so if you feel like donating to the cause it would be greatly appreciated. If so please use [this link](%s) (or alternatively just buy me a pint or three at some point).  Check it works for your tower first though!" % 'https://donate.stripe.com/9B69ATgt4520fex6XZ7ok00') 
-    st.markdown("All backend code © 2025 Oliver Rice. All rights reserved.")
+    st.markdown("All non-streamlit backend code © 2025 Oliver Rice. All rights reserved.")
     st.write('#### How to use it')
     st.markdown('''
         There are three 'pages' which can be accessed with the below links or the sidebar on the left (click the right-facing arrow top left if you can't see it):
