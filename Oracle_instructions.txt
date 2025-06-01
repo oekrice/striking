@@ -52,13 +52,13 @@ RUN: sudo systemctl enable --now nginx
 #Install certbot (this didn't work before but I'm more awake today...)
 #-----------------------------------------------
 RUN: sudo dnf install epel-release
-RUN: sudo dnf config-manager --set-enabled ol9_developer_EPEL
-RUN: sudo dnf update
-RUN: sudo dnf install -y snapd
-RUN: sudo systemctl enable --now snapd.socket
-RUN: sudo ln -s /var/lib/snapd/snap /snap
-RUN: sudo systemctl start snapd
-RUN: sudo snap install --classic certbot
+sudo dnf config-manager --set-enabled ol9_developer_EPEL
+sudo dnf update
+sudo dnf install -y snapd
+sudo systemctl enable --now snapd.socket
+sudo ln -s /var/lib/snapd/snap /snap
+sudo systemctl start snapd
+sudo snap install --classic certbot
 
 
 CHANGE DNS RECORD IN Squarespace TO POINT AT THIS IP -- don't need txt though
@@ -96,8 +96,8 @@ RUN: mkdir saved_touches
 #Mount the volume so Docker can deal with it
 
 #Actually run Brenda with docker:
-RUN: sudo docker build -t Brenda .
-RUN: sudo docker run -v -d "$(pwd)/frequency_data:/striking/frequency_data" -p 8501:8501 --name brenda brenda
+RUN: sudo docker build -t brenda .
+RUN: sudo docker run -v "$(pwd)/frequency_data:/striking/frequency_data" -p 8501:8501 --name brenda brenda
 
 #Stop running Brenda
 RUN: sudo docker rm -f brenda
@@ -125,7 +125,7 @@ killall -9 nginx
 RUN: cd ..
 RUN: sudo COMPOSE_BAKE=true docker compose up --build #For testing
 or
-RUN: sudo COMPOSE_BAKE=true docker compose up -d --build   #For actually having it running
+RUN: sudo COMPOSE_BAKE=true docker compose up -d --build #For actually having it running
 #To stop all:
 #Not sure, doesn't seem to work
 
