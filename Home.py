@@ -40,8 +40,8 @@ def run():
     st.markdown("All non-streamlit backend code © 2025 Oliver Rice. All rights reserved.")
 
     #Add thing here to track number of towers analysed and touches
-    ntowers, ntouches = find_current_stats()
-    st.write('Brenda currently has learnt the bells at **%d** towers and has **%d** touches saved.' % (ntowers, ntouches))
+    ntowers, ntouches, tower_list = find_current_stats()
+    st.write('Brenda has currently learnt the bells at **%d** towers and has **%d** touches saved.' % (ntowers, ntouches))
     st.write('#### How to use it')
     st.markdown('''
         There are three 'pages' which can be accessed with the below links or the sidebar on the left (click the right-facing arrow top left if you can't see it):
@@ -109,5 +109,10 @@ def run():
         st.markdown('''
             If you'd like access to the code to make something more of this, or collobrate to achieve something more, then don't hesitate to get in touch. I'll have less time to work on this before long so I'm keen to see it progress with less input from me.
             ''')
+        
+    with st.expander("View towers Brenda's currently learnt:"):
+
+        st.markdown('\n'.join(f"- {str(tower)}" for tower in tower_list))
+
 if __name__ == "__main__":
     run()

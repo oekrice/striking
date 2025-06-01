@@ -6,8 +6,9 @@ Created on Sat Mar  8 10:49:58 2025
 """
 import streamlit as st
 import os
-
+import pandas as pd
 import numpy as np
+
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
 
@@ -39,6 +40,16 @@ def find_current_stats():
         if len(file) > 5:
             if file[:5] not in tower_ids:
                 tower_ids.append(file[:5])
+    @st.cache_data(ttl=300)               
+    def read_bell_data():
+        nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
+        return nominal_import
+    nominal_data = read_bell_data()
+    all_tower_names = nominal_data["Tower Name"].tolist()
+    all_tower_ids = nominal_data["Tower ID"].tolist()
+    tower_names = []
+    for id in tower_ids:
+        tower_names.append(all_tower_names[all_tower_ids.index(int(id))])
     ntowers = len(tower_ids)
     fcount = 0
     for folder in os.listdir('./saved_touches/'):
@@ -46,7 +57,7 @@ def find_current_stats():
             for file in os.listdir('./saved_touches/%s' % folder):
                 if file != 'index.csv':
                     fcount += 1
-    return ntowers, fcount
+    return ntowers, fcount, tower_names
 
 def check_initial_rounds(strikes):
     if len(strikes) == 0:
