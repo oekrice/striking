@@ -428,7 +428,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.write('Found %d existing frequency profiles which match the selected bells...' % frequency_counter)
         #st.write('Choose existing profile or make a new one (can change your mind later):')
         allstrings = ["Make new profile"]
-        if best_freq_quality > 0.97:
+        if best_freq_quality > 0.98:
             maxind = np.where(allquals == np.max(allquals))[0][0]
         else:
             maxind = -1

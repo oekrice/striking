@@ -5,11 +5,11 @@ Created on Sat Mar  8 10:49:58 2025
 @author: eleph
 """
 import streamlit as st
+import os
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks, peak_prominences
-import time
 
 def test_error(text):
     print(text)
@@ -30,6 +30,22 @@ def find_colour(value):
 def normalise(nbits, raw_input):
     #Normalises the string to the number of bits
     return raw_input/(2**(nbits-1))
+
+def find_current_stats():
+    #Finds the number of towers and touches currently analysed based on currently-saved data
+    #Do towers first
+    tower_ids = []
+    for file in os.listdir('./frequency_data/'):
+        if len(file) > 5:
+            if file[:5] not in tower_ids:
+                tower_ids.append(file[:5])
+    ntowers = len(tower_ids)
+    fcount = 0
+    for folder in os.listdir('./saved_touches/'):
+        for file in os.listdir('./saved_touches/%s' % folder):
+            if file != 'index.csv':
+                fcount += 1
+    return ntowers, fcount
 
 def check_initial_rounds(strikes):
     if len(strikes) == 0:
