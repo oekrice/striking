@@ -150,18 +150,28 @@ def change_addition_mode():
     st.session_state.addition_mode *= -1
     st.session_state.subtraction_mode = -1
     st.session_state.rename_mode = -1
+    st.session_state.rename_collection_mode = -1
     return
 
 def change_subtraction_mode():
     st.session_state.addition_mode = -1
     st.session_state.subtraction_mode *= -1
     st.session_state.rename_mode = -1
+    st.session_state.rename_collection_mode = -1
     return
 
 def change_rename_mode():
     st.session_state.addition_mode = -1
     st.session_state.subtraction_mode = -1
     st.session_state.rename_mode *= -1
+    st.session_state.rename_collection_mode = -1
+    return
+
+def change_rename_collection_mode():
+    st.session_state.addition_mode = -1
+    st.session_state.subtraction_mode = -1
+    st.session_state.rename_mode = -1
+    st.session_state.rename_collection_mode *= -1
     return
 
 
@@ -219,6 +229,8 @@ if "subtraction_mode" not in st.session_state:
     st.session_state.subtraction_mode = -1 
 if "rename_mode" not in st.session_state:
     st.session_state.rename_mode = -1 
+if "rename_collection_mode" not in st.session_state:
+    st.session_state.rename_collection_mode = -1 
 if "new_index_list" not in st.session_state:
     st.session_state.new_index_list = None 
 if 'cached_touch_id' not in st.session_state:
@@ -276,14 +288,16 @@ st.write('Open an existing or create a new collection:')
             
 cols = st.columns(2)
 with cols[0]:
-    if st.button('Open an existing collection'):
+    if st.button('Open an existing collection', disabled = st.session_state.collection_status == 2):
         st.session_state.collection_status = 2   #2 is selecting a new name
         st.session_state.current_collection_name = None
         st.session_state.selected_library_touches = []
         st.session_state.input_key += 1
+        st.rerun()
 with cols[1]:
-    if st.button('Create a new collection'):
+    if st.button('Create a new collection', disabled = st.session_state.collection_status == 1):
         st.session_state.collection_status = 1            
+        st.rerun()
 
 if st.session_state.collection_status == 2:
     selected_name = st.text_input('Enter existing collection name:', key = st.session_state.input_key + 1000 )
@@ -403,7 +417,7 @@ if st.session_state.addition_mode < 0 and st.session_state.subtraction_mode < 0 
         disabled_flag = True
     else:
         disabled_flag = False
-    cols = st.columns(3)    
+    cols = st.columns(4)    
     with cols [0]:
         if st.button("Add touches"):
             change_addition_mode()        
@@ -415,6 +429,10 @@ if st.session_state.addition_mode < 0 and st.session_state.subtraction_mode < 0 
     with cols [2]:
         if st.button("Rename touches", disabled = disabled_flag):
             change_rename_mode()        
+            st.rerun()
+    with cols [3]:
+        if st.button("Rename this collection"):
+            change_rename_collection_mode()        
             st.rerun()
 #Listitems will be ID (random string), readable ID (nonunique), nchanges, method(s), tower, datetime. All as strings.
 #This lists the loaded touches, hopefully with some metadata...            
@@ -560,6 +578,34 @@ if st.session_state.rename_mode > 0:
          if st.button("Cancel"):
             change_rename_mode()
             st.rerun()
+
+if st.session_state.rename_collection_mode > 0: 
+    #Replace these with long, metadataed titles at some point
+
+    new_name = st.text_input('Enter new collection name')
+
+    cols = st.columns(2)
+    with cols[0]:
+        if len(new_name) < 1:
+            if st.button('Rename collection', disabled = True):
+                pass
+        else:
+            #Check if it already exists
+            if new_name in existing_names:
+                st.write('A collection with this name already exists...')
+                if st.button('Rename collection to "%s"' % new_name, disabled = True):
+                    pass
+            else:
+                os.system("mv ./saved_touches/%s ./saved_touches/%s" % (st.session_state.current_collection_name, new_name))
+                st.session_state.current_collection_name = new_name
+                change_rename_collection_mode()
+                st.rerun()
+
+    with cols[1]:
+         if st.button("Cancel"):
+            change_rename_collection_mode()
+            st.rerun()
+
 
 if ntouches == 0 or saved_index_list[0][0] == ' ':
     st.write('No touches currently in this collection. Will need to add some.')

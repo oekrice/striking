@@ -32,6 +32,8 @@ def normalise(nbits, raw_input):
     return raw_input/(2**(nbits-1))
 
 def check_initial_rounds(strikes):
+    if len(strikes) == 0:
+        return False
     isfines = np.zeros(len(strikes[0]))
     ncheck = 6
     for ri in range(len(strikes[0])):
