@@ -42,9 +42,10 @@ def find_current_stats():
     ntowers = len(tower_ids)
     fcount = 0
     for folder in os.listdir('./saved_touches/'):
-        for file in os.listdir('./saved_touches/%s' % folder):
-            if file != 'index.csv':
-                fcount += 1
+        if os.path.isdir('./saved_touches/%s' % folder):
+            for file in os.listdir('./saved_touches/%s' % folder):
+                if file != 'index.csv':
+                    fcount += 1
     return ntowers, fcount
 
 def check_initial_rounds(strikes):
