@@ -37,7 +37,7 @@ def find_current_stats():
     #Do towers first
     tower_ids = []
     for file in os.listdir('./frequency_data/'):
-        if len(file) > 5:
+        if os.path.isfile('./frequency_data/%s' % file):
             if file[:5] not in tower_ids:
                 tower_ids.append(file[:5])
     @st.cache_data(ttl=300)               
@@ -49,10 +49,7 @@ def find_current_stats():
     all_tower_ids = nominal_data["Tower ID"].tolist()
     tower_names = []
     for id in tower_ids:
-        try:
-            tower_names.append(all_tower_names[all_tower_ids.index(int(id))])
-        except:
-            pass
+        tower_names.append(all_tower_names[all_tower_ids.index(int(id))])
     ntowers = len(tower_ids)
     fcount = 0
     for folder in os.listdir('./saved_touches/'):
