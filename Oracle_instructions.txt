@@ -131,6 +131,7 @@ RUN: sudo COMPOSE_BAKE=true docker compose up -d --build #For actually having it
 
 #To update from git
 RUN: git pull
+sudo docker compose down
 sudo dnf autoremove
 sudo cp -a oracle_root/. ../
 sudo docker rmi -f $(sudo docker images -q)
