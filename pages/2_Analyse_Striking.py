@@ -108,6 +108,21 @@ if not os.path.exists('./striking_data/'):
 if not os.path.exists('./saved_touches/'):
     os.system('mkdir saved_touches')
 
+def determine_collection_from_url(existing_names):
+    if 'collection' in st.query_params.keys():
+        collection_name = st.query_params["collection"]
+        if collection_name in existing_names:
+            return collection_name
+        else:
+            return None
+    else:
+        return None
+
+def find_existing_names():
+    #Finds a list of existing collection names
+    return os.listdir('./saved_touches/')
+
+
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("## Analyse Striking")
 
@@ -149,6 +164,59 @@ if 'cached_tower' not in st.session_state:
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
 
+def add_collection_to_cache(ntouches, saved_index_list):
+    if ntouches!= 0 and saved_index_list[0][0] != ' ':
+        #Put everything from this collection into the cache (if it's not already there)
+        for touch_info in saved_index_list:
+            #Check if it's already in there
+            if touch_info[0] not in st.session_state.cached_touch_id:
+                #Load in csv
+                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+
+                st.session_state.cached_data.append([touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]])
+                st.session_state.cached_strikes.append([])
+                st.session_state.cached_certs.append([])
+                st.session_state.cached_rawdata.append(raw_data)
+
+                st.session_state.cached_touch_id.append(touch_info[0])
+                st.session_state.cached_read_id.append(touch_info[1])
+                st.session_state.cached_nchanges.append(touch_info[2])
+                st.session_state.cached_methods.append(touch_info[3])
+                st.session_state.cached_tower.append(touch_info[4])
+                st.session_state.cached_datetime.append(touch_info[5])
+            else:
+                cache_index = st.session_state.cached_touch_id.index(touch_info[0])
+                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+
+                st.session_state.cached_data[cache_index] = [touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]]
+                st.session_state.cached_strikes[cache_index] = []
+                st.session_state.cached_certs[cache_index] = []
+                st.session_state.cached_rawdata[cache_index] = raw_data
+
+                st.session_state.cached_touch_id[cache_index] = touch_info[0]
+                st.session_state.cached_read_id[cache_index] = touch_info[1]
+                st.session_state.cached_nchanges[cache_index] = touch_info[2]
+                st.session_state.cached_methods[cache_index] = touch_info[3]
+                st.session_state.cached_tower[cache_index] = touch_info[4]
+                st.session_state.cached_datetime[cache_index] = touch_info[5]
+
+existing_names = find_existing_names()
+url_collection = determine_collection_from_url(existing_names)
+
+if url_collection is not None:
+    st.session_state.collection_status = 0
+    st.session_state.current_collection_name = url_collection
+
+    if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
+        saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
+    else:
+        saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+    if len(np.shape(saved_index_list)) == 1:
+        saved_index_list = np.array([saved_index_list])
+
+    ntouches = len(saved_index_list)
+
+    add_collection_to_cache(ntouches, saved_index_list)
 
 #Remove the large things from memory -- need a condition on this maybe?
 # st.session_state.trimmed_signal = None
@@ -182,6 +250,35 @@ if len(touch_titles) == 0:
     st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Recording page')
     st.stop()
 
+#Add a bit to easily add a touch to this collection
+
+if st.session_state.collection_status == 0:
+    if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
+        saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
+    else:
+        saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+    if len(np.shape(saved_index_list)) == 1:
+        saved_index_list = np.array([saved_index_list])
+
+    if st.session_state.cached_touch_id[st.session_state.current_touch] not in saved_index_list[:,0]:
+        #Load in csv
+        if st.button("Add this touch to collection **%s**" % st.session_state.current_collection_name):
+            current_ids = [listitem[0] for listitem in saved_index_list]
+            if saved_index_list[0][0] != ' ':
+                new_index_list = saved_index_list.tolist()
+            else:
+                new_index_list = []
+            new_list_entry = [st.session_state.cached_touch_id[st.session_state.current_touch], st.session_state.cached_read_id[st.session_state.current_touch], st.session_state.cached_nchanges[st.session_state.current_touch], st.session_state.cached_methods[st.session_state.current_touch],st.session_state.cached_tower[st.session_state.current_touch], st.session_state.cached_datetime[st.session_state.current_touch]]
+            new_index_list.append(new_list_entry)
+
+            @st.cache_data(ttl=300)
+            def convert_for_download(df):
+                return df.to_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,st.session_state.cached_touch_id[st.session_state.current_touch]))
+            convert_for_download(st.session_state.cached_rawdata[st.session_state.current_touch])
+            np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
+            st.rerun()
+    else:
+        st.write('This touch is saved in collection **%s**' % st.session_state.current_collection_name)
 
 if selection is None:
     st.stop()
@@ -305,7 +402,7 @@ if st.session_state.current_touch >= 0:
                 start_row = 0; end_row = int(len(raw_actuals)/nbells)
 
         else:
-            st.write("**Probably a method but not entirely sure what...**")
+            st.method_message.write("**Probably a method but not entirely sure what...**")
             st.session_state.cached_methods[st.session_state.current_touch] = "Unknown Method"
             st.session_state.cached_nchanges[st.session_state.current_touch] = int(len(raw_actuals)/nbells)
             method_flag = False

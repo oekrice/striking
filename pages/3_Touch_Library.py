@@ -286,6 +286,21 @@ existing_names = find_existing_names()
 #Open or create a method collection
 st.write('Open an existing or create a new collection:')
             
+def determine_collection_from_url(existing_names):
+    if 'collection' in st.query_params.keys():
+        collection_name = st.query_params["collection"]
+        if collection_name in existing_names:
+            return collection_name
+        else:
+            return None
+    else:
+        return None
+        
+url_collection = determine_collection_from_url(existing_names)
+if url_collection is not None:
+    st.session_state.collection_status = 0
+    st.session_state.current_collection_name = url_collection
+
 cols = st.columns(2)
 with cols[0]:
     if st.button('Open an existing collection', disabled = st.session_state.collection_status == 2):
@@ -346,6 +361,7 @@ if st.session_state.collection_status == 1:
 
 elif st.session_state.collection_status == 0:
     st.write('Viewing collection **%s**' % st.session_state.current_collection_name)  
+    st.write('Share this collection with the url https://brenda.oekrice.com/Analyse_Striking?%s' % st.session_state.current_collection_name)
 else:
     st.stop()  
 
@@ -363,52 +379,46 @@ if len(np.shape(saved_index_list)) == 1:
 
 ntouches = len(saved_index_list)
 
-def hide_button():   
-    #Just toggles the analysis button on and off
-    st.session_state.analysis_button = False
-    return
+def add_collection_to_cache(ntouches, saved_index_list):
+    if ntouches!= 0 and saved_index_list[0][0] != ' ':
+        if st.button('**Analyse touches from this collection**'):
+            #Put everything from this collection into the cache (if it's not already there)
+            for touch_info in saved_index_list:
+                #Check if it's already in there
+                if touch_info[0] not in st.session_state.cached_touch_id:
+                    #Load in csv
+                    raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
 
-if ntouches!= 0 and saved_index_list[0][0] != ' ' and st.session_state.analysis_button:
-    if st.button('Load this collection for analysis on the Analyse Striking Page'):
-        hide_button()
-        #Put everything from this collection into the cache (if it's not already there)
-        for touch_info in saved_index_list:
-            #Check if it's already in there
-            if touch_info[0] not in st.session_state.cached_touch_id:
-                #Load in csv
-                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+                    st.session_state.cached_data.append([touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]])
+                    st.session_state.cached_strikes.append([])
+                    st.session_state.cached_certs.append([])
+                    st.session_state.cached_rawdata.append(raw_data)
 
-                st.session_state.cached_data.append([touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]])
-                st.session_state.cached_strikes.append([])
-                st.session_state.cached_certs.append([])
-                st.session_state.cached_rawdata.append(raw_data)
+                    st.session_state.cached_touch_id.append(touch_info[0])
+                    st.session_state.cached_read_id.append(touch_info[1])
+                    st.session_state.cached_nchanges.append(touch_info[2])
+                    st.session_state.cached_methods.append(touch_info[3])
+                    st.session_state.cached_tower.append(touch_info[4])
+                    st.session_state.cached_datetime.append(touch_info[5])
+                else:
+                    cache_index = st.session_state.cached_touch_id.index(touch_info[0])
+                    raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
 
-                st.session_state.cached_touch_id.append(touch_info[0])
-                st.session_state.cached_read_id.append(touch_info[1])
-                st.session_state.cached_nchanges.append(touch_info[2])
-                st.session_state.cached_methods.append(touch_info[3])
-                st.session_state.cached_tower.append(touch_info[4])
-                st.session_state.cached_datetime.append(touch_info[5])
-            else:
-                cache_index = st.session_state.cached_touch_id.index(touch_info[0])
-                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+                    st.session_state.cached_data[cache_index] = [touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]]
+                    st.session_state.cached_strikes[cache_index] = []
+                    st.session_state.cached_certs[cache_index] = []
+                    st.session_state.cached_rawdata[cache_index] = raw_data
 
-                st.session_state.cached_data[cache_index] = [touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]]
-                st.session_state.cached_strikes[cache_index] = []
-                st.session_state.cached_certs[cache_index] = []
-                st.session_state.cached_rawdata[cache_index] = raw_data
+                    st.session_state.cached_touch_id[cache_index] = touch_info[0]
+                    st.session_state.cached_read_id[cache_index] = touch_info[1]
+                    st.session_state.cached_nchanges[cache_index] = touch_info[2]
+                    st.session_state.cached_methods[cache_index] = touch_info[3]
+                    st.session_state.cached_tower[cache_index] = touch_info[4]
+                    st.session_state.cached_datetime[cache_index] = touch_info[5]
+            st.switch_page(page="pages/2_Analyse_Striking.py")
+            st.rerun()
 
-                st.session_state.cached_touch_id[cache_index] = touch_info[0]
-                st.session_state.cached_read_id[cache_index] = touch_info[1]
-                st.session_state.cached_nchanges[cache_index] = touch_info[2]
-                st.session_state.cached_methods[cache_index] = touch_info[3]
-                st.session_state.cached_tower[cache_index] = touch_info[4]
-                st.session_state.cached_datetime[cache_index] = touch_info[5]
-        st.rerun()
-
-elif not st.session_state.analysis_button:
-    st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse striking from this collection]")
-    st.session_state.analysis_button = True
+add_collection_to_cache(ntouches, saved_index_list)
 
 st.divider()
 
