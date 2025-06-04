@@ -163,6 +163,8 @@ if 'cached_tower' not in st.session_state:
     st.session_state.cached_tower = []
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
+if 'collection_status' not in st.session_state:
+    st.session_state.collection_status = -1   #-1 for nothing, 0 for opening an existing one and 1 for creating a new one
 
 def add_collection_to_cache(ntouches, saved_index_list):
     if ntouches!= 0 and saved_index_list[0][0] != ' ':

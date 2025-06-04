@@ -119,6 +119,8 @@ if 'checked' not in st.session_state:
     st.session_state.checked = []  
 if 'raw_file' not in st.session_state:
     st.session_state.raw_file = None  
+if 'collection_status' not in st.session_state:
+    st.session_state.collection_status = -1   #-1 for nothing, 0 for opening an existing one and 1 for creating a new one
 #Frequency data to be saved throughout
 if 'reinforce_test_frequencies' not in st.session_state:
     st.session_state.reinforce_test_frequencies = None   
