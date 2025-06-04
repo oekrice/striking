@@ -154,8 +154,8 @@ if 'cached_datetime' not in st.session_state:
 # st.session_state.trimmed_signal = None
 # st.session_state.audio_signal = None
 # st.session_state.raw_file = None
-Paras = None
-Data = None
+st.session_state.Paras = None
+st.session_state.Data = None
 
 touch_titles = []
 raw_titles = []

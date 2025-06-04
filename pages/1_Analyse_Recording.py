@@ -193,9 +193,9 @@ if st.session_state.testing_mode:
 
 gc.collect()
 
-Audio = None
-Data = None
-Paras = None
+st.session_state.Audio = None
+st.session_state.Data = None
+st.session_state.Paras = None
 
 def reset_nominals():
     st.session_state.nominals_confirmed = False
@@ -228,41 +228,41 @@ def reset_file():
 
 st.session_state.counter += 1
 
-progress_counter = 0   #How far through the thing is
+st.session_state.progress_counter = 0   #How far through the thing is
 
 @st.cache_data(ttl=300)               
 def read_bell_data():
     nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
     return nominal_import
 
-nominal_data = read_bell_data()
-freq_filename = None
+st.session_state.nominal_data = read_bell_data()
+st.session_state.freq_filename = None
 
-tower_names = nominal_data["Tower Name"].tolist()
+st.session_state.tower_names = st.session_state.nominal_data["Tower Name"].tolist()
 
-default_index = tower_names.index("Brancepeth, S Brandon")
+st.session_state.default_index = st.session_state.tower_names.index("Brancepeth, S Brandon")
 
 if st.session_state.testing_mode:
     reset_nominals()
     reset_on_upload()
-    tower_name = input_matrix[st.session_state.test_counter][0]
-    default_index = tower_names.index(tower_name)
+    st.session_state.tower_name = input_matrix[st.session_state.test_counter][0]
+    st.session_state.default_index = st.session_state.tower_names.index(st.session_state.tower_name)
 
-existing_selected = False
+st.session_state.existing_selected = False
 if st.session_state.tower_name is not None:
     if st.session_state.tower_name != "Unknown Tower":
-        existing_selected = True
-        index = tower_names.index(st.session_state.tower_name)
+        st.session_state.existing_selected = True
+        st.session_state.index = st.session_state.tower_names.index(st.session_state.tower_name)
         #st.session_state.nominals_confirmed = True
 
 if st.session_state.testing_mode:
-    st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    st.session_state.tower_name = st.selectbox('Select a tower...', st.session_state.tower_names, index = st.session_state.default_index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 else:
-    if not existing_selected:
-        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+    if not st.session_state.existing_selected:
+        st.session_state.tower_name = st.selectbox('Select a tower...', st.session_state.tower_names, index = None, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
     else:
-        st.session_state.tower_name = st.selectbox('Select a tower...', tower_names, index = index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
+        st.session_state.tower_name = st.selectbox('Select a tower...', st.session_state.tower_names, index = st.session_state.index, key = None, placeholder="Choose a tower", label_visibility="visible", on_change = reset_nominals)
 
 if st.session_state.tower_name:
     st.session_state.tower_selected = True 
@@ -271,96 +271,96 @@ else:
     st.session_state.nominals_confirmed = False  
     st.write("If you can't find the required tower in the list, try to find a similarly-tuned ring (look for the nominal frequencies) on Dove's guide and that may work -- but please don't save the frequency profiles.")
 if st.session_state.tower_selected:
-    selected_index = tower_names.index(st.session_state.tower_name)
-    st.session_state.tower_id = nominal_data["Tower ID"][selected_index]
+    selected_index = st.session_state.tower_names.index(st.session_state.tower_name)
+    st.session_state.tower_id = st.session_state.nominal_data["Tower ID"][selected_index]
 
-    bell_options = list(nominal_data.columns)[3:]
+    st.session_state.bell_options = list(st.session_state.nominal_data.columns)[3:]
     #Determine the number of valid bells
-    bell_names = []; bell_nominals = []
+    st.session_state.bell_names = []; st.session_state.bell_nominals = []
     
-    nbells_max = 0
-    for option in bell_options:
-        if float(nominal_data.loc[selected_index][option]) > 0:
-            bell_names.append(option)
+    st.session_state.nbells_max = 0
+    for option in st.session_state.bell_options:
+        if float(st.session_state.nominal_data.loc[selected_index][option]) > 0:
+            st.session_state.bell_names.append(option)
             if option.isnumeric():
-                nbells_max = max(nbells_max, int(option))
+                st.session_state.nbells_max = max(st.session_state.nbells_max, int(option))
     
-    st.write("Ring of ", str(nbells_max), "with", str(len(bell_names)), "bells to choose from:")
+    st.write("Ring of ", str(st.session_state.nbells_max), "with", str(len(st.session_state.bell_names)), "bells to choose from:")
     
-    nrows = len(bell_names)//11 + 1
-    per_row = int((len(bell_names)-1e-6)//nrows) + 1 
-    mincheck = len(bell_names)-1; maxcheck = 0
+    st.session_state.nrows = len(st.session_state.bell_names)//11 + 1
+    st.session_state.per_row = int((len(st.session_state.bell_names)-1e-6)//st.session_state.nrows) + 1 
+    st.session_state.mincheck = len(st.session_state.bell_names)-1; st.session_state.maxcheck = 0
 
-    nbells_save = 0; max_bell = 0
+    st.session_state.nbells_save = 0; st.session_state.max_bell = 0
 
     if st.session_state.testing_mode:
         st.session_state.nominals_confirmed = False
 
-        nbells_select = int(input_matrix[st.session_state.test_counter][1])
-        for row in range(nrows):
+        st.session_state.nbells_select = int(input_matrix[st.session_state.test_counter][1])
+        for row in range(st.session_state.nrows):
             #Need more than one row sometimes (if more than 8?)
-            start = row*per_row
-            end = min(len(bell_names), (row+1)*per_row)
-            cols = st.columns(end-start)
+            st.session_state.start = row*st.session_state.per_row
+            st.session_state.end = min(len(st.session_state.bell_names), (row+1)*st.session_state.per_row)
+            st.session_state.cols = st.columns(st.session_state.end-st.session_state.start)
             #Display checkboxes
-            for i in range(start, end):
+            for i in range(st.session_state.start, st.session_state.end):
                                 
-                if bell_names[i].isnumeric():
-                    mincheck = min(i, mincheck)
-                    maxcheck = max(i, maxcheck)
-                    bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
+                if st.session_state.bell_names[i].isnumeric():
+                    st.session_state.mincheck = min(i, st.session_state.mincheck)
+                    st.session_state.maxcheck = max(i, st.session_state.maxcheck)
+                    st.session_state.bell_nominals.append(float(st.session_state.nominal_data.loc[selected_index, st.session_state.bell_names[i]]))
 
-        mincheck = maxcheck-nbells_select + 1
-        max_bell = maxcheck + 1
-        bell_nominals = bell_nominals[-nbells_select:]
+        st.session_state.mincheck = st.session_state.maxcheck-st.session_state.nbells_select + 1
+        st.session_state.max_bell = st.session_state.maxcheck + 1
+        st.session_state.bell_nominals = st.session_state.bell_nominals[-st.session_state.nbells_select:]
     else:
-        allchecked = []
-        for row in range(nrows):
+        st.session_state.allchecked = []
+        for row in range(st.session_state.nrows):
             #Need more than one row sometimes (if more than 8?)
-            start = row*per_row
-            end = min(len(bell_names), (row+1)*per_row)
-            cols = st.columns(end-start)
+            st.session_state.start = row*st.session_state.per_row
+            st.session_state.end = min(len(st.session_state.bell_names), (row+1)*st.session_state.per_row)
+            cols = st.columns(st.session_state.end-st.session_state.start)
             #Display checkboxes
-            for i in range(start, end):
-                with cols[i%per_row]:
+            for i in range(st.session_state.start, st.session_state.end):
+                with cols[i%st.session_state.per_row]:
                     if len(st.session_state.checked) > 0:
-                        if bell_names[i] in st.session_state.checked:
-                            checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                            if bell_names[i].isnumeric():
-                                max_bell = max(max_bell, int(bell_names[i]))    
+                        if st.session_state.bell_names[i] in st.session_state.checked:
+                            checked = st.checkbox(st.session_state.bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            if st.session_state.bell_names[i].isnumeric():
+                                st.session_state.max_bell = max(st.session_state.max_bell, int(st.session_state.bell_names[i]))    
                         else:
-                            checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            checked = st.checkbox(st.session_state.bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
                     else:
-                        if bell_names[i].isnumeric():
-                            checked = st.checkbox(bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
-                            if bell_names[i].isnumeric():
-                                max_bell = max(max_bell, int(bell_names[i]))    
+                        if st.session_state.bell_names[i].isnumeric():
+                            checked = st.checkbox(st.session_state.bell_names[i], value = True, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            if st.session_state.bell_names[i].isnumeric():
+                                st.session_state.max_bell = max(st.session_state.max_bell, int(st.session_state.bell_names[i]))    
                         else:
-                            checked = st.checkbox(bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
+                            checked = st.checkbox(st.session_state.bell_names[i], value = False, on_change = reset_nominals, key = i + st.session_state.tower_id*1000)
                     if checked:
-                        allchecked.append(bell_names[i])
-                        mincheck = min(i, mincheck)
-                        maxcheck = max(i, maxcheck)
-                        bell_nominals.append(float(nominal_data.loc[selected_index, bell_names[i]]))
-        st.session_state.checked = allchecked
+                        st.session_state.allchecked.append(st.session_state.bell_names[i])
+                        st.session_state.mincheck = min(i, st.session_state.mincheck)
+                        st.session_state.maxcheck = max(i, st.session_state.maxcheck)
+                        st.session_state.bell_nominals.append(float(st.session_state.nominal_data.loc[selected_index, st.session_state.bell_names[i]]))
+        st.session_state.checked = st.session_state.allchecked
 
-    nbells_save = len(bell_nominals)
-    bell_nominals = sorted(bell_nominals, reverse = True)
+    st.session_state.nbells_save = len(st.session_state.bell_nominals)
+    st.session_state.bell_nominals = sorted(st.session_state.bell_nominals, reverse = True)
       
-    st.write(str(len(bell_nominals)), 'bells selected, with (editable) nominal frequencies in Hz')
+    st.write(str(len(st.session_state.bell_nominals)), 'bells selected, with (editable) nominal frequencies in Hz')
         
     #Make nice dataframe for this
     
     if st.session_state.nominals_confirmed:
         #These have been confirmed so don't repopulate unless they've been reset otherwise
-        freq_df = pd.DataFrame(data = np.array(st.session_state.bell_nominals)[np.newaxis,:], columns = ["Bell %d" % (ri + 1) for ri in range(len(bell_nominals))])
+        freq_df = pd.DataFrame(data = np.array(st.session_state.bell_nominals)[np.newaxis,:], columns = ["Bell %d" % (ri + 1) for ri in range(len(st.session_state.bell_nominals))])
     else:
         #These haven't been confirmed -- fill dataframe will raw data
-        freq_df = pd.DataFrame(data = np.array(bell_nominals)[np.newaxis,:], columns = ["Bell %d" % (ri + 1) for ri in range(len(bell_nominals))])
+        freq_df = pd.DataFrame(data = np.array(st.session_state.bell_nominals)[np.newaxis,:], columns = ["Bell %d" % (ri + 1) for ri in range(len(st.session_state.bell_nominals))])
         
     edited_nominals = np.array(st.data_editor(freq_df, hide_index = True, on_change = reset_nominals))[0].tolist()
     
-    if len(bell_nominals) < 4:
+    if len(st.session_state.bell_nominals) < 4:
         st.write('Please select four or more bells')
         st.stop()
 
@@ -384,7 +384,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     #Establish filename for the frequencies.
     #Needs to contain tower, first and last bells, and a counter. Can work on formats in a bit.
-    freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, nbells_save, max_bell)
+    st.session_state.freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, st.session_state.nbells_save, st.session_state.max_bell)
     
     #rst.write(freq_root)
 
@@ -392,7 +392,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     existing_files = 0; allquals = []; allcs = []; max_existing = -1
     existing_freq_files = os.listdir('./frequency_data/')
     for file in existing_freq_files:
-        if file[:len(freq_root)] == freq_root:
+        if file[:len(st.session_state.freq_root)] == st.session_state.freq_root:
             if file[-11:] == "quality.npy":
                 max_existing = max(max_existing, int(file[12:15]))
                 quals = np.load('./frequency_data/' + file)
@@ -402,7 +402,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
                     
             existing_files += 1
     frequency_counter = existing_files//3    #ID of THIS frequency set
-    freq_filename = freq_root + '_%03d' % (max_existing + 1)         
+    freq_filename = st.session_state.freq_root + '_%03d' % (max_existing + 1)         
         
     def stop_analysis():
         if st.session_state.final_freqs is not None:
@@ -444,7 +444,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         st.session_state.use_existing_freqs = -1
     else:
         st.session_state.use_existing_freqs  = allstrings.index(options) - 1
-        existing_filename = freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
+        st.session_state.existing_filename = st.session_state.freq_root + '_%03d' % (st.session_state.use_existing_freqs)  
     #Nominal frequencies detected. Proceed to upload audio...
     #st.write("Upload ringing audio:")
     input_option = 0
@@ -453,33 +453,34 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         test_fname = input_matrix[st.session_state.test_counter][2]
         with open (test_fname, "rb") as f:
             file_bytes = f.read()
-            raw_file = io.BytesIO(file_bytes)
-            raw_file.name = test_fname
+            st.session_state.input_file = io.BytesIO(file_bytes)
+            st.session_state.input_file.name = test_fname
     else:
         #Decide between uploading a file and recording directly
-        input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
-        if input_option == "Upload":
-            raw_file = st.file_uploader("Upload recording of ringing for analysis", on_change = reset_on_upload, key = st.session_state.uploader_key)
+        st.session_state.input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
+        if st.session_state.input_option != "Record":
+            st.session_state.input_file = st.file_uploader("Upload recording of ringing for analysis", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            if st.session_state.input_file is not None:
+                st.session_state.raw_file = st.session_state.input_file
         else:
-            raw_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
-            if raw_file is not None:
+            st.session_state.input_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            if st.session_state.input_file is not None:
                 #Name for the uploaded file... Tower plus random number?
-                tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
-                raw_file.name = ('%s_record_%04d.wav' % (tower_short, int(random.random()*10000)))
-                st.session_state.raw_file = raw_file
-    #st.write(raw_file is not None, st.session_state.audio_signal is not None)
-    
-    if raw_file is not None:
-        process_audio_files(raw_file, doprints = True)  
-        del raw_file
+                st.session_state.tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
+                st.session_state.input_file.name = ('%s_record_%04d.wav' % (st.session_state.tower_short, int(random.random()*10000)))
+                if st.session_state.input_file is not None:
+                    st.session_state.raw_file = st.session_state.input_file
+
+    if st.session_state.input_file is not None:
+        process_audio_files(st.session_state.input_file, doprints = True)  
+        del st.session_state.input_file
         if not st.session_state.testing_mode:
             st.rerun()
         
-    #st.write(st.session_state.trimmed_signal is not None)
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
-    if input_option == "Record" and (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
+    if (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
         st.audio(st.session_state.raw_file)
-    if input_option == "Record" and st.session_state.raw_file is not None:
+    if st.session_state.input_option == "Record" and st.session_state.raw_file is not None:
         st.download_button("Download this recording to device", st.session_state.raw_file, file_name = st.session_state.raw_file.name)
 
     if input_option == "Upload":
@@ -522,27 +523,27 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         return
         
     st.write("Recording parameters:")
-    tmax = len(st.session_state.audio_signal)/st.session_state.fs
+    st.session_state.tmax = len(st.session_state.audio_signal)/st.session_state.fs
 
-    overall_tmin, overall_tmax = st.slider("Trim recording for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, tmax),step = 1. ,format = "%ds", disabled = False)
+    st.session_state.overall_tmin, st.session_state.overall_tmax = st.slider("Trim recording for use overall (remove silence before ringing if possible):", min_value = 0.0, max_value = 0.0, value=(0.0, st.session_state.tmax),step = 1. ,format = "%ds", disabled = False)
         
     if st.session_state.use_existing_freqs < 0:
-        reinforce_tmax = st.slider("Length of recording used for frequency analysis -- longer is slower but more accurate (but don't include bad ringing!):", min_value = 45.0, max_value = min(120.0, tmax), step = 1., value=(60.0), format = "%ds")
-        nreinforces = int(st.slider("Max number of frequency analysis steps -- may not need this many and will stop automatically if so:", min_value = 2, max_value = 15, value = 10, step = 1))
+        st.session_state.reinforce_tmax = st.slider("Length of recording used for frequency analysis -- longer is slower but more accurate (but don't include bad ringing!):", min_value = 45.0, max_value = min(120.0, st.session_state.tmax), step = 1., value=(60.0), format = "%ds")
+        st.session_state.nreinforces = int(st.slider("Max number of frequency analysis steps -- may not need this many and will stop automatically if so:", min_value = 2, max_value = 15, value = 10, step = 1))
     else:
-        reinforce_tmax = 90.0
-        nreinforces = 5
+        st.session_state.reinforce_tmax = 90.0
+        st.session_state.nreinforces = 5
 
     if st.session_state.use_existing_freqs < 0:
         if len(st.session_state.bell_nominals) > 8:
-            npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = True)
+            st.session_state.npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = True)
         else:
-            npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = False)
+            st.session_state.npicks_mode = st.checkbox(label = "Run a more intense frequency analysis to improve accuracy (may be very slow but recommended on 10/12)", value = False)
     else:
-        npicks_mode = False
+        st.session_state.npicks_mode = False
 
-    Paras = parameters(np.array(st.session_state.bell_nominals), overall_tmin, overall_tmax, reinforce_tmax, nreinforces, npicks_mode)
-    Paras.fname = str(st.session_state.tower_id)
+    st.session_state.Paras = parameters(np.array(st.session_state.bell_nominals), st.session_state.overall_tmin, st.session_state.overall_tmax, st.session_state.reinforce_tmax, st.session_state.nreinforces, st.session_state.npicks_mode)
+    st.session_state.Paras.fname = str(st.session_state.tower_id)
 
     if st.session_state.use_existing_freqs < 0:
         
@@ -576,11 +577,11 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
         
             st.current_log.write('Detecting ringing...')
         
-            Data = establish_initial_rhythm(Paras)
+            st.session_state.Data = establish_initial_rhythm(st.session_state.Paras)
             
-            st.current_log.write('Established initial rhythm using ' + str(len(Data.strikes[0])) + ' changes')
+            st.current_log.write('Established initial rhythm using ' + str(len(st.session_state.Data.strikes[0])) + ' changes')
                     
-            Data = do_reinforcement(Paras, Data)
+            st.session_state.Data = do_reinforcement(st.session_state.Paras, st.session_state.Data)
                     
             if st.session_state.reinforce_frequency_data is not None:
                 if st.session_state.reinforce_frequency_data[2] > 0.85:
@@ -591,7 +592,7 @@ if st.session_state.nominals_confirmed and st.session_state.tower_selected and (
             else:
                 st.session_state.reinforce_status = 0
                         
-            del Data   #Can probably delete some other stuff as well...
+            del st.session_state.Data   #Can probably delete some other stuff as well...
             if not st.session_state.testing_mode:
                 st.rerun()
                         
@@ -667,18 +668,18 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
         st.analysis_sublog.progress(0, text = 'Finding initial rhythm')
 
         #Need to establish initial rhythm again in case this has changed. Shouldn't take too long.
-        establish_initial_rhythm(Paras, final = True)
+        establish_initial_rhythm(st.session_state.Paras, final = True)
        
         #Load in final frequencies as session variables
         if st.session_state.use_existing_freqs < 0:
             st.session_state.final_freqs = st.session_state.reinforce_test_frequencies
             st.session_state.final_freqprobs = st.session_state.reinforce_frequency_profile
         else:
-            st.session_state.final_freqs = np.load('./frequency_data/' + existing_filename + '_freqs.npy')
-            st.session_state.final_freqprobs = np.load('./frequency_data/' + existing_filename + '_freqprobs.npy')
+            st.session_state.final_freqs = np.load('./frequency_data/' + st.session_state.existing_filename + '_freqs.npy')
+            st.session_state.final_freqprobs = np.load('./frequency_data/' + st.session_state.existing_filename + '_freqprobs.npy')
             
-        find_final_strikes(Paras)
-        filter_final_strikes(Paras)
+        find_final_strikes(st.session_state.Paras)
+        filter_final_strikes(st.session_state.Paras)
 
         if len(st.session_state.allstrikes) == 0:
             st.session_state.analysis_status = 0
@@ -686,7 +687,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             st.session_state.analysis_status = 2
         #Update freuqency data to reflect the quality of the whole thing
         bellconfs_individual = np.mean(np.array(st.session_state.allcerts)[1:,:], axis = 0)
-        st.session_state.reinforce_frequency_data = np.array([Paras.dt, Paras.fcut_length, np.mean(np.array(st.session_state.allcerts)[1:]), np.min(np.array(st.session_state.allcerts)[1:])])
+        st.session_state.reinforce_frequency_data = np.array([st.session_state.Paras.dt, st.session_state.Paras.fcut_length, np.mean(np.array(st.session_state.allcerts)[1:]), np.min(np.array(st.session_state.allcerts)[1:])])
         st.session_state.reinforce_frequency_data = np.concatenate((st.session_state.reinforce_frequency_data, bellconfs_individual))
 
         if not st.session_state.testing_mode:
@@ -787,7 +788,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             start_row = 0; end_row = len(allrows_correct)
         #Give options to save to the cache (so this works on the analysis page) or to download as a csv
         cache_names = [val[2] for val in st.session_state.cached_data]
-        striking_df, orders = save_strikes(Paras)
+        striking_df, orders = save_strikes(st.session_state.Paras)
 
         if not st.session_state.incache:
             if st.session_state.audio_filename in cache_names:   #This does the check. Seems reasonable
@@ -884,11 +885,11 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             for row in range(len(st.session_state.allstrikes[0])):
                 allstrikes_save = allstrikes_save + sorted((st.session_state.allstrikes[:,row]).tolist())
             allstrikes_save = np.array(allstrikes_save)
-            ideal_times = find_ideal_times_rwp(allstrikes_save, Paras.nbells, key = 0)
+            ideal_times = find_ideal_times_rwp(allstrikes_save, st.session_state.Paras.nbells, key = 0)
             errors = allstrikes_save - ideal_times
             standard_deviation = np.sqrt(np.sum(errors**2)/len(errors))
 
-            print('Approx SD', 1000*standard_deviation*Paras.dt)
+            print('Approx SD', 1000*standard_deviation*st.session_state.Paras.dt)
             st.session_state.test_counter += 1
             st.rerun()
         else:
