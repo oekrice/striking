@@ -31,7 +31,7 @@ def run():
     
 
     st.markdown('''
-                ## BReNDA 0.9.5 
+                ## BReNDA 0.9.6 
                 ### Bell REcording with Novel Data Analysis 
                 ''')
 
@@ -49,7 +49,7 @@ def run():
                 
     st.page_link("pages/1_Analyse_Recording.py", label = ":blue[Analyse Recording]")
     st.markdown('''
-        Use this page to upload (or record) a recording of bellringing, 'learn' the frequencies of the bells if necessaryand determine the strike times. This data can then be viewed on:
+        Use this page to upload (or record) a recording of bellringing, 'learn' the frequencies of the bells if necessary and determine the strike times. This data can then be viewed on:
                 ''')
     st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse Striking]")
     st.markdown('''
@@ -71,18 +71,22 @@ def run():
                         This new app is designed quite differently from these and is more focused on less technical analysis than the high-quality 12 bell touches people usually focus on with this kind of software. \\
                         Notably, the new method for audio analysis can use (reasonably) noisy ringing chamber recordings, and does not require any calibration beforehand. It achieves using new audio filtering techniques which I've figured out expressly for this purpose.\\
                     \\
-                        This is not a replacement for or an update to the existing software -- with the same input HawkEar will generally provides more reliable results (by a few ms) -- but this does open up this kind of analysis to more everday ringing, and the feedback can hopefully be used to help people improve in scenarios other than just the very best 12 bell ringing.
+                        This is not a replacement for or an update to the existing software -- with the same input HawkEar will generally provide more reliable results (by a few ms) -- but this does open up this kind of analysis to more everday ringing, and the feedback can hopefully be used to help people improve in scenarios other than just the very best 12 bell ringing.
             ''')
     with st.expander("Limitations (not a complete list...)"):
         st.markdown('''
             As you might expect, the recording must be reasonably clear -- if you can't pick out all the bells most of the time then this probably won't manage it. Some towers just work better than others. Anything which works for HawkEar *should* be OK here though, and please let me know if you find something that doesn't (apart from St. Paul's Cathedral, I know it doesn't like it there).\\
             $~$ \\
-            The algorithm is designed to look for rhythmic, open handstroke ringing. Analysing bad ringing can be quite amusing but once the rhythm is lost it's difficult for it to figure out and sometimes it'll go terribly weong. \\
+            The algorithm is designed to look for rhythmic, open handstroke ringing. Analysing bad ringing can be quite amusing but once the rhythm is lost it's difficult for it to figure out and sometimes it'll go terribly wrong. \\
             $~$ \\
             Currently the algorithms for finding the 'ideal' striking times are my own - the 'team model' seems to be reasonably consistent with the current 'contest model' used in Strikeometer, but there are some notable differences. I have added the RWP striking model for direct comparisons if neccessary"
                     
                     ''')
     with st.expander("Recent Updates"):
+        st.markdown('''
+            **Update (0.9.6):** \\
+            Added more checks to ensure the recording analysis is thread-safe (maybe fixed Samsung problem I hope perhaps?), changed some of the syntax to make using method collections easier and introduced shareable links.
+            ''')
         st.markdown('''
             **Update (0.9.5):** \\
             Added the 'Touch Library', so touches can be saved and shared within the app. Preserves metadata etc. so things should be able to be organised nicely.
@@ -104,10 +108,10 @@ def run():
     with st.expander("Contact"):
         st.markdown('''
             If you have any questions, would like to suggest any new features or find any bugs/any error messages, please let me know at "oliverricesolar(at)gmail.com", where clearly the (at) should be @ if you're not a robot.
-            I am not by any means a software developer so I appreciate it's all a little rough and ready
+            I am not by any means a software developer so I appreciate it's all a little rough and ready.
             ''')
         st.markdown('''
-            If you'd like access to the code to make something more of this, or collobrate to achieve something more, then don't hesitate to get in touch. I'll have less time to work on this before long so I'm keen to see it progress with less input from me.
+            If you'd like access to the code to make something more of this, or collaborate to achieve something more, then don't hesitate to get in touch. I'll have less time to work on this before long so I'm keen to see it progress with less input from me.
             ''')
         
     with st.expander("View towers Brenda's currently learnt:"):
