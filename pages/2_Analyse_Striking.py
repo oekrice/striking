@@ -573,12 +573,12 @@ if st.session_state.current_touch >= 0:
                 st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 700 + st.session_state.current_touch)
             elif len(st.session_state.highlight_bells) > 1:
                 st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 800 + st.session_state.current_touch)
-                st.session_state.strokes_plot = [strokes_plot]
+                st.session_state.strokes_plot = [st.session_state.strokes_plot]
             else:
-                strokes_plot = None
+                st.session_state.strokes_plot = None
                 
-            if len(st.session_state.highlight_bells) > 0 and strokes_plot is not None:
-                    plot_errors_time(Strike_Data.time_errors, st.session_state.min_plot_change, st.session_state.max_plot_change, st.session_state.absvalues, st.session_state.highlight_bells, strokes_plot, st.session_state.smooth)
+            if len(st.session_state.highlight_bells) > 0 and st.session_state.strokes_plot is not None:
+                    plot_errors_time(Strike_Data.time_errors, st.session_state.min_plot_change, st.session_state.max_plot_change, st.session_state.absvalues, st.session_state.highlight_bells, st.session_state.strokes_plot, st.session_state.smooth)
         
         with st.expander("View Histograms"):
             st.empty()
