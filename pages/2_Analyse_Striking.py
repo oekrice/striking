@@ -250,6 +250,24 @@ if len(touch_titles) == 0:
     st.write('No data currently loaded: either upload a .csv file with striking data or generate some using the Analyse Recording page')
     st.stop()
 
+
+if selection is None:
+    st.stop()
+
+st.session_state.current_touch = touch_titles.index(selection)
+selected_title = selection
+
+if len(touch_titles) > 0 and st.session_state.current_touch < 0:
+      st.session_state.current_touch = len(touch_titles) - 1  
+
+if st.session_state.current_touch < 0:
+    st.write('**Select a touch from the options above, or upload a new one**')
+else:
+    st.write('Analysing ringing from "%s"' % touch_titles[st.session_state.current_touch])
+
+if len(touch_titles) == 0:
+    st.session_state.current_touch = -1
+
 #Add a bit to easily add a touch to this collection
 
 if st.session_state.collection_status == 0:
@@ -280,23 +298,6 @@ if st.session_state.collection_status == 0:
     else:
         st.write('This touch is saved in collection **%s**' % st.session_state.current_collection_name)
 
-if selection is None:
-    st.stop()
-
-st.session_state.current_touch = touch_titles.index(selection)
-selected_title = selection
-
-if len(touch_titles) > 0 and st.session_state.current_touch < 0:
-      st.session_state.current_touch = len(touch_titles) - 1  
-
-if st.session_state.current_touch < 0:
-    st.write('**Select a touch from the options on the left, or upload a new one**')
-else:
-    st.write('Analysing ringing from "%s"' % touch_titles[st.session_state.current_touch])
-
-if len(touch_titles) == 0:
-    st.session_state.current_touch = -1
-    
 if st.session_state.current_touch >= 0:
     #Write in to a local bit to actually do the analysis
     strikes = st.session_state.cached_strikes[st.session_state.current_touch]

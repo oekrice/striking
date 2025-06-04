@@ -235,6 +235,74 @@ def read_bell_data():
     nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
     return nominal_import
 
+def determine_collection_from_url(existing_names):
+    if 'collection' in st.query_params.keys():
+        collection_name = st.query_params["collection"]
+        if collection_name in existing_names:
+            return collection_name
+        else:
+            return None
+    else:
+        return None
+    
+def find_existing_names():
+    #Finds a list of existing collection names
+    return os.listdir('./saved_touches/')
+
+def add_collection_to_cache(ntouches, saved_index_list):
+    if ntouches!= 0 and saved_index_list[0][0] != ' ':
+        #Put everything from this collection into the cache (if it's not already there)
+        for touch_info in saved_index_list:
+            #Check if it's already in there
+            if touch_info[0] not in st.session_state.cached_touch_id:
+                #Load in csv
+                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+
+                st.session_state.cached_data.append([touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]])
+                st.session_state.cached_strikes.append([])
+                st.session_state.cached_certs.append([])
+                st.session_state.cached_rawdata.append(raw_data)
+
+                st.session_state.cached_touch_id.append(touch_info[0])
+                st.session_state.cached_read_id.append(touch_info[1])
+                st.session_state.cached_nchanges.append(touch_info[2])
+                st.session_state.cached_methods.append(touch_info[3])
+                st.session_state.cached_tower.append(touch_info[4])
+                st.session_state.cached_datetime.append(touch_info[5])
+            else:
+                cache_index = st.session_state.cached_touch_id.index(touch_info[0])
+                raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
+
+                st.session_state.cached_data[cache_index] = [touch_info[4], int(len(raw_data)/np.max(raw_data["Bell No"])), touch_info[1]]
+                st.session_state.cached_strikes[cache_index] = []
+                st.session_state.cached_certs[cache_index] = []
+                st.session_state.cached_rawdata[cache_index] = raw_data
+
+                st.session_state.cached_touch_id[cache_index] = touch_info[0]
+                st.session_state.cached_read_id[cache_index] = touch_info[1]
+                st.session_state.cached_nchanges[cache_index] = touch_info[2]
+                st.session_state.cached_methods[cache_index] = touch_info[3]
+                st.session_state.cached_tower[cache_index] = touch_info[4]
+                st.session_state.cached_datetime[cache_index] = touch_info[5]
+
+existing_names = find_existing_names()
+url_collection = determine_collection_from_url(existing_names)
+
+if url_collection is not None:
+    st.session_state.collection_status = 0
+    st.session_state.current_collection_name = url_collection
+
+    if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
+        saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
+    else:
+        saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+    if len(np.shape(saved_index_list)) == 1:
+        saved_index_list = np.array([saved_index_list])
+
+    ntouches = len(saved_index_list)
+
+    add_collection_to_cache(ntouches, saved_index_list)
+
 st.session_state.nominal_data = read_bell_data()
 st.session_state.freq_filename = None
 
