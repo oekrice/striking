@@ -361,7 +361,7 @@ if st.session_state.collection_status == 1:
 
 elif st.session_state.collection_status == 0:
     st.write('Viewing collection **%s**' % st.session_state.current_collection_name)  
-    st.write('Share this collection with the url https://brenda.oekrice.com/Analyse_Striking?%s' % st.session_state.current_collection_name)
+    st.write('Share this collection with the url https://brenda.oekrice.com/Analyse_Striking?collection=%s' % st.session_state.current_collection_name)
 else:
     st.stop()  
 
