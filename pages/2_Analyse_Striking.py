@@ -560,32 +560,32 @@ if st.session_state.current_touch >= 0:
                         
         with st.expander("View Bell Errors Through Time"):
             st.empty()
-            min_plot_change, max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = st.session_state.nrows, value=(0, st.session_state.nrows), format = "%d", step = 2, key = 500 + st.session_state.current_touch)
+            st.session_state.min_plot_change, st.session_state.max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = st.session_state.nrows, value=(0, st.session_state.nrows), format = "%d", step = 2, key = 500 + st.session_state.current_touch)
             
-            absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
-            options = ["Average"] + ["Bell %d" % bell for bell in range(1,st.session_state.nbells+1)]
-            highlight_bells = st.pills("Plot Bells", options, default = ["Average"], selection_mode="multi", key = 600 + st.session_state.current_touch)
+            st.session_state.absvalues = st.radio("Use absolute values?", ["Absolute Error", "Relative Error"])
+            st.session_state.options = ["Average"] + ["Bell %d" % bell for bell in range(1,st.session_state.nbells+1)]
+            st.session_state.highlight_bells = st.pills("Plot Bells", st.session_state.options, default = ["Average"], selection_mode="multi", key = 600 + st.session_state.current_touch)
             
-            smooth = st.checkbox("Smooth data?", value = False)
+            st.session_state.smooth = st.checkbox("Smooth data?", value = False)
                     
             strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
-            if len(highlight_bells) == 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 700 + st.session_state.current_touch)
-            elif len(highlight_bells) > 1:
-                strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 800 + st.session_state.current_touch)
-                strokes_plot = [strokes_plot]
+            if len(st.session_state.highlight_bells) == 1:
+                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 700 + st.session_state.current_touch)
+            elif len(st.session_state.highlight_bells) > 1:
+                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 800 + st.session_state.current_touch)
+                st.session_state.strokes_plot = [strokes_plot]
             else:
                 strokes_plot = None
                 
-            if len(highlight_bells) > 0 and strokes_plot is not None:
-                    plot_errors_time(Strike_Data.time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth)
+            if len(st.session_state.highlight_bells) > 0 and strokes_plot is not None:
+                    plot_errors_time(Strike_Data.time_errors, st.session_state.min_plot_change, st.session_state.max_plot_change, st.session_state.absvalues, st.session_state.highlight_bells, strokes_plot, st.session_state.smooth)
         
         with st.expander("View Histograms"):
             st.empty()
-            x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")
-            nbins_default = min(100, max(int(len(Strike_Data.errors)/2.5),10))
-            nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= nbins_default, format = "%d", step = 1)
-            plot_histograms(Strike_Data.errors, x_range, nbins, st.session_state.nbells, Strike_Data.raw_bells, Strike_Data.correct_bells, Strike_Data.min_include_change, Strike_Data.max_include_change, Strike_Data.use_method_info, Strike_Data.remove_mistakes, Strike_Data.cadence, Strike_Data.raw_actuals, Strike_Data.raw_target, st.session_state.titles)
+            st.session_state.x_range = st.slider("Histogram x range:", min_value = 50, max_value = 250, value= 160, format = "%dms")
+            st.session_state.nbins_default = min(100, max(int(len(Strike_Data.errors)/2.5),10))
+            st.session_state.nbins = st.slider("Number of histogram bins", min_value = 10, max_value = 100, value= st.session_state.nbins_default, format = "%d", step = 1)
+            plot_histograms(Strike_Data.errors, st.session_state.x_range, st.session_state.nbins, st.session_state.nbells, Strike_Data.raw_bells, Strike_Data.correct_bells, Strike_Data.min_include_change, Strike_Data.max_include_change, Strike_Data.use_method_info, Strike_Data.remove_mistakes, Strike_Data.cadence, Strike_Data.raw_actuals, Strike_Data.raw_target, st.session_state.titles)
 
         with st.expander("View Box Plots"):
             st.empty()
