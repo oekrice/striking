@@ -114,9 +114,26 @@ def make_longtitle_cache(ti):
         longtitle = longtitle + "%d %s" % (int(st.session_state.cached_nchanges[ti]), st.session_state.cached_methods[ti])
     if st.session_state.cached_tower[ti] != '':
         longtitle = longtitle + " at %s" % (st.session_state.cached_tower[ti])
-    longtitle = longtitle + " (first analysed %s)" % get_nice_date(st.session_state.cached_datetime[ti])
+    longtitle = longtitle + " (%s)" % get_nice_date(st.session_state.cached_datetime[ti])
 
     return longtitle
+
+def sort_current_collection(saved_index_list, oldfirst = False):
+    #Sorts based on recorded time (most recent at the top, I presume - but this is backwards later)
+    list_array = np.array(saved_index_list)
+    date_objects = []
+    for i in range(len(saved_index_list)):
+        date_objects.append(datetime.strptime(saved_index_list[i,5], "%m/%d/%Y, %H:%M:%S"))
+    print(date_objects)
+    if not oldfirst:
+        sorted_list = np.array([val for _, val in sorted(zip(date_objects,list_array), reverse = True)])
+    else:
+        sorted_list = np.array([val for _, val in sorted(zip(date_objects,list_array), reverse = False)])
+    print(sorted_list)
+    np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(sorted_list, dtype = str), fmt = '%s', delimiter = ';')
+    st.rerun()
+    return
+
 
 def make_longtitle_collection(touch_info):
     def get_nice_date(date_string):
@@ -137,7 +154,7 @@ def make_longtitle_collection(touch_info):
         longtitle = longtitle + "%d %s" % (int(touch_info[2]), touch_info[3])
     if touch_info[4] != '':
         longtitle = longtitle + " at %s" % (touch_info[4])
-    longtitle = longtitle + " (first analysed %s)" % get_nice_date(touch_info[5])
+    longtitle = longtitle + " (%s)" % get_nice_date(touch_info[5])
 
     return longtitle
 
@@ -247,6 +264,8 @@ if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
 if 'analysis_button' not in st.session_state:
     st.session_state.analysis_button = True
+if 'expanded' not in st.session_state:
+    st.session_state.expanded = False
     #Remove the large things from memory -- need a condition on this maybe?
 # st.session_state.trimmed_signal = None
 # st.session_state.audio_signal = None
@@ -422,199 +441,231 @@ add_collection_to_cache(ntouches, saved_index_list)
 
 st.divider()
 
-if st.session_state.addition_mode < 0 and st.session_state.subtraction_mode < 0 and st.session_state.rename_mode < 0:
-    if ntouches == 0 or saved_index_list[0][0] == ' ':
-        disabled_flag = True
-    else:
-        disabled_flag = False
-    cols = st.columns(4)    
-    with cols [0]:
-        if st.button("Add touches"):
-            change_addition_mode()        
-            st.rerun()
-    with cols [1]:
-        if st.button("Remove touches", disabled = disabled_flag):
-            change_subtraction_mode()        
-            st.rerun()
-    with cols [2]:
-        if st.button("Rename touches", disabled = disabled_flag):
-            change_rename_mode()        
-            st.rerun()
-    with cols [3]:
-        if st.button("Rename this collection"):
-            change_rename_collection_mode()        
-            st.rerun()
-#Listitems will be ID (random string), readable ID (nonunique), nchanges, method(s), tower, datetime. All as strings.
-#This lists the loaded touches, hopefully with some metadata...            
-if st.session_state.addition_mode > 0: 
-    #Replace these with long, metadataed titles at some point
-    if len(touch_titles) == 0:
-        st.write('No touches are loaded. Either analyse a recording, upload a csv. or load from another collection.')
-        st.stop()
-    else:
-        st.write("**Choose touches to add:**")
-        if saved_index_list[0][0] != ' ':
-            current_entries = saved_index_list[:,0]
+with st.expander('Add/remove touches and change metadata'):
+
+    if st.session_state.addition_mode < 0 and st.session_state.subtraction_mode < 0 and st.session_state.rename_mode < 0:
+        if ntouches == 0 or saved_index_list[0][0] == ' ':
+            disabled_flag = True
         else:
-            current_entries = []
-        select_list = []
-        for ti, title in enumerate(touch_titles):
-            longtitle = make_longtitle_cache(ti)
-            if st.session_state.cached_touch_id[ti] not in current_entries:
-                checked = st.checkbox(label = longtitle)
+            disabled_flag = False
+    
+        cols = st.columns(3)    
+        with cols [0]:
+            if st.button("Add touches"):
+                change_addition_mode()        
+                st.rerun()
+        with cols [1]:
+            if st.button("Remove touches", disabled = disabled_flag):
+                change_subtraction_mode()        
+                st.rerun()
+        with cols [2]:
+            if st.button("Change touch data", disabled = disabled_flag):
+                change_rename_mode()        
+                st.rerun()
+        with cols [0]:
+            if st.button("Rename this collection"):
+                change_rename_collection_mode()        
+                st.rerun()
+        with cols [1]:
+            if st.button("Sort (oldest first)", disabled = disabled_flag):
+                sort_current_collection(saved_index_list, oldfirst = True)
+                st.rerun()
+        with cols [2]:
+            if st.button("Sort (newest first)", disabled = disabled_flag):
+                sort_current_collection(saved_index_list, oldfirst = False)
+                st.rerun()
+    #Listitems will be ID (random string), readable ID (nonunique), nchanges, method(s), tower, datetime. All as strings.
+    #This lists the loaded touches, hopefully with some metadata...            
+    if st.session_state.addition_mode > 0: 
+        #Replace these with long, metadataed titles at some point
+        if len(touch_titles) == 0:
+            st.write('No touches are loaded. Either analyse a recording, upload a csv. or load from another collection.')
+            st.stop()
+        else:
+            st.write("**Choose touches to add:**")
+            if saved_index_list[0][0] != ' ':
+                current_entries = saved_index_list[:,0]
             else:
-                checked = st.checkbox(label = longtitle, disabled = True)
+                current_entries = []
+            select_list = []
+            for ti, title in enumerate(touch_titles):
+                longtitle = make_longtitle_cache(ti)
+                if st.session_state.cached_touch_id[ti] not in current_entries:
+                    checked = st.checkbox(label = longtitle)
+                else:
+                    checked = st.checkbox(label = longtitle, disabled = True)
+                if checked:
+                    select_list.append(ti)
+
+            st.write("If the touch you want isn't in this list, either analyse the recording or upload a .csv")
+            if len(select_list) > 0:
+                text = "Add the selected touches"
+            else:
+                text = "Cancel"
+            if st.button(text):
+                change_addition_mode()
+                current_ids = [listitem[0] for listitem in saved_index_list]
+                if saved_index_list[0][0] != ' ':
+                    new_index_list = saved_index_list.tolist()
+                else:
+                    new_index_list = []
+                for ti in select_list:
+                    #Figure out methods (just do it, it's cached...)
+                    methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(st.session_state.cached_rawdata[ti]["Bell No"])
+                    nbells = np.max(st.session_state.cached_rawdata[ti]["Bell No"])
+                    if len(methods) > 0:
+                        nchanges = len(allrows_correct) - 1
+                        end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
+                        if quality > 0.7:
+                            if len(methods) == 1:   #Single method
+                                method_title = methods[0][0]
+                                if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
+                                    method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
+                                    lead_length = 12
+                                else:
+                                    lead_length = 4*int(hunt_types[0][1] + 1)
+
+                            else:   #Spliced methods
+                                stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
+                                stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
+                                if len(set(stagetypes)) == 1:
+                                    method_title = "Spliced " + stagetypes[0]
+                                elif len(set(stages)) == 1:
+                                    method_title = "Spliced " + stages[0]
+                                else:
+                                    method_title = "Spliced"
+                                lead_length = 2*int(hunt_types[0][1] + 1)
+
+                            st.session_state.cached_methods[ti] = method_title
+                            st.session_state.cached_nchanges[ti] = nchanges
+
+                        else:
+                            st.session_state.cached_methods[ti] = "Unknown Method"
+                            st.session_state.cached_nchanges[ti] = int(len(st.session_state.cached_rawdata[ti]["Bell No"])/nbells)
+                    else:
+                        st.session_state.cached_methods[ti] = "Rounds and/or Calls"
+                        st.session_state.cached_nchanges[ti] = int(len(st.session_state.cached_rawdata[ti]["Bell No"])/nbells)
+
+                    if st.session_state.cached_touch_id[ti] not in current_entries:
+
+                        new_list_entry = [st.session_state.cached_touch_id[ti], st.session_state.cached_read_id[ti], st.session_state.cached_nchanges[ti], st.session_state.cached_methods[ti],st.session_state.cached_tower[ti], st.session_state.cached_datetime[ti]]
+                        new_index_list.append(new_list_entry)
+
+                        @st.cache_data(ttl=300)
+                        def convert_for_download(df):
+                            return df.to_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,st.session_state.cached_touch_id[ti]))
+                        convert_for_download(st.session_state.cached_rawdata[ti])
+
+                np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
+
+                st.rerun()
+
+    if st.session_state.subtraction_mode > 0: 
+        #Replace these with long, metadataed titles at some point
+        st.write("**Choose touches to remove:**")
+
+        select_list = []
+        for ti, info in enumerate(saved_index_list):
+            longtitle = make_longtitle_collection(info)
+
+            checked = st.checkbox(label = longtitle)
+
             if checked:
                 select_list.append(ti)
 
-        st.write("If the touch you want isn't in this list, either analyse the recording or upload a .csv")
         if len(select_list) > 0:
-            text = "Add the selected touches"
+            text = "Remove the selected touches"
         else:
             text = "Cancel"
+
         if st.button(text):
-            change_addition_mode()
+            change_subtraction_mode()
             current_ids = [listitem[0] for listitem in saved_index_list]
             if saved_index_list[0][0] != ' ':
                 new_index_list = saved_index_list.tolist()
             else:
                 new_index_list = []
-            for ti in select_list:
-                #Figure out methods (just do it, it's cached...)
-                methods, hunt_types, calls, start_row, end_row, allrows_correct, quality = find_method_things(st.session_state.cached_rawdata[ti]["Bell No"])
-                nbells = np.max(st.session_state.cached_rawdata[ti]["Bell No"])
-                if len(methods) > 0:
-                    nchanges = len(allrows_correct) - 1
-                    end_row = int(np.ceil((start_row + len(allrows_correct))/2)*2)
-                    if quality > 0.7:
-                        if len(methods) == 1:   #Single method
-                            method_title = methods[0][0]
-                            if method_title.rsplit(' ')[0] == "Stedman" or method_title.rsplit(' ')[0] == "Erin":
-                                method_title = method_title.rsplit(' ')[0] + " " + method_title.rsplit(' ')[1]
-                                lead_length = 12
-                            else:
-                                lead_length = 4*int(hunt_types[0][1] + 1)
-
-                        else:   #Spliced methods
-                            stages = [name.rsplit(' ',1)[-1] for  name in np.array(methods)[:,0]]
-                            stagetypes = [name.rsplit(' ')[-2] + ' ' + name.rsplit(' ')[-1] for  name in np.array(methods)[:,0]]
-                            if len(set(stagetypes)) == 1:
-                                method_title = "Spliced " + stagetypes[0]
-                            elif len(set(stages)) == 1:
-                                method_title = "Spliced " + stages[0]
-                            else:
-                                method_title = "Spliced"
-                            lead_length = 2*int(hunt_types[0][1] + 1)
-
-                        st.session_state.cached_methods[ti] = method_title
-                        st.session_state.cached_nchanges[ti] = nchanges
-
-                    else:
-                        st.session_state.cached_methods[ti] = "Unknown Method"
-                        st.session_state.cached_nchanges[ti] = int(len(st.session_state.cached_rawdata[ti]["Bell No"])/nbells)
-                else:
-                    st.session_state.cached_methods[ti] = "Rounds and/or Calls"
-                    st.session_state.cached_nchanges[ti] = int(len(st.session_state.cached_rawdata[ti]["Bell No"])/nbells)
-
-                if st.session_state.cached_touch_id[ti] not in current_entries:
-
-                    new_list_entry = [st.session_state.cached_touch_id[ti], st.session_state.cached_read_id[ti], st.session_state.cached_nchanges[ti], st.session_state.cached_methods[ti],st.session_state.cached_tower[ti], st.session_state.cached_datetime[ti]]
-                    new_index_list.append(new_list_entry)
-
-                    @st.cache_data(ttl=300)
-                    def convert_for_download(df):
-                        return df.to_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,st.session_state.cached_touch_id[ti]))
-                    convert_for_download(st.session_state.cached_rawdata[ti])
+            for ti in select_list[::-1]:
+                new_index_list.pop(ti)
+            if len(new_index_list) == 0:
+                new_index_list = np.array([[' ',' ',' ',' ',' ',' ']])
 
             np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
 
             st.rerun()
 
-if st.session_state.subtraction_mode > 0: 
-    #Replace these with long, metadataed titles at some point
-    st.write("**Choose touches to remove:**")
+    if st.session_state.rename_mode > 0: 
+        #Replace these with long, metadataed titles at some point
+        st.write("**Choose which touch data to alter:**")
 
-    select_list = []
-    for ti, info in enumerate(saved_index_list):
-        longtitle = make_longtitle_collection(info)
+        #Change title
+        select_options = []
+        for ti, info in enumerate(saved_index_list):
+            longtitle = make_longtitle_collection(info)
+            select_options.append(longtitle)
+            
+        rename_touch = st.radio('Select touch', options = select_options)
+        new_name = st.text_input('Enter new name', value = saved_index_list[select_options.index(rename_touch),1])
 
-        checked = st.checkbox(label = longtitle)
+        #Change time
+        date_object = datetime.strptime(saved_index_list[select_options.index(rename_touch),5], "%m/%d/%Y, %H:%M:%S")
+        new_proper_time = st.text_input('Enter time', date_object.strftime("%d-%m-%Y %H:%M:%S"))
+        try:
+            new_date_object = datetime.strptime(new_proper_time, "%d-%m-%Y %H:%M:%S")
+        except:
+            st.error('Incorrect date format, or incorrect date. Try again. Format is DD-MM-YYY HH:MM:SS')
+            st.stop()
 
-        if checked:
-            select_list.append(ti)
+        @st.cache_data(ttl=300)               
+        def read_bell_data():
+            nominal_import = pd.read_csv('./bell_data/nominal_data.csv')
+            return nominal_import
+        #Chenge tower
 
-    if len(select_list) > 0:
-        text = "Remove the selected touches"
-    else:
-        text = "Cancel"
+        #Determine if this tower is in the list? Nah, just have a string!
+        new_tower_name = st.text_input('Enter new tower name', saved_index_list[select_options.index(rename_touch),4])
 
-    if st.button(text):
-        change_subtraction_mode()
-        current_ids = [listitem[0] for listitem in saved_index_list]
-        if saved_index_list[0][0] != ' ':
-            new_index_list = saved_index_list.tolist()
-        else:
-            new_index_list = []
-        for ti in select_list[::-1]:
-            new_index_list.pop(ti)
-        if len(new_index_list) == 0:
-            new_index_list = np.array([[' ',' ',' ',' ',' ',' ']])
-
-        np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
-
-        st.rerun()
-
-if st.session_state.rename_mode > 0: 
-    #Replace these with long, metadataed titles at some point
-    st.write("**Choose touch to rename:**")
-
-    select_options = []
-    for ti, info in enumerate(saved_index_list):
-        longtitle = make_longtitle_collection(info)
-        select_options.append(longtitle)
-        
-    rename_touch = st.radio('Select touch to rename', options = select_options)
-    new_name = st.text_input('Enter new name')
-
-    cols = st.columns(2)
-    with cols[0]:
-         if st.button("Rename"):
-            saved_index_list[select_options.index(rename_touch),1] = new_name
-            change_rename_mode()
-            np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(saved_index_list, dtype = str), fmt = '%s', delimiter = ';')
-            st.rerun()
-
-    with cols[1]:
-         if st.button("Cancel"):
-            change_rename_mode()
-            st.rerun()
-
-if st.session_state.rename_collection_mode > 0: 
-    #Replace these with long, metadataed titles at some point
-
-    new_name = st.text_input('Enter new collection name')
-
-    cols = st.columns(2)
-    with cols[0]:
-        if len(new_name) < 1:
-            if st.button('Rename collection', disabled = True):
-                pass
-        else:
-            #Check if it already exists
-            if new_name in existing_names:
-                st.write('A collection with this name already exists...')
-                if st.button('Rename collection to "%s"' % new_name, disabled = True):
-                    pass
-            else:
-                os.system("mv ./saved_touches/%s ./saved_touches/%s" % (st.session_state.current_collection_name, new_name))
-                st.session_state.current_collection_name = new_name
-                change_rename_collection_mode()
+        cols = st.columns(2)
+        with cols[0]:
+            if st.button("Apply Changes"):
+                saved_index_list[select_options.index(rename_touch),1] = new_name
+                saved_index_list[select_options.index(rename_touch),4] = new_tower_name
+                saved_index_list[select_options.index(rename_touch),5] = new_date_object.strftime("%m/%d/%Y, %H:%M:%S")
+                change_rename_mode()
+                np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(saved_index_list, dtype = str), fmt = '%s', delimiter = ';')
                 st.rerun()
 
-    with cols[1]:
-         if st.button("Cancel"):
-            change_rename_collection_mode()
-            st.rerun()
+        with cols[1]:
+            if st.button("Cancel"):
+                change_rename_mode()
+                st.rerun()
+
+    if st.session_state.rename_collection_mode > 0: 
+        #Replace these with long, metadataed titles at some point
+
+        new_name = st.text_input('Enter new collection name')
+
+        cols = st.columns(2)
+        with cols[0]:
+            if len(new_name) < 1:
+                if st.button('Rename collection', disabled = True):
+                    pass
+            else:
+                #Check if it already exists
+                if new_name in existing_names:
+                    st.write('A collection with this name already exists...')
+                    if st.button('Rename collection to "%s"' % new_name, disabled = True):
+                        pass
+                else:
+                    os.system("mv ./saved_touches/%s ./saved_touches/%s" % (st.session_state.current_collection_name, new_name))
+                    st.session_state.current_collection_name = new_name
+                    change_rename_collection_mode()
+                    st.rerun()
+
+        with cols[1]:
+            if st.button("Cancel"):
+                change_rename_collection_mode()
+                st.rerun()
 
 
 if ntouches == 0 or saved_index_list[0][0] == ' ':
@@ -625,7 +676,7 @@ elif ntouches == 1:
 else:
     st.write('%d touches currently in this collection:' % ntouches)
 
-for ti, info in enumerate(saved_index_list[::-1]):
+for ti, info in enumerate(saved_index_list[:]):
     longtitle = make_longtitle_collection(info)
     st.write(longtitle)
             
