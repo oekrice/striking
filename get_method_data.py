@@ -17,11 +17,8 @@ If you would like to license or publish this software commerically, please conta
 '''
 
 #Script to import method data from the xmls and save in a csv format which makes sense to me
-from bs4 import BeautifulSoup
 import xml.etree.ElementTree as et
-import csv
 import pandas as pd
-import time
 tree = et.parse('method_data/CCCBR_methods.xml')
 
 method_data = []

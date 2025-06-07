@@ -328,23 +328,23 @@ if st.session_state.current_touch >= 0:
         #I think it would be easiest to just plonk this into a dataframe and treat it like an imported one, given I've already written code for that
         st.session_state.allbells = []
         st.session_state.allcerts_save = []
-        st.session_state.allstrikes = []
+        st.session_state.allstrikes_flat = []
         st.session_state.yvalues = np.arange(len(st.session_state.cached_strikes[st.session_state.current_touch][:,0])) + 1
         st.session_state.orders = []
         for row in range(len(st.session_state.cached_strikes[st.session_state.current_touch][0])):
             st.session_state.order = np.array([val for _, val in sorted(zip(st.session_state.cached_strikes[st.session_state.current_touch][:,row], st.session_state.yvalues), reverse = False)])
             st.session_state.certs = np.array([val for _, val in sorted(zip(st.session_state.cached_strikes[st.session_state.current_touch][:,row], st.session_state.cached_certs[st.session_state.current_touch][:,row]), reverse = False)])
-            st.session_state.allstrikes = st.session_state.allstrikes + sorted((st.session_state.cached_strikes[st.session_state.current_touch][:,row]).tolist())
+            st.session_state.allstrikes_flat = st.session_state.allstrikes_flat + sorted((st.session_state.cached_strikes[st.session_state.current_touch][:,row]).tolist())
             st.session_state.allcerts_save = st.session_state.allcerts_save + st.session_state.certs.tolist()
             st.session_state.allbells = st.session_state.allbells + st.session_state.order.tolist()
             st.session_state.orders.append(st.session_state.order)
 
-        st.session_state.allstrikes = 1000*np.array(st.session_state.allstrikes)*0.01
+        st.session_state.allstrikes_flat = 1000*np.array(st.session_state.allstrikes_flat)*0.01
         st.session_state.allbells = np.array(st.session_state.allbells)
         st.session_state.allcerts_save = np.array(st.session_state.allcerts_save)
         st.session_state.orders = np.array(st.session_state.orders)
 
-        st.session_state.raw_data = pd.DataFrame({'Bell No': st.session_state.allbells, 'Actual Time': st.session_state.allstrikes, 'Confidence': st.session_state.allcerts_save})
+        st.session_state.raw_data = pd.DataFrame({'Bell No': st.session_state.allbells, 'Actual Time': st.session_state.allstrikes_flat, 'Confidence': st.session_state.allcerts_save})
 
         st.session_state.raw_actuals = st.session_state.raw_data["Actual Time"]
         st.session_state.nbells = np.max(st.session_state.raw_data["Bell No"])
