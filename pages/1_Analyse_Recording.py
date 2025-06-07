@@ -222,7 +222,7 @@ def reset_on_upload():
     st.session_state.audio_signal = None
     st.session_state.trimmed_signal = None
     st.session_state.raw_file = None
-
+    
 def reset_file():
     st.session_state.audio_signal = None
     st.session_state.trimmed_signal = None
@@ -519,6 +519,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write("Upload ringing audio:")
     input_option = 0
     #st.write(st.session_state.audio_signal is not None)
+
     if st.session_state.testing_mode:
         test_fname = input_matrix[st.session_state.test_counter][2]
         with open (test_fname, "rb") as f:
@@ -529,24 +530,26 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
         #Decide between uploading a file and recording directly
         st.session_state.input_option = st.pills(label = 'Upload a recording or record something directly:', options = ["Upload", "Record"], default = "Upload", on_change = reset_file)
         if st.session_state.input_option != "Record":
-            st.session_state.input_file = st.file_uploader("Upload recording of ringing for analysis", on_change = reset_on_upload, key = st.session_state.uploader_key)
-            if st.session_state.input_file is not None:
-                st.session_state.raw_file = st.session_state.input_file
+            input_file = st.file_uploader("Upload recording of ringing for analysis", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            if input_file is not None:
+                st.session_state.raw_file = input_file
         else:
-            st.session_state.input_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
-            if st.session_state.input_file is not None:
+            input_file = st.audio_input("Record ringing", on_change = reset_on_upload, key = st.session_state.uploader_key)
+            if input_file is not None:
                 #Name for the uploaded file... Tower plus random number?
                 st.session_state.tower_short = st.session_state.tower_name.rsplit(' ')[0][:-1]
-                st.session_state.input_file.name = ('%s_record_%04d.wav' % (st.session_state.tower_short, int(random.random()*10000)))
-                if st.session_state.input_file is not None:
-                    st.session_state.raw_file = st.session_state.input_file
+                input_file.name = ('%s_record_%04d.wav' % (st.session_state.tower_short, int(random.random()*10000)))
+                if input_file is not None:
+                    st.session_state.raw_file = input_file
 
-    if st.session_state.input_file is not None:
-        process_audio_files(st.session_state.input_file, doprints = True)  
-        del st.session_state.input_file
-        if not st.session_state.testing_mode:
-            st.rerun()
-        
+
+    if input_file is not None:
+        process_audio_files(input_file, doprints = True)  
+        del input_file
+        st.session_state.uploader_key += 1
+        st.session_state.recorder_key += 1
+        st.rerun()
+
     #st.write(raw_file is not None, st.session_state.audio_signal is not None)
     if (st.session_state.raw_file is not None) and (st.session_state.audio_signal is not None):
         st.audio(st.session_state.raw_file)

@@ -32,19 +32,13 @@ import warnings
 class audio_data():
     #Does the initial audio normalisation things
     def __init__(self, raw_file, doprints = True):
-        
+ 
         upload_success = False
         
         raw_file.name, ext = os.path.splitext(raw_file.name)
         raw_file.name = re.sub(r'[^\w\-]', '_', raw_file.name)
         raw_file.name = raw_file.name + ext
         raw_file.size = sys.getsizeof(raw_file)
-
-        #Only allow big files if they are wav
-        if ext == '.wav':
-            limit = 3e8
-        else:
-            limit = 3e7
 
         #Save to temporary file location so it can be converted if necessary
         with open('./tmp/%s' % raw_file.name[:], 'wb') as f: 
@@ -60,7 +54,6 @@ class audio_data():
             os.system('ffmpeg -y -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
             if os.path.exists(new_fname):
                 upload_success = True
-
             else:
                 os.system('rm -r ./tmp/' + raw_file.name)
                 st.error("This doesn't seem to be an audio file.")
@@ -93,10 +86,8 @@ class audio_data():
             import_wave = import_wave/(2**(16 - 1))
             st.session_state.audio_signal = import_wave
             st.session_state.fs = self.fs
-            
+
             st.session_state.audio_filename = raw_file.name[:-4]
-            st.session_state.uploader_key += 1
-            st.session_state.recorder_key += 1
 
             del self.fs
             del self.data
