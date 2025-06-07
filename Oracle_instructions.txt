@@ -148,7 +148,12 @@ sudo docker compose restart nginx streamlit1 streamlit2 streamlit3
 #To run nginx on its own (with defaults):
 sudo docker run --name my-nginx -d -p 80:80 nginx
 
-#Google drive backups:
+#Google drive backups: Requires rclone and the appropriate config files
 curl https://rclone.org/install.sh | sudo bash
 rclone config
+
+#To run docker on its own on Windows:
+Open docker desktop for internet things
+RUN: docker build -t brenda .
+RUN: docker run --rm -p 8501:8501 -e STREAMLIT_SERVER_PORT=8501 brenda
 

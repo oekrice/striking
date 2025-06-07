@@ -128,7 +128,7 @@ st.markdown("## Analyse Striking")
 
 st.write(
     """
-    This page is for analysing the striking from the strike times either generated with the [Analyse Recording](https://brenda.oekrice.com/Analyse_Recording) page, from the [Touch Library](https://brenda.oekrice.com/Touch_Library) or from an uploaded .csv file. \\
+    This page is for analysing the striking from the strike times either generated with the Analyse Recording page, from the Touch Library or from an uploaded .csv file. \\
     The 'ideal' times will be calculated and various statistics shown. If you have any suggestions for anything else you'd like to see, please let me know.
     """
 )

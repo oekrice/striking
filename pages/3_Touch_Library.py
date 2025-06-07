@@ -441,7 +441,7 @@ add_collection_to_cache(ntouches, saved_index_list)
 
 st.divider()
 
-with st.expander('Add/remove touches and change metadata'):
+with st.expander('Add/remove touches and change touch metadata'):
 
     if st.session_state.addition_mode < 0 and st.session_state.subtraction_mode < 0 and st.session_state.rename_mode < 0:
         if ntouches == 0 or saved_index_list[0][0] == ' ':
