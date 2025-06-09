@@ -202,6 +202,29 @@ def add_collection_to_cache(ntouches, saved_index_list):
                 st.session_state.cached_tower[cache_index] = touch_info[4]
                 st.session_state.cached_datetime[cache_index] = touch_info[5]
 
+def make_longtitle_cache(ti):
+    def get_nice_date(date_string):
+        def get_day_suffix(day):
+            if 11 <= day <= 13:
+                return 'th'
+            last_digit = day % 10
+            return {1: 'st', 2: 'nd', 3: 'rd'}.get(last_digit, 'th')
+        dt = datetime.strptime(date_string, "%m/%d/%Y, %H:%M:%S")   
+        day = dt.day
+        suffix = get_day_suffix(day)
+        nice_day = f"{day}{suffix}"    
+        return f"{nice_day} {dt.strftime('%B')} at {dt.strftime('%H:%M')}"
+    #Creates a descriptive, readable title from the metadata
+    longtitle = ''
+    if st.session_state.cached_nchanges[ti] != '' and st.session_state.cached_methods[ti] != '':
+        longtitle = longtitle + "%d %s" % (int(st.session_state.cached_nchanges[ti]), st.session_state.cached_methods[ti])
+    if st.session_state.cached_tower[ti] != '':
+        longtitle = longtitle + " at %s" % (st.session_state.cached_tower[ti])
+    longtitle = longtitle + " (%s)" % get_nice_date(st.session_state.cached_datetime[ti])
+
+    return longtitle
+
+
 st.session_state.existing_names = find_existing_names()
 st.session_state.url_collection = determine_collection_from_url(st.session_state.existing_names)
 
@@ -217,7 +240,6 @@ if st.session_state.url_collection is not None:
         st.session_state.saved_index_list = np.array([st.session_state.saved_index_list])
 
     st.session_state.ntouches = len(st.session_state.saved_index_list)
-
     add_collection_to_cache(st.session_state.ntouches, st.session_state.saved_index_list)
 
 #Remove the large things from memory -- need a condition on this maybe?
@@ -229,6 +251,7 @@ st.session_state.Data = None
 
 st.session_state.touch_titles = []
 st.session_state.raw_titles = []
+
 #Write out the touch options from the cache --  can theoretically load in more
 for i in range(len(st.session_state.cached_data)):
     #Title should be number of changes and tower
@@ -267,6 +290,8 @@ if st.session_state.current_touch < 0:
 else:
     st.write('Analysing ringing from "%s"' % st.session_state.touch_titles[st.session_state.current_touch])
 
+longtitle = make_longtitle_cache(st.session_state.current_touch)
+st.write(longtitle)
 if len(st.session_state.touch_titles) == 0:
     st.session_state.current_touch = -1
 

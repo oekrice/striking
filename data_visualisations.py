@@ -23,6 +23,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+import time
 #This file contains all the stuff which is currently cluttering up the second page, which has got a bit out of hand
 
 cmap = plt.cm.gnuplot2
@@ -237,318 +238,363 @@ def obtain_striking_markdown(alldiags, time_errors, lead_times, cadence, remove_
 #Want error through time for each bell, and do as a snazzy plot?
 @st.cache_data(ttl=300)
 def plot_errors_time(time_errors, min_plot_change, max_plot_change, absvalues, highlight_bells, strokes_plot, smooth):
-    #Just do both strokes to start with because easy
-    fig5, ax5 = plt.subplots(1, figsize = (10,5))
-    all_xs = np.arange(min_plot_change, max_plot_change)
-    hand_xs = np.arange(min_plot_change, max_plot_change, 2)
-    back_xs = np.arange(min_plot_change + 1, max_plot_change, 2)
-    #Just calculate everything. Doesn't take long...
-    if absvalues == "Absolute Error":
-        time_errors = np.abs(time_errors[:,min_plot_change:max_plot_change])
-    else:  
-        time_errors = time_errors[:,min_plot_change:max_plot_change]
-    
-    all_ys = time_errors[:,:]
-    hand_ys = time_errors[:,::2]
-    back_ys = time_errors[:,1::2]
-    
-    if smooth:
-        all_ys = gaussian_filter1d(all_ys, 6, axis = 1)
-        hand_ys = gaussian_filter1d(hand_ys, 3, axis = 1)
-        back_ys = gaussian_filter1d(back_ys, 3, axis = 1)
+    try:
+        #Just do both strokes to start with because easy
+        fig5, ax5 = plt.subplots(1, figsize = (10,5))
+        all_xs = np.arange(min_plot_change, max_plot_change)
+        hand_xs = np.arange(min_plot_change, max_plot_change, 2)
+        back_xs = np.arange(min_plot_change + 1, max_plot_change, 2)
+        #Just calculate everything. Doesn't take long...
+        if absvalues == "Absolute Error":
+            time_errors = np.abs(time_errors[:,min_plot_change:max_plot_change])
+        else:  
+            time_errors = time_errors[:,min_plot_change:max_plot_change]
         
-    avg_ys = np.mean(all_ys, axis = 0)
-    hand_avg_ys = np.mean(hand_ys, axis = 0)
-    back_avg_ys = np.mean(back_ys, axis = 0)
-    
-    if len(strokes_plot) > 1:
-        mode = 2  #Multiple strokes, one bell
-    else:
-        mode = 1  #Multiple bells, one stroke
-    
-    for bell in highlight_bells:
-        for stroke in strokes_plot:
-            if bell == "Average":
-                if stroke == "Both Strokes":
-                    if mode == 2:
-                        ax5.plot(all_xs, avg_ys, c = 'gray', label = 'Both Strokes')
-                    else:
-                        ax5.plot(all_xs, avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
-                if stroke == "Handstrokes":
-                    if mode == 2:
-                        ax5.plot(hand_xs, hand_avg_ys, c = 'red', label = 'Handstrokes')
-                    else:
-                        ax5.plot(hand_xs, hand_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
-                if stroke == "Backstrokes":
-                    if mode == 2:
-                        ax5.plot(back_xs, back_avg_ys, c = 'green', label = 'Backstrokes')
-                    else:
-                        ax5.plot(back_xs, back_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
-            else:
-                if stroke == "Both Strokes":
-                    if mode == 2:
-                        ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = 'gray', label = 'Both Strokes')
-                    else:
-                        ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
-                if stroke == "Handstrokes":
-                    if mode == 2:
-                        ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = 'red', label = 'Handstrokes')
-                    else:
-                        ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
-                if stroke == "Backstrokes":
-                    if mode == 2:
-                        ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = 'green', label = 'Backstrokes')
-                    else:
-                        ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
-    
-    plt.xlabel('Change Number')
-    plt.ylabel('Error (ms)')
-    plt.legend()
-    plt.tight_layout()
-    st.pyplot(fig5)
-    plt.clf()
-    plt.close()
-
-    return
+        all_ys = time_errors[:,:]
+        hand_ys = time_errors[:,::2]
+        back_ys = time_errors[:,1::2]
+        
+        if smooth:
+            all_ys = gaussian_filter1d(all_ys, 6, axis = 1)
+            hand_ys = gaussian_filter1d(hand_ys, 3, axis = 1)
+            back_ys = gaussian_filter1d(back_ys, 3, axis = 1)
+            
+        avg_ys = np.mean(all_ys, axis = 0)
+        hand_avg_ys = np.mean(hand_ys, axis = 0)
+        back_avg_ys = np.mean(back_ys, axis = 0)
+        
+        if len(strokes_plot) > 1:
+            mode = 2  #Multiple strokes, one bell
+        else:
+            mode = 1  #Multiple bells, one stroke
+        
+        for bell in highlight_bells:
+            for stroke in strokes_plot:
+                if bell == "Average":
+                    if stroke == "Both Strokes":
+                        if mode == 2:
+                            ax5.plot(all_xs, avg_ys, c = 'gray', label = 'Both Strokes')
+                        else:
+                            ax5.plot(all_xs, avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                    if stroke == "Handstrokes":
+                        if mode == 2:
+                            ax5.plot(hand_xs, hand_avg_ys, c = 'red', label = 'Handstrokes')
+                        else:
+                            ax5.plot(hand_xs, hand_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                    if stroke == "Backstrokes":
+                        if mode == 2:
+                            ax5.plot(back_xs, back_avg_ys, c = 'green', label = 'Backstrokes')
+                        else:
+                            ax5.plot(back_xs, back_avg_ys, c = 'black', linewidth = 3, zorder = 10, label = bell)
+                else:
+                    if stroke == "Both Strokes":
+                        if mode == 2:
+                            ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = 'gray', label = 'Both Strokes')
+                        else:
+                            ax5.plot(all_xs, all_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+                    if stroke == "Handstrokes":
+                        if mode == 2:
+                            ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = 'red', label = 'Handstrokes')
+                        else:
+                            ax5.plot(hand_xs, hand_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+                    if stroke == "Backstrokes":
+                        if mode == 2:
+                            ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = 'green', label = 'Backstrokes')
+                        else:
+                            ax5.plot(back_xs, back_ys[int(bell[5:])-1], c = cmap[(int(bell[5:])-1)%10], label = bell)
+        
+        plt.xlabel('Change Number')
+        plt.ylabel('Error (ms)')
+        plt.legend()
+        plt.tight_layout()
+        try:
+            st.pyplot(fig5)
+        except:
+            st.write('Plot has failed for some reason... Trying again in a second')
+            time.sleep(0.5)
+            st.rerun()
+        plt.clf()
+        plt.close()
+    except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()
 
 @st.cache_data(ttl=300)
 def plot_bar_charts(alldiags, nbells, titles):
-    fig3, axs3 = plt.subplots(3, figsize = (12,8))
-    bar_width = 0.3
+    try:
+        fig3, axs3 = plt.subplots(3, figsize = (12,8))
+        bar_width = 0.3
 
-    data_titles = ['Avg. Error (positive is slow, negative is quick)', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
+        data_titles = ['Avg. Error (positive is slow, negative is quick)', 'Std. Dev. from Average', 'Std. Dev. From Ideal']
 
-    x = np.arange(nbells)
-    for plot_id in range(3):
-        ax = axs3[plot_id]
+        x = np.arange(nbells)
+        for plot_id in range(3):
+            ax = axs3[plot_id]
 
-        yrange = np.max(alldiags[plot_id,:,:]) - np.min(alldiags[plot_id,:,:])
-        ymin = np.min(alldiags[plot_id,:,:]) - yrange*0.2
-        ymax = np.max(alldiags[plot_id,:,:]) + yrange*0.2
-        
-        rects0 = ax.bar(x-bar_width*1,alldiags[plot_id,0,:],bar_width,label = titles[0], color='lightgray')
-        ax.bar_label(rects0, padding = 3, fmt = '%d')
-
-        rects1 = ax.bar(x-bar_width*0,alldiags[plot_id,1,:],bar_width,label = titles[1], color='red')
-        ax.bar_label(rects1, padding = 3, fmt = '%d')
-
-        rects2 = ax.bar(x+bar_width*1.0,alldiags[plot_id,2,:],bar_width,label = titles[2], color='blue')
-        ax.bar_label(rects2, padding = 3, fmt = '%d')
-
-        ax.set_xticks(np.arange(nbells), np.arange(1,nbells+1))
-        ax.set_title(data_titles[plot_id])
-        ax.set_ylim(ymin, ymax)
-
-        if plot_id == 0:
-            ax.legend()
+            yrange = np.max(alldiags[plot_id,:,:]) - np.min(alldiags[plot_id,:,:])
+            ymin = np.min(alldiags[plot_id,:,:]) - yrange*0.2
+            ymax = np.max(alldiags[plot_id,:,:]) + yrange*0.2
             
-    plt.tight_layout()
-    st.pyplot(fig3)
-    plt.clf()
-    plt.close()
+            rects0 = ax.bar(x-bar_width*1,alldiags[plot_id,0,:],bar_width,label = titles[0], color='lightgray')
+            ax.bar_label(rects0, padding = 3, fmt = '%d')
+
+            rects1 = ax.bar(x-bar_width*0,alldiags[plot_id,1,:],bar_width,label = titles[1], color='red')
+            ax.bar_label(rects1, padding = 3, fmt = '%d')
+
+            rects2 = ax.bar(x+bar_width*1.0,alldiags[plot_id,2,:],bar_width,label = titles[2], color='blue')
+            ax.bar_label(rects2, padding = 3, fmt = '%d')
+
+            ax.set_xticks(np.arange(nbells), np.arange(1,nbells+1))
+            ax.set_title(data_titles[plot_id])
+            ax.set_ylim(ymin, ymax)
+
+            if plot_id == 0:
+                ax.legend()
+                
+        plt.tight_layout()
+        try:
+            st.pyplot(fig3)
+        except:
+            st.write('Plot has failed for some reason... Trying again in a second')
+            time.sleep(0.5)
+            st.rerun()
+        plt.clf()
+        plt.close()
+    except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()
 
 @st.cache_data(ttl=300)
 def plot_histograms(errors, x_range, nbins, nbells, raw_bells, correct_bells, min_include_change, max_include_change, use_method_info, remove_mistakes, cadence, raw_actuals, raw_target, titles):
+    try:
+        for plot_id in range(3):
+            #Everything, then handstrokes, then backstrokes
+            nrows = max(2,(nbells)//3)
+            ncols = int((nbells-1e-6)/nrows) + 1
+            if nrows*ncols < nbells:
+                ncols += 1
+            fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
+            for bell in range(1,nbells+1):#nbells):
+                #Extract data for this bell
 
-    for plot_id in range(3):
-        #Everything, then handstrokes, then backstrokes
-        nrows = max(2,(nbells)//3)
-        ncols = int((nbells-1e-6)/nrows) + 1
-        if nrows*ncols < nbells:
-            ncols += 1
-        fig2, axs2 = plt.subplots(nrows,ncols, figsize = (10,7))
-        for bell in range(1,nbells+1):#nbells):
-            #Extract data for this bell
+                bellstrikes = np.where(raw_bells == bell)[0]
+                targetstrikes = np.where(correct_bells == bell)[0]
 
-            bellstrikes = np.where(raw_bells == bell)[0]
-            targetstrikes = np.where(correct_bells == bell)[0]
+                bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
+                bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
 
-            bellstrikes = bellstrikes[bellstrikes/nbells >= min_include_change]
-            bellstrikes = bellstrikes[bellstrikes/nbells <= max_include_change]
+                targetstrikes = targetstrikes[targetstrikes/nbells >= min_include_change]
+                targetstrikes = targetstrikes[targetstrikes/nbells <= max_include_change]
 
-            targetstrikes = targetstrikes[targetstrikes/nbells >= min_include_change]
-            targetstrikes = targetstrikes[targetstrikes/nbells <= max_include_change]
+                if len(bellstrikes) < 2:
+                    st.error('Increase range -- stats are all wrong')
+                    st.stop()
 
-            if len(bellstrikes) < 2:
-                st.error('Increase range -- stats are all wrong')
-                st.stop()
+                if use_method_info:
+                    errors = np.array(raw_actuals[bellstrikes] - raw_target[targetstrikes])
+                else:
+                    errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
 
-            if use_method_info:
-                errors = np.array(raw_actuals[bellstrikes] - raw_target[targetstrikes])
-            else:
-                errors = np.array(raw_actuals[bellstrikes] - raw_target[bellstrikes])
+                #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
+                maxlim = cadence*0.75
+                minlim = -cadence*0.75
 
-            #Attempt to remove outliers (presumably method mistakes, hawkear being silly or other spannering)
-            maxlim = cadence*0.75
-            minlim = -cadence*0.75
+                #Trim for the appropriate stroke
+                if plot_id == 1:
+                    errors = errors[::2]
+                if plot_id == 2:
+                    errors = errors[1::2]
 
-            #Trim for the appropriate stroke
-            if plot_id == 1:
-                errors = errors[::2]
-            if plot_id == 2:
-                errors = errors[1::2]
+                count = len(errors)
 
-            count = len(errors)
+                if remove_mistakes:
+                    #Adjust stats to disregard these properly
+                    count -= np.sum(errors > maxlim)
+                    count -= np.sum(errors < minlim)
 
-            if remove_mistakes:
-                #Adjust stats to disregard these properly
-                count -= np.sum(errors > maxlim)
-                count -= np.sum(errors < minlim)
+                    errors[errors > maxlim] = 0.0
+                    errors[errors < minlim] = 0.0
 
-                errors[errors > maxlim] = 0.0
-                errors[errors < minlim] = 0.0
+                ax = axs2[(bell-1)//ncols, (bell-1)%ncols]
 
-            ax = axs2[(bell-1)//ncols, (bell-1)%ncols]
+                ax.set_title('Bell %d' % bell)
+                bin_bounds = np.linspace(-x_range, x_range, nbins+1)
+                n, bins, _ = ax.hist(errors, bins = bin_bounds)
 
-            ax.set_title('Bell %d' % bell)
-            bin_bounds = np.linspace(-x_range, x_range, nbins+1)
-            n, bins, _ = ax.hist(errors, bins = bin_bounds)
-
-            curve = gaussian_filter1d(n, sigma = nbins/20)
-            ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
-            ax.set_xlim(-x_range, x_range)
-            ax.set_ylim(0,np.max(n))
-            ax.plot([0,0],[0,max(n)], linewidth = 2)
-            ax.set_yticks([])
-        plt.suptitle(titles[plot_id])
-        plt.tight_layout()
-        st.pyplot(fig2)
-        plt.clf()
-        plt.close()
+                curve = gaussian_filter1d(n, sigma = nbins/20)
+                ax.plot(0.5*(bins[1:] + bins[:-1]),curve, c= 'black')
+                ax.set_xlim(-x_range, x_range)
+                ax.set_ylim(0,np.max(n))
+                ax.plot([0,0],[0,max(n)], linewidth = 2)
+                ax.set_yticks([])
+            plt.suptitle(titles[plot_id])
+            plt.tight_layout()
+            try:
+                st.pyplot(fig2)
+            except:
+                st.write('Plot has failed for some reason... Trying again in a second')
+                time.sleep(0.5)
+                st.rerun()
+            plt.clf()
+            plt.close()
+    except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()
 
 @st.cache_data(ttl=300)
 def plot_boxes(errors, nbells, titles):
-    fig4, axs4 = plt.subplots(3, figsize = (12,8))
-    for plot_id in range(3):
-        #Everything, then handstrokes, then backstrokes
+    try:
+        fig4, axs4 = plt.subplots(3, figsize = (12,8))
+        for plot_id in range(3):
+            #Everything, then handstrokes, then backstrokes
 
-        ax = axs4[plot_id]
+            ax = axs4[plot_id]
 
-        
-        for bell in range(1,nbells+1):#nbells):
-            #Extract data for this bell
+            
+            for bell in range(1,nbells+1):#nbells):
+                #Extract data for this bell
 
-            bell_errors = errors[bell-1]
+                bell_errors = errors[bell-1]
 
-            #Trim for the appropriate stroke
-            if plot_id == 1:
-                bell_errors = bell_errors[::2]
-            if plot_id == 2:
-                bell_errors = bell_errors[1::2]
+                #Trim for the appropriate stroke
+                if plot_id == 1:
+                    bell_errors = bell_errors[::2]
+                if plot_id == 2:
+                    bell_errors = bell_errors[1::2]
 
-            #Box plot data
-            ax.boxplot(bell_errors,positions = [bell], sym = 'x', widths = 0.35, zorder = 1)
-        #ax.axhline(0.0, c = 'black', linestyle = 'dashed')
+                #Box plot data
+                ax.boxplot(bell_errors,positions = [bell], sym = 'x', widths = 0.35, zorder = 1)
+            #ax.axhline(0.0, c = 'black', linestyle = 'dashed')
 
-        ax.set_ylim(-150,150)
-        ax.set_title(titles[plot_id])
+            ax.set_ylim(-150,150)
+            ax.set_title(titles[plot_id])
 
-    plt.tight_layout()
-    st.pyplot(fig4)
-    plt.clf()
-    plt.close()
+        plt.tight_layout()
+        try:
+            st.pyplot(fig4)
+        except:
+            st.write('Plot has failed for some reason... Trying again in a second')
+            time.sleep(0.5)
+            st.rerun()
+        plt.clf()
+        plt.close()
+    except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()
 
 @st.cache_data(ttl=300)
 def plot_blue_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_length, min_plot_change, max_plot_change, highlight_bells, view_numbers = False):
-    
-    bell_names = ['1','2','3','4','5','6','7','8','9','0','E','T','A','B','C','D']
-    highlight_bells = [int(highlight_bells[val][5:]) for val in range(len(highlight_bells))]
+    try:
+        bell_names = ['1','2','3','4','5','6','7','8','9','0','E','T','A','B','C','D']
+        highlight_bells = [int(highlight_bells[val][5:]) for val in range(len(highlight_bells))]
 
-    nrows = int(len(raw_actuals)/nbells)
+        nrows = int(len(raw_actuals)/nbells)
 
-    toprint = []
-    orders = []; starts = []; ends = []
-    for row in range(nrows):
-        actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
-        target = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-        bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
-        toprint.append(actual-target)
-        orders.append(bells)
-        starts.append(np.min(target))
-        ends.append(np.max(target))
-
-    nrows_plot = max_plot_change - min_plot_change
-    rows_per_plot = 61#6*int(nrows_plot//24)
-    if nbells < 9:
-        nplotsk = max(3, nrows_plot//rows_per_plot + 1)
-    else:
-        nplotsk = max(2, nrows_plot//rows_per_plot + 1)
-    nplotsk = min(nplotsk, 3)
-    min_rows_per_plot = int(nrows_plot/nplotsk) + 2
-    rows_per_plot = int(np.ceil(min_rows_per_plot / lead_length) * lead_length)
-
-    nplotsk = int(np.ceil((nrows_plot-1)/rows_per_plot))
-
-    #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
-    fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 100))
-    for plot in range(nplotsk):
-        
-        if nplotsk > 1:
-            ax = axs1[plot]
+        toprint = []
+        orders = []; starts = []; ends = []
+        for row in range(nrows):
+            actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
+            target = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
+            bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
+            toprint.append(actual-target)
+            orders.append(bells)
+            starts.append(np.min(target))
+            ends.append(np.max(target))
+        nrows_plot = max_plot_change - min_plot_change
+        rows_per_plot = 61#6*int(nrows_plot//24)
+        if nbells < 9:
+            nplotsk = max(3, nrows_plot//rows_per_plot + 1)
         else:
-            ax = axs1
-        maxrow = max_plot_change
-        for bell in range(1,nbells+1):#nbells):
+            nplotsk = max(2, nrows_plot//rows_per_plot + 1)
+        nplotsk = min(nplotsk, 3)
+        min_rows_per_plot = int(nrows_plot/nplotsk) + 2
+        rows_per_plot = int(np.ceil(min_rows_per_plot / lead_length) * lead_length)
 
-            if bell in highlight_bells:
-                points = []  ; changes = []
-                bellstrikes = np.where(raw_bells == bell)[0]
-                for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
-                    #Find linear position... Linear interpolate?
-                    target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                    if len(target_row) == nbells:
-                        ys = np.arange(1,nbells+1)
-                        f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                        rat = float(f(raw_actuals[bellstrikes].tolist()[row]))
-                        points.append(rat); changes.append(row)
-                        
-                        if view_numbers:
-                            ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+        nplotsk = int(np.ceil((nrows_plot-1)/rows_per_plot))
 
-                if len(highlight_bells) > 0:
-                    ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
-                else:
-                    ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
+        #fig,axs = plt.subplots(1,ncols, figsize = (15,4*nrows/(nbells + 4)))
+        fig1, axs1 = plt.subplots(1,nplotsk, figsize = (10, 100))
+        for plot in range(nplotsk):
+            
+            if nplotsk > 1:
+                ax = axs1[plot]
             else:
-                points = []  ; changes = []
-                bellstrikes = np.where(raw_bells == bell)[0]
-                for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
-                    #Find linear position... Linear interpolate?
-                    target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
-                    if len(target_row) == nbells:
-                        ys = np.arange(1,nbells+1)
-                        f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
-                        rat = float(f(raw_actuals[bellstrikes].tolist()[row]))
-                        points.append(rat); changes.append(row)
-                        if view_numbers:
-                            ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                ax = axs1
+            maxrow = max_plot_change
+            for bell in range(1,nbells+1):#nbells):
+
+                if bell in highlight_bells:
+                    points = []  ; changes = []
+                    bellstrikes = np.where(raw_bells == bell)[0]
+                    for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
+                        #Find linear position... Linear interpolate?
+                        target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
+                        if len(target_row) == nbells:
+                            ys = np.arange(1,nbells+1)
+                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                            rat = float(f(raw_actuals[bellstrikes].tolist()[row]))
+                            points.append(rat); changes.append(row)
                             
-                if len(highlight_bells) > 0:
-                    ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
-                else:
-                    if view_numbers:
-                        ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 0.5)
+                            if view_numbers:
+                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+
+                    if len(highlight_bells) > 0:
+                        ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 2)
                     else:
                         ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
+                else:
+                    points = []  ; changes = []
+                    bellstrikes = np.where(raw_bells == bell)[0]
+                    for row in range(plot*rows_per_plot+ min_plot_change, min((plot+1)*rows_per_plot + min_plot_change + 1, maxrow)):
+                        #Find linear position... Linear interpolate?
+                        target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
+                        if len(target_row) == nbells:
+                            ys = np.arange(1,nbells+1)
+                            f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                            rat = float(f(raw_actuals[bellstrikes].tolist()[row]))
+                            points.append(rat); changes.append(row)
+                            if view_numbers:
+                                ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                                
+                    if len(highlight_bells) > 0:
+                        ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
+                    else:
+                        if view_numbers:
+                            ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10], linewidth = 0.5)
+                        else:
+                            ax.plot(points, changes,label = bell, c = cmap[(bell-1)%10])
 
+                    
+                ax.plot((bell)*np.ones(len(points)), changes, c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
                 
-            ax.plot((bell)*np.ones(len(points)), changes, c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+            row_guides = [np.column_stack([np.arange(-1,nbells+3), row*np.ones(nbells+4)]) for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1)]
+            #for row in range(min_plot_change, max_plot_change):
+            #    ax.plot(np.arange(-1,nbells+3), row*np.ones(nbells+4), c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+            line_collection = LineCollection(row_guides, color = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+            ax.add_collection(line_collection)
             
-        row_guides = [np.column_stack([np.arange(-1,nbells+3), row*np.ones(nbells+4)]) for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1)]
-        #for row in range(min_plot_change, max_plot_change):
-        #    ax.plot(np.arange(-1,nbells+3), row*np.ones(nbells+4), c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
-        line_collection = LineCollection(row_guides, color = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
-        ax.add_collection(line_collection)
-        
-        plt.gca().invert_yaxis()
-        ax.set_ylim((plot+1)*rows_per_plot + min_plot_change, plot*rows_per_plot+ min_plot_change )
-        ax.set_xlim(-1,nbells+2)
-        ax.set_xticks([])
-        ax.set_aspect('equal')
-        #if plot == nplotsk-1:
-        #    plt.legend()
-        #ax.set_yticks([])
-    plt.tight_layout()
-    st.pyplot(fig1)
-    plt.clf()
-    plt.close()
+            plt.gca().invert_yaxis()
+            ax.set_ylim((plot+1)*rows_per_plot + min_plot_change, plot*rows_per_plot+ min_plot_change )
+            ax.set_xlim(-1,nbells+2)
+            ax.set_xticks([])
+            ax.set_aspect('equal')
+            #if plot == nplotsk-1:
+            #    plt.legend()
+            #ax.set_yticks([])
+        plt.tight_layout()
+        try:
+            st.pyplot(fig1)
+        except:
+            st.write('Plot has failed for some reason... Trying again in a second')
+            time.sleep(0.5)
+            st.rerun()
+        plt.clf()
+        plt.close()
+    except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()

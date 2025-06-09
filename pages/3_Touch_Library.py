@@ -124,12 +124,10 @@ def sort_current_collection(saved_index_list, oldfirst = False):
     date_objects = []
     for i in range(len(saved_index_list)):
         date_objects.append(datetime.strptime(saved_index_list[i,5], "%m/%d/%Y, %H:%M:%S"))
-    print(date_objects)
-    if not oldfirst:
+    if oldfirst:
         sorted_list = np.array([val for _, val in sorted(zip(date_objects,list_array), reverse = True)])
     else:
         sorted_list = np.array([val for _, val in sorted(zip(date_objects,list_array), reverse = False)])
-    print(sorted_list)
     np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(sorted_list, dtype = str), fmt = '%s', delimiter = ';')
     st.rerun()
     return
@@ -676,7 +674,7 @@ elif ntouches == 1:
 else:
     st.write('%d touches currently in this collection:' % ntouches)
 
-for ti, info in enumerate(saved_index_list[:]):
+for ti, info in enumerate(saved_index_list[::-1]):
     longtitle = make_longtitle_collection(info)
     st.write(longtitle)
             
