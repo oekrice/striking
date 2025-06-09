@@ -574,7 +574,14 @@ if st.session_state.current_touch >= 0:
         st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(Strike_Data.alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
 
+        if st.session_state.calling_html is not None:
+            with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
+                st.html(st.session_state.calling_html)
 
+        if st.session_state.composition_flag:
+            with st.expander("View Detailed Composition"):
+                st.html(st.session_state.comp_html)
+                
         with st.expander('View Plaintext Striking Report'):
             st.empty()
             obtain_striking_markdown(Strike_Data.alldiags, Strike_Data.time_errors, Strike_Data.lead_times, Strike_Data.cadence, Strike_Data.remove_mistakes)
@@ -625,14 +632,6 @@ if st.session_state.current_touch >= 0:
         with st.expander("View Box Plots"):
             st.empty()
             plot_boxes(Strike_Data.time_errors, st.session_state.nbells, st.session_state.titles)
-
-        if st.session_state.calling_html is not None:
-            with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
-                st.html(st.session_state.calling_html)
-
-        if st.session_state.composition_flag:
-            with st.expander("View Detailed Composition"):
-                st.html(st.session_state.comp_html)
 
         @st.cache_data(ttl=300)
         def convert_for_download(df):
