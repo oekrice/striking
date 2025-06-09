@@ -317,6 +317,7 @@ st.write('Open an existing or create a new collection:')
 def determine_collection_from_url(existing_names):
     if 'collection' in st.query_params.keys():
         collection_name = st.query_params["collection"]
+        collection_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), collection_name)   
         if collection_name in existing_names:
             return collection_name
         else:

@@ -113,6 +113,7 @@ if not os.path.exists('./saved_touches/'):
 def determine_collection_from_url(existing_names):
     if 'collection' in st.query_params.keys():
         collection_name = st.query_params["collection"]
+        collection_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), collection_name)   
         if collection_name in existing_names:
             return collection_name
         else:
@@ -603,19 +604,10 @@ if st.session_state.current_touch >= 0:
         st.session_state.cached_score[st.session_state.current_touch] = 100*shifted_quality   #This updates the cache
         st.session_state.cached_ms[st.session_state.current_touch] = np.mean(Strike_Data.alldiags[2,2,:])
 
-        if st.session_state.calling_html is not None:
-            with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
-                st.html(st.session_state.calling_html)
-
-        if st.session_state.composition_flag:
-            with st.expander("View Detailed Composition"):
-                st.html(st.session_state.comp_html)
-
         with st.expander('View Plaintext Striking Report'):
             st.empty()
             obtain_striking_markdown(Strike_Data.alldiags, Strike_Data.time_errors, Strike_Data.lead_times, Strike_Data.cadence, Strike_Data.remove_mistakes)
 
-         
         with st.expander("View Grid/Blue Line"):
             st.empty()
             st.session_state.min_plot_change, st.session_state.max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = st.session_state.nrows, value=(st.session_state.start_row, min(300, st.session_state.end_row)), format = "%d", step = 2, key = 400 + st.session_state.current_touch)
@@ -628,7 +620,15 @@ if st.session_state.current_touch >= 0:
         with st.expander("View Error Bar Charts"):
             st.empty()
             plot_bar_charts(Strike_Data.alldiags, Strike_Data.nbells, st.session_state.titles)
-                        
+
+        if st.session_state.calling_html is not None:
+            with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
+                st.html(st.session_state.calling_html)
+
+        if st.session_state.composition_flag:
+            with st.expander("View Detailed Composition"):
+                st.html(st.session_state.comp_html)
+                
         with st.expander("View Bell Errors Through Time"):
             st.empty()
             st.session_state.min_plot_change, st.session_state.max_plot_change = st.slider("View changes in range:", min_value = 0, max_value = st.session_state.nrows, value=(0, st.session_state.nrows), format = "%d", step = 2, key = 500 + st.session_state.current_touch)

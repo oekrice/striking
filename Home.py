@@ -91,7 +91,7 @@ def run():
 
         st.markdown('''
             **Update (0.9.7):** \\
-            Made shareable links more robust such that they now work on the homepage (eg. "brenda.oekrice.com?collection=example_touches"). Possibly cookies to save these so it doesn't need doing repeatedly? Added more features to the touch library to allow for editing the time and tower.
+            Made shareable links more robust such that they now work on the homepage (eg. "brenda.oekrice.com?collection=example_touches"). Added more features to the touch library to allow for editing the time and tower, and added the quality of the ringing to the list of touches on this page. Fixed duplicate tower name problem (there are 30 pairs of towers with the same name on Dove's guide, incidentally).
             ''')
         st.markdown('''
             **Update (0.9.6):** \\
@@ -158,6 +158,7 @@ def run():
     def determine_collection_from_url(existing_names):
         if 'collection' in st.query_params.keys():
             collection_name = st.query_params["collection"]
+            collection_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), collection_name)   
             if collection_name in existing_names:
                 return collection_name
             else:
