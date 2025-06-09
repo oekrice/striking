@@ -257,7 +257,7 @@ if st.session_state.url_collection is not None:
     if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
         st.session_state.saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
     else:
-        st.session_state.saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+        st.session_state.saved_index_list = np.array([[' ',' ',' ',' ',' ',' ',' ',' ']], dtype = 'str')
     if len(np.shape(st.session_state.saved_index_list)) == 1:
         st.session_state.saved_index_list = np.array([st.session_state.saved_index_list])
     if len(st.session_state.saved_index_list[0]) < 8: #Add extra spaces

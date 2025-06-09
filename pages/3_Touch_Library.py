@@ -155,8 +155,7 @@ def make_longtitle_collection(touch_info):
         longtitle = longtitle + " at %s" % (touch_info[4])
     longtitle = longtitle + " (%s)" % get_nice_date(touch_info[5])
     if (touch_info[6] != '') and (touch_info[7] != ' '):
-        print(touch_info[6])
-        longtitle = longtitle +  ' - **%.2f\%%** (%dms)' % (float(touch_info[6]), float(touch_info[7]))
+        longtitle = longtitle +  ' - **%.2f%%** (%dms)' % (float(touch_info[6]), float(touch_info[7]))
     return longtitle
 
 
