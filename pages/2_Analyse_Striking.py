@@ -31,9 +31,7 @@ import random
 import string
 from datetime import datetime
 
-from scipy import interpolate
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 
 import os
 
@@ -90,6 +88,10 @@ def dealwith_upload():
                     st.session_state.cached_methods.append('')
                     st.session_state.cached_tower.append('')
                     st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+                    st.session_state.cached_score.append('')
+                    st.session_state.cached_ms.append('')
+
+
                     #st.write(strike_data)
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
            
@@ -167,6 +169,10 @@ if 'cached_tower' not in st.session_state:
     st.session_state.cached_tower = []
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
+if 'cached_score' not in st.session_state:
+    st.session_state.cached_score = []
+if 'cached_ms' not in st.session_state:
+    st.session_state.cached_ms = []
 if 'collection_status' not in st.session_state:
     st.session_state.collection_status = -1   #-1 for nothing, 0 for opening an existing one and 1 for creating a new one
 
@@ -190,6 +196,8 @@ def add_collection_to_cache(ntouches, saved_index_list):
                 st.session_state.cached_methods.append(touch_info[3])
                 st.session_state.cached_tower.append(touch_info[4])
                 st.session_state.cached_datetime.append(touch_info[5])
+                st.session_state.cached_score.append(touch_info[6])
+                st.session_state.cached_ms.append(touch_info[7])
             else:
                 cache_index = st.session_state.cached_touch_id.index(touch_info[0])
                 raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
@@ -205,6 +213,8 @@ def add_collection_to_cache(ntouches, saved_index_list):
                 st.session_state.cached_methods[cache_index] = touch_info[3]
                 st.session_state.cached_tower[cache_index] = touch_info[4]
                 st.session_state.cached_datetime[cache_index] = touch_info[5]
+                st.session_state.cached_score[cache_index] = touch_info[6]
+                st.session_state.cached_ms[cache_index] = touch_info[7]
 
 def make_longtitle_cache(ti):
     def get_nice_date(date_string):
@@ -250,6 +260,14 @@ if st.session_state.url_collection is not None:
         st.session_state.saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
     if len(np.shape(st.session_state.saved_index_list)) == 1:
         st.session_state.saved_index_list = np.array([st.session_state.saved_index_list])
+    if len(st.session_state.saved_index_list[0]) < 8: #Add extra spaces
+        st.session_state.saved_index_list = st.session_state.saved_index_list.tolist()
+        nshort = 8 - len(st.session_state.saved_index_list[0])
+        for li, item in enumerate(st.session_state.saved_index_list):
+            for i in range(nshort):
+                item.append(' ')
+            st.session_state.saved_index_list[li] = item
+    st.session_state.saved_index_list = np.array(st.session_state.saved_index_list)
 
     st.session_state.ntouches = len(st.session_state.saved_index_list)
     add_collection_to_cache(st.session_state.ntouches, st.session_state.saved_index_list)
@@ -314,9 +332,17 @@ if st.session_state.collection_status == 0:
     if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
         saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
     else:
-        saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+        saved_index_list = np.array([[' ',' ',' ',' ',' ',' ',' ',' ']], dtype = 'str')
     if len(np.shape(saved_index_list)) == 1:
         saved_index_list = np.array([saved_index_list])
+    if len(saved_index_list[0]) < 8: #Add extra spaces
+        saved_index_list = saved_index_list.tolist()
+        nshort = 8 - len(saved_index_list[0])
+        for li, item in enumerate(saved_index_list):
+            for i in range(nshort):
+                item.append(' ')
+            saved_index_list[li] = item
+    saved_index_list = np.array(saved_index_list)
 
     if st.session_state.cached_touch_id[st.session_state.current_touch] not in saved_index_list[:,0]:
         #Load in csv
@@ -326,7 +352,7 @@ if st.session_state.collection_status == 0:
                 new_index_list = saved_index_list.tolist()
             else:
                 new_index_list = []
-            new_list_entry = [st.session_state.cached_touch_id[st.session_state.current_touch], st.session_state.cached_read_id[st.session_state.current_touch], st.session_state.cached_nchanges[st.session_state.current_touch], st.session_state.cached_methods[st.session_state.current_touch],st.session_state.cached_tower[st.session_state.current_touch], st.session_state.cached_datetime[st.session_state.current_touch]]
+            new_list_entry = [st.session_state.cached_touch_id[st.session_state.current_touch], st.session_state.cached_read_id[st.session_state.current_touch], st.session_state.cached_nchanges[st.session_state.current_touch], st.session_state.cached_methods[st.session_state.current_touch],st.session_state.cached_tower[st.session_state.current_touch], st.session_state.cached_datetime[st.session_state.current_touch], st.session_state.cached_score[st.session_state.current_touch], st.session_state.cached_ms[st.session_state.current_touch]]
             new_index_list.append(new_list_entry)
 
             @st.cache_data(ttl=300)
@@ -436,7 +462,7 @@ if st.session_state.current_touch >= 0:
             else:
                 st.method_message.write("**Method(s) detected: " + str(st.session_state.nchanges) + " " + st.session_state.method_title + " (sort of)**")
 
-            st.session_state.cached_methods[st.session_state.current_touch] = st.session_state.method_title
+            st.session_state.cached_methods[st.session_state.current_touch] = st.session_state.method_title   #This updates the cache
             st.session_state.cached_nchanges[st.session_state.current_touch] = st.session_state.nchanges
 
             if st.session_state.nchanges/int(len(st.session_state.raw_actuals)/st.session_state.nbells) < 0.25:
@@ -574,6 +600,9 @@ if st.session_state.current_touch >= 0:
         st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(Strike_Data.alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
 
+        st.session_state.cached_score[st.session_state.current_touch] = 100*shifted_quality   #This updates the cache
+        st.session_state.cached_ms[st.session_state.current_touch] = np.mean(Strike_Data.alldiags[2,2,:])
+
         if st.session_state.calling_html is not None:
             with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
                 st.html(st.session_state.calling_html)
@@ -581,7 +610,7 @@ if st.session_state.current_touch >= 0:
         if st.session_state.composition_flag:
             with st.expander("View Detailed Composition"):
                 st.html(st.session_state.comp_html)
-                
+
         with st.expander('View Plaintext Striking Report'):
             st.empty()
             obtain_striking_markdown(Strike_Data.alldiags, Strike_Data.time_errors, Strike_Data.lead_times, Strike_Data.cadence, Strike_Data.remove_mistakes)

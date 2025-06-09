@@ -163,7 +163,10 @@ if 'cached_tower' not in st.session_state:
     st.session_state.cached_tower = []
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
-
+if 'cached_score' not in st.session_state:
+    st.session_state.cached_score = []
+if 'cached_ms' not in st.session_state:
+    st.session_state.cached_ms = []
 
 
 
@@ -277,6 +280,8 @@ def add_collection_to_cache(ntouches, saved_index_list):
                 st.session_state.cached_methods.append(touch_info[3])
                 st.session_state.cached_tower.append(touch_info[4])
                 st.session_state.cached_datetime.append(touch_info[5])
+                st.session_state.cached_score.append(touch_info[6])
+                st.session_state.cached_ms.append(touch_info[7])
             else:
                 cache_index = st.session_state.cached_touch_id.index(touch_info[0])
                 raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
@@ -292,7 +297,9 @@ def add_collection_to_cache(ntouches, saved_index_list):
                 st.session_state.cached_methods[cache_index] = touch_info[3]
                 st.session_state.cached_tower[cache_index] = touch_info[4]
                 st.session_state.cached_datetime[cache_index] = touch_info[5]
-
+                st.session_state.cached_score[cache_index] = touch_info[6]
+                st.session_state.cached_ms[cache_index] = touch_info[7]
+                
 existing_names = find_existing_names()
 url_collection = determine_collection_from_url(existing_names)
 
@@ -313,6 +320,14 @@ if url_collection is not None:
         saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
     if len(np.shape(saved_index_list)) == 1:
         saved_index_list = np.array([saved_index_list])
+    if len(saved_index_list[0]) < 8: #Add extra spaces
+        saved_index_list = saved_index_list.tolist()
+        nshort = 8 - len(saved_index_list[0])
+        for li, item in enumerate(saved_index_list):
+            for i in range(nshort):
+                item.append(' ')
+            saved_index_list[li] = item
+    saved_index_list = np.array(saved_index_list)
 
     ntouches = len(saved_index_list)
 
@@ -916,7 +931,8 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     st.session_state.cached_methods.append('')
                     st.session_state.cached_tower.append(st.session_state.tower_name)
                     st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
-
+                    st.session_state.cached_score.append('')
+                    st.session_state.cached_ms.append('')
                 else:
                     #st.write('BACKSTROKE FIRST')
                     st.session_state.cached_strikes.append(st.session_state.allstrikes[:,1:])
@@ -931,6 +947,9 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                     st.session_state.cached_methods.append('')
                     st.session_state.cached_tower.append(st.session_state.tower_name)
                     st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+                    st.session_state.cached_score.append('')
+                    st.session_state.cached_ms.append('')
+
                 st.session_state.current_touch = -1
                 st.session_state.incache = True
                 if not st.session_state.testing_mode:

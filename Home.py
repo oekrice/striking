@@ -141,6 +141,11 @@ def run():
         st.session_state.cached_tower = []
     if 'cached_datetime' not in st.session_state:
         st.session_state.cached_datetime = []
+    if 'cached_score' not in st.session_state:
+        st.session_state.cached_score = []
+    if 'cached_ms' not in st.session_state:
+        st.session_state.cached_ms = []
+        
     if 'cached_strikes' not in st.session_state:
         st.session_state.cached_strikes = [] 
     if 'cached_certs' not in st.session_state:
@@ -189,6 +194,8 @@ def run():
                     st.session_state.cached_methods.append(touch_info[3])
                     st.session_state.cached_tower.append(touch_info[4])
                     st.session_state.cached_datetime.append(touch_info[5])
+                    st.session_state.cached_score.append(touch_info[6])
+                    st.session_state.cached_ms.append(touch_info[7])
                 else:
                     cache_index = st.session_state.cached_touch_id.index(touch_info[0])
                     raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
@@ -204,6 +211,8 @@ def run():
                     st.session_state.cached_methods[cache_index] = touch_info[3]
                     st.session_state.cached_tower[cache_index] = touch_info[4]
                     st.session_state.cached_datetime[cache_index] = touch_info[5]
+                    st.session_state.cached_score[cache_index] = touch_info[6]
+                    st.session_state.cached_ms[cache_index] = touch_info[7]
         
                   
     existing_names = find_existing_names()

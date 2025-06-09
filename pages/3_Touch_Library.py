@@ -84,7 +84,8 @@ def dealwith_upload():
                     st.session_state.cached_methods.append('')
                     st.session_state.cached_tower.append('')
                     st.session_state.cached_datetime.append(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
-
+                    st.session_state.cached_score.append('')
+                    st.session_state.cached_ms.append('')
                     #st.write(strike_data)
         os.system('rm -r ./tmp/%s' % uploaded_file.name)
            
@@ -148,12 +149,14 @@ def make_longtitle_collection(touch_info):
     #Creates a descriptive, readable title from the metadata
     longtitle = ''
     longtitle = longtitle + "**%s**: " % touch_info[1]
-    if touch_info[2] != '' and touch_info[3] != '':
+    if touch_info[2] != '' and touch_info[3] != ' ':
         longtitle = longtitle + "%d %s" % (int(touch_info[2]), touch_info[3])
     if touch_info[4] != '':
         longtitle = longtitle + " at %s" % (touch_info[4])
     longtitle = longtitle + " (%s)" % get_nice_date(touch_info[5])
-
+    if (touch_info[6] != '') and (touch_info[7] != ' '):
+        print(touch_info[6])
+        longtitle = longtitle +  ' - **%.2f\%%** (%dms)' % (float(touch_info[6]), float(touch_info[7]))
     return longtitle
 
 
@@ -197,7 +200,7 @@ def change_rename_collection_mode():
 
 def add_new_folder(name):
     os.system('mkdir "saved_touches/%s"' % name)
-    np.savetxt("./saved_touches/%s/index.csv" % name, np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str'), fmt = '%s', delimiter = ';')
+    np.savetxt("./saved_touches/%s/index.csv" % name, np.array([[' ',' ',' ',' ',' ',' ',' ',' ']], dtype = 'str'), fmt = '%s', delimiter = ';')
     st.session_state.collection_status = 0
     st.session_state.current_collection_name = name
     st.session_state.input_key += 1
@@ -265,6 +268,10 @@ if 'cached_tower' not in st.session_state:
     st.session_state.cached_tower = []
 if 'cached_datetime' not in st.session_state:
     st.session_state.cached_datetime = []
+if 'cached_score' not in st.session_state:
+    st.session_state.cached_score = []
+if 'cached_ms' not in st.session_state:
+    st.session_state.cached_ms = []
 if 'analysis_button' not in st.session_state:
     st.session_state.analysis_button = True
 if 'expanded' not in st.session_state:
@@ -409,9 +416,20 @@ if not os.path.exists("./saved_touches/%s/index.csv" % st.session_state.current_
 if os.path.getsize("./saved_touches/%s/index.csv" % st.session_state.current_collection_name) > 0:
     saved_index_list = np.loadtxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, delimiter = ';', dtype = str)
 else:
-    saved_index_list = np.array([[' ',' ',' ',' ',' ',' ']], dtype = 'str')
+    saved_index_list = np.array([[' ',' ',' ',' ',' ',' ',' ',' ']], dtype = 'str')
+
 if len(np.shape(saved_index_list)) == 1:
     saved_index_list = np.array([saved_index_list])
+
+
+if len(saved_index_list[0]) < 8: #Add extra spaces
+    saved_index_list = saved_index_list.tolist()
+    nshort = 8 - len(saved_index_list[0])
+    for li, item in enumerate(saved_index_list):
+        for i in range(nshort):
+            item.append(' ')
+        saved_index_list[li] = item
+saved_index_list = np.array(saved_index_list)
 
 ntouches = len(saved_index_list)
 
@@ -436,6 +454,8 @@ def add_collection_to_cache(ntouches, saved_index_list):
                     st.session_state.cached_methods.append(touch_info[3])
                     st.session_state.cached_tower.append(touch_info[4])
                     st.session_state.cached_datetime.append(touch_info[5])
+                    st.session_state.cached_score.append(touch_info[6])
+                    st.session_state.cached_ms.append(touch_info[7])
                 else:
                     cache_index = st.session_state.cached_touch_id.index(touch_info[0])
                     raw_data = pd.read_csv("./saved_touches/%s/%s.csv" % (st.session_state.current_collection_name,touch_info[0]))
@@ -451,6 +471,8 @@ def add_collection_to_cache(ntouches, saved_index_list):
                     st.session_state.cached_methods[cache_index] = touch_info[3]
                     st.session_state.cached_tower[cache_index] = touch_info[4]
                     st.session_state.cached_datetime[cache_index] = touch_info[5]
+                    st.session_state.cached_score[cache_index] = touch_info[6]
+                    st.session_state.cached_ms[cache_index] = touch_info[7]
             st.switch_page(page="pages/2_Analyse_Striking.py")
             st.rerun()
 
@@ -565,7 +587,7 @@ with st.expander('Add/remove touches and change touch metadata'):
 
                     if st.session_state.cached_touch_id[ti] not in current_entries:
 
-                        new_list_entry = [st.session_state.cached_touch_id[ti], st.session_state.cached_read_id[ti], st.session_state.cached_nchanges[ti], st.session_state.cached_methods[ti],st.session_state.cached_tower[ti], st.session_state.cached_datetime[ti]]
+                        new_list_entry = [st.session_state.cached_touch_id[ti], st.session_state.cached_read_id[ti], st.session_state.cached_nchanges[ti], st.session_state.cached_methods[ti],st.session_state.cached_tower[ti], st.session_state.cached_datetime[ti], st.session_state.cached_score[ti], st.session_state.cached_ms[ti]]
                         new_index_list.append(new_list_entry)
 
                         @st.cache_data(ttl=300)
@@ -605,7 +627,7 @@ with st.expander('Add/remove touches and change touch metadata'):
             for ti in select_list[::-1]:
                 new_index_list.pop(ti)
             if len(new_index_list) == 0:
-                new_index_list = np.array([[' ',' ',' ',' ',' ',' ']])
+                new_index_list = np.array([[' ',' ',' ',' ',' ',' ',' ',' ']])
 
             np.savetxt("./saved_touches/%s/index.csv" % st.session_state.current_collection_name, np.array(new_index_list, dtype = str), fmt = '%s', delimiter = ';')
 
