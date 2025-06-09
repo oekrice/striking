@@ -1263,8 +1263,9 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             lines.append(pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "<br>")
         else:
             lines.append("<u>" + pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "</u>" + "<br>")
-            if calling_line[0] == '.':
-                calling_line = calling_line[1:]
+            if len(calling_line) > 0:
+                if calling_line[0] == '.':
+                    calling_line = calling_line[1:]
             calling_lines.append(calling_line + "<br>")
             calling_line = ''
     if len(calling_line) > 0:
