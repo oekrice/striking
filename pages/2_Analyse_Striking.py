@@ -402,7 +402,7 @@ if st.session_state.current_touch >= 0:
     st.session_state.methods, st.session_state.hunt_types, st.session_state.calls, st.session_state.start_row, st.session_state.end_row, st.session_state.allrows_correct, st.session_state.quality = find_method_things(st.session_state.raw_data["Bell No"])
 
     if len(st.session_state.methods) > 0:
-        st.session_state.call_string, st.session_state.comp_html = print_composition(st.session_state.methods, st.session_state.hunt_types, st.session_state.calls, st.session_state.allrows_correct)
+        st.session_state.call_string, st.session_state.comp_html, st.session_state.calling_html = print_composition(st.session_state.methods, st.session_state.hunt_types, st.session_state.calls, st.session_state.allrows_correct)
         st.session_state.method_flag = True
     else:
         st.session_state.method_flag = False
@@ -574,9 +574,6 @@ if st.session_state.current_touch >= 0:
         st.message.write("Standard deviation from ideal for this touch: %.1fms" % np.mean(Strike_Data.alldiags[2,2,:]))
         st.message_2.write("Overall striking quality: **%.2f%%**" % (100*shifted_quality))
 
-        if st.session_state.composition_flag:
-            with st.expander("View Composition"):
-                st.html(st.session_state.comp_html)
 
         with st.expander('View Plaintext Striking Report'):
             st.empty()
@@ -628,6 +625,14 @@ if st.session_state.current_touch >= 0:
         with st.expander("View Box Plots"):
             st.empty()
             plot_boxes(Strike_Data.time_errors, st.session_state.nbells, st.session_state.titles)
+
+        if st.session_state.calling_html is not None:
+            with st.expander("View Call Positions"):   #Only if a single method and not a plain course -- need checks for this
+                st.html(st.session_state.calling_html)
+
+        if st.session_state.composition_flag:
+            with st.expander("View Detailed Composition"):
+                st.html(st.session_state.comp_html)
 
         @st.cache_data(ttl=300)
         def convert_for_download(df):

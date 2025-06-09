@@ -1201,6 +1201,7 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
         call_positions = ' ' * (len(lead_ends) - 1)
     else:
         call_positions = find_call_positions_stedman(call_string, lead_ends, methods, course_ends)
+
     #Determine markdown widths etc.
     max_method_width = np.max([len(method) for method in clean_methods])
     max_call_width = np.max([len(call) for call in call_positions])
@@ -1219,12 +1220,19 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             clean_ends.append(clean)
         return clean_ends
 
+    do_calling = True
+    if len(methods) > 1 or plain_course:
+        do_calling = False
+
+    calling_line = ''
+    calling_lines = []
     lead_ends = clean_lead_ends(lead_ends)
     lines = []
     if plain_course and len(methods) == 1:
         lines.append('Plain Course <br>')
     else:
         lines.append(' <br>')
+        calling_lines.append(str(methods[0][0]) + ' <br>')
 
     lines.append("<u>" + ' '*(total_width - lead_end_width ) + str(lead_ends[0]) + "</u>"  + "<br>")
 
@@ -1235,6 +1243,17 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             pad_method = ' '*(max_method_width - len(clean_methods[0])) + str(clean_methods[0])
         pad_call = ' '*(max_call_width - len(call_positions[i])) + str(call_positions[i])
 
+        if call_positions[i] != '  ':
+            raw_position = call_positions[i]
+            #If is a numeric bob, is probably Stedman so put in a . instead of a -
+            if raw_position[1:].isnumeric() and raw_position[0] == '-':
+                raw_position = '.' + raw_position[1:]
+            elif not raw_position[1:].isnumeric() and raw_position[0] == '-':
+                raw_position = raw_position[1:]
+            elif raw_position[1:].isnumeric() and raw_position[0] == 's':
+                raw_position = '.' + raw_position[:]
+            calling_line = calling_line + str(raw_position)
+
         underline = False
         if (relevant_rows[-1] == np.arange(len(lead_ends[0])) + 1).all() and i == len(lead_ends) - 2:
             underline = True
@@ -1244,5 +1263,17 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             lines.append(pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "<br>")
         else:
             lines.append("<u>" + pad_method + ' '*(pad_width) + pad_call + ' '*(pad_width) + str(lead_ends[i + 1]) + "</u>" + "<br>")
+            if calling_line[0] == '.':
+                calling_line = calling_line[1:]
+            calling_lines.append(calling_line + "<br>")
+            calling_line = ''
+    if len(calling_line) > 0:
+        if calling_line[0] == '.':
+            calling_line = calling_line[1:]
+        calling_lines.append(calling_line + "<br>")
     lead_end_html = '<pre>' +  ' '.join(lines) + '</pre>'
-    return call_string, lead_end_html
+    if do_calling:
+        calling_html = '<pre>' +  ' '.join(calling_lines) + '</pre>'
+    else:
+        calling_html = None
+    return call_string, lead_end_html, calling_html

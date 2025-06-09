@@ -807,7 +807,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
             goodenough = False
         if len(st.session_state.allstrikes[0]) < 60.0:
             goodenough = False
-        if (quality > 0.9 and len(allrows_correct) > 60):
+        if (quality > 0.95 and len(allrows_correct) > 60):
             goodenough = True
 
         #If it's good, give an option to save out so it can be used next time
