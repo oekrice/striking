@@ -25,6 +25,7 @@ import io
 import random
 import string
 from datetime import datetime
+import re
 
 from listen_classes import audio_data, parameters
 from listen_main_functions import establish_initial_rhythm, do_reinforcement, find_final_strikes, save_strikes, filter_final_strikes
@@ -249,7 +250,12 @@ def determine_collection_from_url(existing_names):
     
 def find_existing_names():
     #Finds a list of existing collection names
-    return os.listdir('./saved_touches/')
+    names_raw = os.listdir('./saved_touches/')
+    names_lower = []
+    for name in names_raw:
+        lower_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), name)   
+        names_lower.append(lower_name)
+    return names_lower
 
 def add_collection_to_cache(ntouches, saved_index_list):
     if ntouches!= 0 and saved_index_list[0][0] != ' ':
@@ -289,6 +295,13 @@ def add_collection_to_cache(ntouches, saved_index_list):
 
 existing_names = find_existing_names()
 url_collection = determine_collection_from_url(existing_names)
+
+def determine_url_params():
+    if 'current_collection_name' in st.session_state:
+        if st.session_state.current_collection_name is not None:
+            st.query_params.from_dict({"collection": [st.session_state.current_collection_name]})
+    return
+determine_url_params()
 
 if url_collection is not None:
     st.session_state.collection_status = 0

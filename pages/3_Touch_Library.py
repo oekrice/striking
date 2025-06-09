@@ -159,7 +159,12 @@ def make_longtitle_collection(touch_info):
 
 def find_existing_names():
     #Finds a list of existing collection names
-    return os.listdir('./saved_touches/')
+    names_raw = os.listdir('./saved_touches/')
+    names_lower = []
+    for name in names_raw:
+        lower_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), name)   
+        names_lower.append(lower_name)
+    return names_lower
 
 def change_addition_mode():
     st.session_state.addition_mode *= -1
@@ -314,6 +319,14 @@ def determine_collection_from_url(existing_names):
         return None
         
 url_collection = determine_collection_from_url(existing_names)
+
+def determine_url_params():
+    if 'current_collection_name' in st.session_state:
+        if st.session_state.current_collection_name is not None:
+            st.query_params.from_dict({"collection": [st.session_state.current_collection_name]})
+    return
+determine_url_params()   #I think disable this on this page at least 
+
 if url_collection is not None:
     st.session_state.collection_status = 0
     st.session_state.current_collection_name = url_collection
@@ -325,15 +338,19 @@ with cols[0]:
         st.session_state.current_collection_name = None
         st.session_state.selected_library_touches = []
         st.session_state.input_key += 1
+        st.query_params.clear()
         st.rerun()
 with cols[1]:
     if st.button('Create a new collection', disabled = st.session_state.collection_status == 1):
-        st.session_state.collection_status = 1            
+        st.session_state.collection_status = 1 
+        st.query_params.clear()        
         st.rerun()
 
 if st.session_state.collection_status == 2:
     selected_name = st.text_input('Enter existing collection name:', key = st.session_state.input_key + 1000 )
     selected_name = re.sub(r'[^\w\-]', '_', selected_name)
+    selected_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), selected_name)   
+
     if selected_name in existing_names:
         st.session_state.current_collection_name = selected_name
         st.session_state.selected_library_touches = []
@@ -351,13 +368,15 @@ new_collection_name = None
 #Create a new one
 if st.session_state.collection_status == 1:
     st.write("Choose a name (a single word) for the new collection. If you'd like it not to be found by anyone else, choose something unguessable.")
-    new_collection_name = st.text_input('New collection name (no spaces or special characters)', key = st.session_state.input_key)
+    new_collection_name = st.text_input('New collection name (no capitals, spaces or special characters)', key = st.session_state.input_key)
     if new_collection_name is not None:
         new_collection_name = re.sub(r'[^\w\-]', '_', new_collection_name)
+        new_collection_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), new_collection_name)
+
     if new_collection_name is not None:
         if new_collection_name not in existing_names and new_collection_name and len(new_collection_name) > 0:
             st.write('"%s" is valid and unused. Good good.' % new_collection_name)
-            st.write("**Remember this name -- it will be case sensitive and can't be recovered if you forget it!**")
+            st.write("**Remember this name -- it can't be recovered if you forget it!**")
             if st.button('Create new collection called "%s"' % new_collection_name):
                 st.write('New collection created with name "%s"' % new_collection_name)
                 add_new_folder(new_collection_name)

@@ -120,8 +120,12 @@ def determine_collection_from_url(existing_names):
 
 def find_existing_names():
     #Finds a list of existing collection names
-    return os.listdir('./saved_touches/')
-
+    names_raw = os.listdir('./saved_touches/')
+    names_lower = []
+    for name in names_raw:
+        lower_name = re.sub(r"[A-Z]", lambda m: m.group(0).lower(), name)   
+        names_lower.append(lower_name)
+    return names_lower
 
 st.set_page_config(page_title="Analyse Striking", page_icon="📈")
 st.markdown("## Analyse Striking")
@@ -218,15 +222,23 @@ def make_longtitle_cache(ti):
     longtitle = ''
     if st.session_state.cached_nchanges[ti] != '' and st.session_state.cached_methods[ti] != '':
         longtitle = longtitle + "%d %s" % (int(st.session_state.cached_nchanges[ti]), st.session_state.cached_methods[ti])
+    else:
+        return None
     if st.session_state.cached_tower[ti] != '':
         longtitle = longtitle + " at %s" % (st.session_state.cached_tower[ti])
     longtitle = longtitle + " (%s)" % get_nice_date(st.session_state.cached_datetime[ti])
 
     return longtitle
 
-
 st.session_state.existing_names = find_existing_names()
 st.session_state.url_collection = determine_collection_from_url(st.session_state.existing_names)
+
+def determine_url_params():
+    if 'current_collection_name' in st.session_state:
+        if st.session_state.current_collection_name is not None:
+            st.query_params.from_dict({"collection": [st.session_state.current_collection_name]})
+    return
+determine_url_params()
 
 if st.session_state.url_collection is not None:
     st.session_state.collection_status = 0
@@ -291,7 +303,8 @@ else:
     st.write('Analysing ringing from "%s"' % st.session_state.touch_titles[st.session_state.current_touch])
 
 longtitle = make_longtitle_cache(st.session_state.current_touch)
-st.write(longtitle)
+if longtitle is not None:
+    st.write(longtitle)
 if len(st.session_state.touch_titles) == 0:
     st.session_state.current_touch = -1
 
