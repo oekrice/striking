@@ -427,7 +427,7 @@ if st.session_state.current_touch >= 0:
     st.method_message.write("Figuring out methods and composition...")
 
     st.session_state.methods, st.session_state.hunt_types, st.session_state.calls, st.session_state.start_row, st.session_state.end_row, st.session_state.allrows_correct, st.session_state.quality = find_method_things(st.session_state.raw_data["Bell No"])
-
+    st.session_state.calling_html = None; st.session_state.comp_html = None; st.session_state.call_string = None
     if len(st.session_state.methods) > 0:
         st.session_state.call_string, st.session_state.comp_html, st.session_state.calling_html = print_composition(st.session_state.methods, st.session_state.hunt_types, st.session_state.calls, st.session_state.allrows_correct)
         st.session_state.method_flag = True
