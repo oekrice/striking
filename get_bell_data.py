@@ -11,7 +11,7 @@ Needs to download a group of files...
 import pandas as pd
 import numpy as np
 
-if False:
+if True:
     print('Downloading data...')
     data = pd.read_csv('https://dove.cccbr.org.uk/bells.csv?bells=all&ring_type=english')
 
