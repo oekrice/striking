@@ -39,19 +39,19 @@ RUN: git clone https://github.com/oekrice/striking.git
 RUN: cd striking
 
 #Install HTTPS things with nginx (quite quick)
-RUN: sudo dnf install -y nginx
-RUN: sudo systemctl enable --now nginx
-RUN: sudo firewall-cmd --permanent --add-service=http
-RUN: sudo firewall-cmd --permanent --add-service=https
-RUN: sudo firewall-cmd --reload
+sudo dnf install -y nginx
+sudo systemctl enable --now nginx
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
 
 #Install nginx
-RUN: sudo dnf install -y nginx
-RUN: sudo systemctl enable --now nginx
+sudo dnf install -y nginx
+sudo systemctl enable --now nginx
 
 #Install certbot (this didn't work before but I'm more awake today...)
 #-----------------------------------------------
-RUN: sudo dnf install epel-release
+sudo dnf install epel-release
 sudo dnf config-manager --set-enabled ol9_developer_EPEL
 sudo dnf update
 sudo dnf install -y snapd
@@ -73,14 +73,14 @@ RUN: sudo nginx -t
 RUN: sudo systemctl reload nginx  
 
 #File should be in the GitHub (and I'll update it as appropriate), one hopes, but need to copy to the right place
-RUN: sudo cp brenda_setup.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?    
-RUN: sudo /snap/bin/certbot --nginx -d brenda.oekrice.com -d brenda.oekrice.com
-RUN: sudo /snap/bin/certbot renew --dry-run    #Just to test
+sudo cp brenda_setup.conf /etc/nginx/conf.d/brenda.conf    #MAYBE, or not. Who knows?    
+sudo /snap/bin/certbot --nginx -d brenda.oekrice.com -d brenda.oekrice.com
+sudo /snap/bin/certbot renew --dry-run    #Just to test
 Follow prompts. Should be OK... Check Brenda file is still all right
 
 #Allow streamlit and other things through the firewall
-RUN: sudo dnf install firewalld
-RUN: sudo firewall-cmd --zone=public --permanent --add-port=8501/tcp 
+sudo dnf install firewalld
+sudo firewall-cmd --zone=public --permanent --add-port=8501/tcp 
 sudo firewall-cmd --zone=public --permanent --add-port=80/tcp
 sudo firewall-cmd --zone=public --permanent --add-port=443/tcp
 sudo firewall-cmd --reload
@@ -129,6 +129,13 @@ RUN: sudo COMPOSE_BAKE=true docker compose up -d --build #For actually having it
 #To stop all:
 #Not sure, doesn't seem to work
 
+#To set up crontab
+crontab -e
+
+#Paste:
+0 3 * * * docker compose restart nginx streamlit1 streamlit2 streamlit3
+0 2 * * * /home/opc/striking/backup_to_gdrive.sh
+
 #To update from git
 RUN: git pull
 sudo docker compose down
@@ -148,7 +155,7 @@ sudo docker compose restart nginx streamlit1 streamlit2 streamlit3
 #To run nginx on its own (with defaults):
 sudo docker run --name my-nginx -d -p 80:80 nginx
 
-#Google drive backups: Requires rclone and the appropriate config files
+#Google drive backups: Requires rclone and the appropriate config files. Bit of a pain to set up.
 curl https://rclone.org/install.sh | sudo bash
 rclone config
 

@@ -27,7 +27,7 @@ from scipy.fftpack import fft
 from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
 import warnings
-
+from scipy.signal.windows import hamming
 
 class audio_data():
     #Does the initial audio normalisation things
@@ -107,11 +107,11 @@ class parameters(object):
     
     def __init__(self, nominal_freqs, overall_tmin, overall_tmax, reinforce_tmax, nreinforces, npicks_mode):
                 
-        self.dt = 0.01
-        self.fcut_length = 0.125  #Length of each transform slice (in seconds)
-        
+        self.dt = 0.01    #Frequency at which to take fourier transforms. Nice round number is preferable.
+        self.fcut_length = 0.1 #Length of each transform slice (in seconds).
+        self.tone_fraction = 0.1     #Fraction of the tone to consider as the same 'note'
         self.transform_smoothing = 0.05 #Transform smoothing for the initial derivatives of the transform (in seconds)
-        self.frequency_range = 3    #Range over which to include frequencies in a sweep (as in, 300 will count between 300-range:frequency+range+1 etc.)
+        
         self.derivative_smoothing = 5  #Smoothing for the derivative (in INTEGER time lumps -- could change if necessary...)
         self.smooth_time = 2.0    #Smoothing over which to apply change-long changes (in seconds)
         self.max_change_time = 3.5 #How long could a single change reasonably be
@@ -124,8 +124,7 @@ class parameters(object):
         self.strike_alpha = 2  #How much to care about timing
         self.strike_gamma = 1  #How much to care about prominence
         self.strike_gamma_init = 1.5  #How much to care about prominence for the initial rounds
-        
-        
+    
         self.freq_tcut = 0.2 #How many times the average cadence to cut off for FREQUENCIES (should be identical strikes really)
         self.freq_smoothing = 2 #How much to smooth the data when looking for frequencies (as an INTEGER)
         self.beta = 1   #How much to care whether strikes are certain when looking at frequencies
@@ -170,6 +169,7 @@ class parameters(object):
         
         if len(nominal_freqs) > 0:
             self.nominals = np.round(nominal_freqs*self.fcut_length).astype('int')
+            #Nominal frequencies in FREQUENCY SPACE. OK.
         else:
             self.nominals = []
             
@@ -232,26 +232,32 @@ class data():
         
         t = Paras.fcut_length/2   #Initial time (halfway through each transform)
         
+        hamming_window = hamming(Paras.fcut_int)
+
         while t < Paras.tmax - Paras.fcut_length/2:
             cut_start  = round(t*st.session_state.fs - Paras.fcut_int/2)
-            cut_end    = round(t*st.session_state.fs + Paras.fcut_int/2)
+            cut_end    = cut_start + Paras.fcut_int
             
             signal_cut = st.session_state.local_signal[cut_start:cut_end]
             
+            #I think the idea is to apply the hamming window at this point? 
+            #Let's give it a go...
+            signal_cut = signal_cut*hamming_window
+
             transform = abs(fft(signal_cut)[:len(signal_cut)//2])
             transform = 0.5*transform*st.session_state.fs/len(signal_cut)
                             
-            ts.append(t)        
+            ts.append(t)    
             full_transform.append(transform)
             
             t = t + Paras.dt
-        
+
         self.ts = np.array(ts)
-        self.transform = np.array(full_transform)  
+        self.transform = np.array(full_transform)
         
         del transform
         del full_transform
-        
+
         Paras.nt = len(ts)
         
         return 

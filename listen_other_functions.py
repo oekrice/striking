@@ -125,11 +125,14 @@ def find_rough_cadence(Paras, Data):
     #Need to isolate for frequencies though
     cadences = []
     #fig = plt.figure()
+    freq_shift = 2**(Paras.tone_fraction/12.0)  #Fraction for a tone
 
     for bell in range(Paras.nbells):
         freq_test = Data.test_frequencies[bell]
+        freqmin = int(round(freq_test/freq_shift))
+        freqmax = int(round(freq_test*freq_shift))
 
-        loudness = Data.transform[:,freq_test - Paras.frequency_range : freq_test + Paras.frequency_range + 1]
+        loudness = Data.transform[:,freqmin : freqmax + 1]
         
         loudness = gaussian_filter1d(loudness, int(0.1/Paras.dt),axis = 0)
         loudsum = np.sum(loudness, axis = 1)
@@ -1269,12 +1272,17 @@ def find_strike_probabilities(Paras, Data, init = False, final = False):
     difflogs = []; all_diffpeaks = []; all_sigs = []
     
     #Produce logs of each FREQUENCY, so don't need to loop
+    #Frequency range should now depend on logs, so no need to put this bit in. OK.
+    freq_shift = 2**(Paras.tone_fraction/12.0)  #Fraction for a tone
     for fi, freq_test in enumerate(Data.test_frequencies):
-        
-        raw_slice = Data.transform[:nt_reinforce, freq_test - Paras.frequency_range : freq_test + Paras.frequency_range + 1]
-        rawsum = np.sum(raw_slice**2, axis = 1)
+        #Actually only using the derivative at this point, so maybe do the derivative here?
 
-        diff_slice = Data.transform_derivative[:nt_reinforce, freq_test - Paras.frequency_range : freq_test + Paras.frequency_range + 1]
+        #Want the frequency range to now depend on the frequency itself. That's OK, I think. 
+        #There's some smoothing later on which should take care of things? 
+        freqmin = int(round(freq_test/freq_shift))
+        freqmax = int(round(freq_test*freq_shift))
+
+        diff_slice = Data.transform_derivative[:nt_reinforce, freqmin : freqmax+1]/(freqmax - freqmin + 1)
         diff_slice[diff_slice < 0.0] = 0.0
         diffsum = np.sum(diff_slice**2, axis = 1)
 

@@ -21,6 +21,7 @@ import streamlit as st
 import numpy as np
 import time
 import pandas as pd
+import matplotlib.pyplot as plt
 from listen_classes import data
 
 from listen_other_functions import find_ringing_times, find_strike_probabilities, do_frequency_analysis, find_strike_times, find_colour, check_initial_rounds, find_first_strikes, test_error, check_for_misses
@@ -33,6 +34,15 @@ def establish_initial_rhythm(Paras, final = False):
     else:
         Data = data(Paras, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
         
+    print(np.shape(Data.transform))
+
+    # fig = plt.figure()
+    # plt.pcolormesh(Data.transform[:500,:1000].T)
+    # plt.yscale('log')
+    # st.pyplot(fig)
+    # plt.close()
+    # st.stop()
+    
     Paras.ringing_start, Paras.ringing_end = find_ringing_times(Paras, Data)
 
     Paras.reinforce_tmax = Paras.ringing_start*Paras.dt + Paras.reinforce_tmax
@@ -201,6 +211,7 @@ def do_reinforcement(Paras, Data):
             #Determine colours:
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
+            print('Freq match', 100*toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
 
         if len(quality_log) > 3:
