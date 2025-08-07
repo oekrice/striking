@@ -34,8 +34,6 @@ def establish_initial_rhythm(Paras, final = False):
     else:
         Data = data(Paras, tmin = 0.0, tmax = 60.0) #This class contains all the important stuff, with outputs and things
         
-    print(np.shape(Data.transform))
-
     # fig = plt.figure()
     # plt.pcolormesh(Data.transform[:500,:1000].T)
     # plt.yscale('log')
@@ -211,7 +209,6 @@ def do_reinforcement(Paras, Data):
             #Determine colours:
             toprint = st.session_state.reinforce_frequency_data[2]
             c = find_colour(toprint)
-            print('Freq match', 100*toprint)
             st.quality_log.write('Best yet frequency match: :%s[%.1f%%]' % (c, 100*toprint))
 
         if len(quality_log) > 3:

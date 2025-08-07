@@ -172,7 +172,7 @@ def find_first_strikes(Paras, Data):
     significant_peaks = []; significant_proms = []
     for bell in range(nbells):   #Establish peaks and reliability
         probs = Data.strike_probabilities[bell][:]
-        probs = gaussian_filter1d(probs, 5)
+        probs = gaussian_filter1d(probs, int(round(Paras.derivative_smoothing/Paras.dt)))
         peaks, _ = find_peaks(probs) 
         prominences = peak_prominences(probs, peaks)[0]
         peaks = np.array([val for _, val in sorted(zip(prominences,peaks), reverse = True)]).astype('int')
@@ -1113,7 +1113,7 @@ def do_frequency_analysis(Paras, Data):
             diff_slice[diff_slice < 0.0] = 0.0
             diffsum = diff_slice**2
             
-            diffsum = gaussian_filter1d(diffsum, Paras.freq_smoothing)
+            diffsum = gaussian_filter1d(diffsum, int(round(Paras.freq_smoothing/Paras.dt)))
                 
             peaks, _ = find_peaks(diffsum)
             
@@ -1200,16 +1200,20 @@ def do_frequency_analysis(Paras, Data):
     final_freqs = sorted(final_freqs)
     final_freqs = np.array(final_freqs)
 
+    freq_shift = 2**(0.5*Paras.tone_fraction/12.0)  #Fraction for a tone
+
     #Sort by height and filter out those which are too nearby -- don't count for the final number
     for freq in final_freqs:
         bellprobs = np.zeros(Paras.nbells)
         for bell in range(Paras.nbells):
 
-            freq_range = 2  #Put quite big perhaps to stop bell confusion. Doesn't like it, unfortunately.
+            #freq_range = 2  #Put quite big perhaps to stop bell confusion. Doesn't like it, unfortunately.
+            freqmin = int(round(freq/freq_shift))
+            freqmax = int(round(freq*freq_shift))
 
             #Put some blurring in here to account for the wider peaks
-            top = np.sum(allprobs[freq-freq_range:freq+freq_range + 1, bell])
-            bottom = np.sum(allprobs[freq-freq_range:freq+freq_range + 1, :])
+            top = np.sum(allprobs[freqmin:freqmax + 1, bell])
+            bottom = np.sum(allprobs[freqmin:freqmax + 1, :])
                             
             bellprobs[bell] = (top/bottom)**2.0
         

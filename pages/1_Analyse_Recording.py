@@ -78,7 +78,7 @@ st.session_state.testing_mode = False
 #Establish persistent variables
 if st.session_state.testing_mode:
     input_matrix = np.loadtxt("test_cases.txt", delimiter = ';', dtype = str)    
-    init_test = 25
+    init_test = 52
     single_test = True
 
     if "test_counter" not in st.session_state:
@@ -548,7 +548,6 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     #st.write("Upload ringing audio:")
     st.session_state.input_option = 0
     #st.write(st.session_state.audio_signal is not None)
-
     if st.session_state.testing_mode:
         test_fname = input_matrix[st.session_state.test_counter][2]
         with open (test_fname, "rb") as f:

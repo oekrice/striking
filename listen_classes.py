@@ -112,7 +112,7 @@ class parameters(object):
         self.tone_fraction = 0.1     #Fraction of the tone to consider as the same 'note'
         self.transform_smoothing = 0.05 #Transform smoothing for the initial derivatives of the transform (in seconds)
         
-        self.derivative_smoothing = 5  #Smoothing for the derivative (in INTEGER time lumps -- could change if necessary...)
+        self.derivative_smoothing = 0.05  #Smoothing for the derivative (in INTEGER time lumps -- could change if necessary...)
         self.smooth_time = 2.0    #Smoothing over which to apply change-long changes (in seconds)
         self.max_change_time = 3.5 #How long could a single change reasonably be
         self.nrounds_min = 8 #How many rounds do you need (8 = 4 whole pulls, seems reasonable...)
@@ -126,7 +126,7 @@ class parameters(object):
         self.strike_gamma_init = 1.5  #How much to care about prominence for the initial rounds
     
         self.freq_tcut = 0.2 #How many times the average cadence to cut off for FREQUENCIES (should be identical strikes really)
-        self.freq_smoothing = 2 #How much to smooth the data when looking for frequencies (as an INTEGER)
+        self.freq_smoothing = 0.02 #How much to smooth the data when looking for frequencies (as an INTEGER)
         self.beta = 1   #How much to care whether strikes are certain when looking at frequencies
         self.freq_filter = 2#How much to filter the frequency profiles (in INT)
 
