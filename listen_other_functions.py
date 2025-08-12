@@ -17,7 +17,7 @@ def test_error(text):
     st.session_state.test_counter += 1
     st.rerun()
 
-#Added text so Streamlit detects a commit again again
+#Added text so Streamlit detects a commit again again again
 def find_colour(value):
     #For prettiness purposes
     colour_thresholds = [0.95,0.98]; colours = ['red', 'orange', 'green']
