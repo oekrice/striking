@@ -1041,14 +1041,14 @@ def print_composition(methods, hunt_types, calls, relevant_rows):
             return "H"
         elif position == stage - 2:
             if stage%2 == 0:
-                return "W"
-            else:
                 return "M"
+            else:
+                return "W"
         elif position == stage - 3:
             if stage%2 == 0:
-                return "M"
-            else:
                 return "W"
+            else:
+                return "M"
         elif position == 4:
             return "V"
         else:
