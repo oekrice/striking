@@ -59,7 +59,7 @@ def find_current_stats():
                     fcount += 1
     return ntowers, fcount, tower_names
 
-def check_initial_rounds(strikes):
+def check_initial_rounds(strikes, be_lenient = True):
     if len(strikes) == 0:
         return False
     isfines = np.zeros(len(strikes[0]))
@@ -68,15 +68,32 @@ def check_initial_rounds(strikes):
         row = strikes[:,ri]
         diffs = row[1:] - row[:-1]
         mean_diff = np.mean(diffs)
-        if np.min(diffs) < mean_diff*0.25:
-            isfines[ri] = 0
+        if be_lenient:
+            if np.min(diffs) < mean_diff*0.1:
+                isfines[ri] = 0
+            else:
+                isfines[ri] = 1
         else:
-            isfines[ri] = 1
-    if np.sum(isfines[:ncheck])/ncheck < 0.5:
-        return False
-    else:
-        return True
+            if np.min(diffs) < mean_diff*0.25:
+                isfines[ri] = 0
+            else:
+                isfines[ri] = 1
+    #Do an extra check to allow the rounds to settle?
+    bestfine = 0
+    ncheck = min(ncheck, len(isfines))
+    for i in range(len(isfines) - ncheck):
+        bestfine = max(bestfine, np.sum(isfines[i:ncheck+i])/ncheck)
 
+    if be_lenient:
+        if bestfine < 0.25:
+            return False
+        else:
+            return True
+    else:
+        if bestfine < 0.5:
+            return False
+        else:
+            return True
 
 def find_ringing_times(Paras, Data):
     

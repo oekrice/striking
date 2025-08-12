@@ -483,7 +483,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     #Establish filename for the frequencies.
     #Needs to contain tower, first and last bells, and a counter. Can work on formats in a bit.
-    st.session_state.freq_root = '%05d_%02d_%02d' % (st.session_state.tower_id, st.session_state.nbells_save, st.session_state.max_bell)
+    st.session_state.freq_root = '%05d_%02d_%02d_a' % (st.session_state.tower_id, st.session_state.nbells_save, st.session_state.max_bell)
     
     #rst.write(freq_root)
 
@@ -493,7 +493,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     for file in existing_freq_files:
         if file[:len(st.session_state.freq_root)] == st.session_state.freq_root:
             if file[-11:] == "quality.npy":
-                max_existing = max(max_existing, int(file[12:15]))
+                max_existing = max(max_existing, int(file[14:17]))   #This has been changed for the new file format
                 quals = np.load('./frequency_data/' + file)
                 allquals.append(quals[2])
                 c = find_colour(quals[2])
@@ -537,6 +537,7 @@ if st.session_state.tower_selected and st.session_state.nominals_confirmed:
     
     else:
         st.write('No existing frequency profiles which match these bells -- will need to create one.')
+        st.write('**All frequencies learnt prior to 0.9.8 update will have to be redone for maths reasons -- apologies**')
         options = "Make new profile"
         
     if options == "Make new profile" or st.session_state.testing_mode:

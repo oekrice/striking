@@ -98,14 +98,8 @@ def do_reinforcement(Paras, Data):
         strikes, strike_certs = find_strike_times(Paras, Data, final = False) #Finds strike times in integer space
     
         #Determine whether this is actually rounds or if something's got mixed up...
-        all_is_well = check_initial_rounds(strikes)
+        all_is_well = check_initial_rounds(strikes, be_lenient = False)
 
-        '''
-        if all_is_well:
-            print("All is well", np.shape(strikes))
-        else:
-            print("All is not well")
-        '''
         if not all_is_well:
             st.error("Failed to detect rounds. Either there aren't any or the recording isn't good enough...")
             if st.session_state.testing_mode:
@@ -280,7 +274,7 @@ def find_final_strikes(Paras, nested = False):
             Paras.ringing_finished = True
         
         if st.session_state.allstrikes is None:
-            all_is_well = check_initial_rounds(Data.strikes)
+            all_is_well = check_initial_rounds(Data.strikes, be_lenient = True)
             if not all_is_well:
                 st.error('This recording doesn\'t appear to start in rounds. If frequencies are confident check this is the right tower. If it is, then bugger.')
                 if st.session_state.testing_mode:

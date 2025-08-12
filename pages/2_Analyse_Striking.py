@@ -565,7 +565,7 @@ if st.session_state.current_touch >= 0:
             st.session_state.remove_mistakes = st.checkbox("Remove presumed method mistakes from the stats?", value = True)
             st.session_state.remove_confidence = st.checkbox("Remove not-confident strike times from the stats?", value = True)
             if st.session_state.method_flag:
-                st.session_state.use_method_info = st.checkbox("Use presumed composition to identify correct times?", value = True)
+                st.session_state.use_method_info = st.checkbox("Use presumed composition to identify correct times?", value =  st.session_state.quality > 0.95)
             else:
                 st.session_state.use_method_info = False
             st.session_state.min_include_change, st.session_state.max_include_change = st.slider("For the stats, include changes in range:", min_value = 0, max_value = st.session_state.nrows, value=(st.session_state.start_row+1, st.session_state.end_row), format = "%d", step = 2, key = 300 + st.session_state.current_touch)
