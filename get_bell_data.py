@@ -78,6 +78,7 @@ tower_names = make_unique_names(tower_names, tower_regions)
 
 def tower_alias(df_new, tower_id, alias_id, tower_name):
     #Used on a bespoke basis when the Dove data is incomplete. Will assign the data from 'alias name' to 'tower name'
+    #print(alias_id, len(df_new), df_new[df_new["Tower ID"] == alias_id])
     alias_data = df_new[df_new["Tower ID"] == alias_id].iloc[0].copy()
     alias_data["Tower ID"] = tower_id
     alias_data["Tower Name"] = tower_name
@@ -96,7 +97,7 @@ for ri, bell_type in enumerate(all_fullcircles):
 df_new = df_new[df_new.apply(lambda tower: (tower != 0).sum(), axis=1) >= 6]
 #Add tower aliases
 df_new = tower_alias(df_new, 15311, 15140, "Woolpit, Blessed Virgin Mary")
-df_new = tower_alias(df_new, 15838, 14094, "Sunderland, Bishopwearmouth, Minster Ch of S Michael & All Angels & S Benedict Biscop")
+#df_new = tower_alias(df_new, 15838, 14094, "Sunderland, Bishopwearmouth, Minster Ch of S Michael & All Angels & S Benedict Biscop")
 df_new = tower_alias(df_new, 10925, 17108, "Coddington, All Saints (Herefordshire)")
 
 print('Saving to .csv...')
