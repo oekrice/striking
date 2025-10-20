@@ -49,7 +49,10 @@ def find_current_stats():
     all_tower_ids = nominal_data["Tower ID"].tolist()
     tower_names = []
     for id in tower_ids:
-        tower_names.append(all_tower_names[all_tower_ids.index(int(id))])
+        try:
+            tower_names.append(all_tower_names[all_tower_ids.index(int(id))])
+        except:
+            pass
     ntowers = len(tower_ids)
     fcount = 0
     for folder in os.listdir('./saved_touches/'):
