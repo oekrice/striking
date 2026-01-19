@@ -24,6 +24,7 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import time
+import io
 #This file contains all the stuff which is currently cluttering up the second page, which has got a bit out of hand
 
 cmap = plt.cm.gnuplot2
@@ -582,9 +583,6 @@ def plot_blue_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_length,
             ax.set_xlim(-1,nbells+2)
             ax.set_xticks([])
             ax.set_aspect('equal')
-            #if plot == nplotsk-1:
-            #    plt.legend()
-            #ax.set_yticks([])
         plt.tight_layout()
         try:
             st.pyplot(fig1)
@@ -595,6 +593,124 @@ def plot_blue_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_length,
         plt.clf()
         plt.close()
     except:
+        st.write('Plot has failed for some reason... Trying again in a second')
+        time.sleep(0.5)
+        st.rerun()
+
+@st.cache_data(ttl=300)
+def plot_hawkear_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_length, min_plot_change, max_plot_change, highlight_bells, correct_bells):
+    #Going to try introducing a 'HawkEar style' plot because ASR doesn't like change
+    #Hopefully broadly similar code, but focus on the numbers and need a colourmesh.
+    
+    if True:
+        bell_names = ['1','2','3','4','5','6','7','8','9','0','E','T','A','B','C','D']
+        highlight_bells = [int(highlight_bells[val][5:]) for val in range(len(highlight_bells))]
+
+        nrows = int(len(raw_actuals)/nbells)
+
+        errors_bybell = []
+        #Calculate all errors for a colourmesh
+
+        for bell in range(1,nbells+1):#nbells):
+            #Extract data for this bell
+
+            bellstrikes = np.where(raw_bells == bell)[0]
+            targetstrikes = np.where(correct_bells == bell)[0]
+
+            if len(bellstrikes) < 2:
+                st.error('Increase range -- stats are all wrong')
+                st.stop()
+
+            errors_bybell.append((np.array(raw_actuals[bellstrikes] - raw_target_plot[bellstrikes])))
+        errors_bybell = np.transpose(np.array(errors_bybell))
+
+        #This gives errors in terms of the bells. Need the order they struck in too to plot nicely
+        errors_byrow = np.zeros(np.shape(errors_bybell))
+        for row in range(nrows):
+            bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
+            for pos in range(nbells):
+                errors_byrow[row, pos] = errors_bybell[row][bells[pos] - 1]
+
+        toprint = []
+        orders = []; starts = []; ends = []
+        for row in range(nrows):
+            actual = np.array(raw_actuals[row*nbells:(row+1)*nbells])
+            target = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
+            bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
+            toprint.append(actual-target)
+            orders.append(bells)
+            starts.append(np.min(target))
+            ends.append(np.max(target))
+
+        nrows_plot = max_plot_change - min_plot_change
+        rows_per_plot = 61#6*int(nrows_plot//24)
+        if nbells < 9:
+            nplotsk = max(3, nrows_plot//rows_per_plot + 1)
+        else:
+            nplotsk = max(2, nrows_plot//rows_per_plot + 1)
+        nplotsk = min(nplotsk, 3)
+        min_rows_per_plot = int(nrows_plot/nplotsk) + 2
+        rows_per_plot = int(np.ceil(min_rows_per_plot / lead_length) * lead_length)
+
+        nplotsk = int(np.ceil((nrows_plot-1)/rows_per_plot))
+
+        fig6, axs6 = plt.subplots(1,nplotsk, figsize = (10, 100))
+        for plot in range(nplotsk):
+            
+            if nplotsk > 1:
+                ax = axs6[plot]
+            else:
+                ax = axs6
+            maxrow = max_plot_change
+            for bell in range(1,nbells+1):#nbells):
+
+                points = []  ; changes = []
+                bellstrikes = np.where(raw_bells == bell)[0]
+                for row in range(plot*rows_per_plot+ min_plot_change, (plot+1)*rows_per_plot + min_plot_change + 1):
+                    #Find linear position... Linear interpolate?
+                    target_row = np.array(raw_target_plot[row*nbells:(row+1)*nbells])
+                    if len(target_row) == nbells:
+                        ys = np.arange(1,nbells+1)
+                        f = interpolate.interp1d(target_row, ys, fill_value = "extrapolate")
+                        rat = float(f(raw_actuals[bellstrikes].tolist()[row]))
+                        points.append(rat); changes.append(row)
+                        if len(highlight_bells) == 0 or bell in highlight_bells:
+                            ax.text(rat, row, bell_names[bell-1], horizontalalignment = 'center', verticalalignment = 'center')
+                            
+                #ax.plot(points, changes,label = bell, c = 'grey', linewidth  = 0.5)
+                
+                #ax.plot((bell)*np.ones(len(points)), changes, c = 'black', linewidth = 0.5, linestyle = 'dotted', zorder = 0)
+                
+            #Create colourmesh of errors, HawkEar style. Need coordinates and a matrix.
+            mesh_xs = np.linspace(0.5,nbells+0.5,nbells+1)
+            mesh_ys = np.linspace((plot+1)*rows_per_plot + min_plot_change + 0.5, plot*rows_per_plot+ min_plot_change - 0.5, rows_per_plot+2)
+            
+            minmax = np.percentile(np.abs(errors_byrow), 90)
+
+            nx = nbells; ny = rows_per_plot
+            error_select = errors_byrow[(plot)*rows_per_plot + min_plot_change:(plot+1)*rows_per_plot+ min_plot_change + 1, :]
+
+            error_select[error_select > minmax] = minmax
+            error_select[error_select < -minmax] = -minmax
+
+            ax.pcolormesh(mesh_xs, mesh_ys[-len(error_select)-1:], np.flip(error_select,axis = 0), cmap = 'seismic', vmin = -minmax*2.0, vmax = minmax*2.0)
+            
+            #for row in range(min_plot_change, max_plot_change):            
+            plt.gca().invert_yaxis()
+            ax.set_ylim((plot+1)*rows_per_plot + min_plot_change + 0.5, plot*rows_per_plot+ min_plot_change - 0.5)
+            ax.set_xlim(-1.0,nbells+2.0)
+            ax.set_xticks([])
+            ax.set_aspect('equal')
+        plt.tight_layout()
+        try:
+            st.pyplot(fig6)
+        except:
+            st.write('Plot has failed for some reason... Trying again in a second')
+            time.sleep(0.5)
+            st.rerun()
+        plt.clf()
+        plt.close()
+    else:
         st.write('Plot has failed for some reason... Trying again in a second')
         time.sleep(0.5)
         st.rerun()

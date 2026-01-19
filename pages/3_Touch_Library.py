@@ -473,7 +473,7 @@ def add_collection_to_cache(ntouches, saved_index_list):
                     st.session_state.cached_datetime[cache_index] = touch_info[5]
                     st.session_state.cached_score[cache_index] = touch_info[6]
                     st.session_state.cached_ms[cache_index] = touch_info[7]
-            st.switch_page(page="pages/2_Analyse_Striking.py")
+            st.switch_page(page="pages/2_View_Touches.py")
             st.rerun()
 
 add_collection_to_cache(ntouches, saved_index_list)
