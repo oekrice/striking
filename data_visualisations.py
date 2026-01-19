@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import time
 import io
+from matplotlib.colors import LinearSegmentedColormap
 #This file contains all the stuff which is currently cluttering up the second page, which has got a bit out of hand
 
 cmap = plt.cm.gnuplot2
@@ -41,6 +42,15 @@ cmap = [
     '#17becf'  
 ]
 
+hawkear_cmap = LinearSegmentedColormap.from_list(
+    "hawkear_cmap",
+    [
+        (0.0, "#ff560e"),  
+        (0.5, "#5eff5e"), 
+        (1.0, "#3431d5"), 
+    ],
+    N=256
+)
 def calculate_stats(Strike_Data):
     #Do stats now
     Strike_Data.alldiags = np.zeros((3,3,Strike_Data.nbells))   #Type, stroke, bell
@@ -626,10 +636,13 @@ def plot_hawkear_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_leng
 
         #This gives errors in terms of the bells. Need the order they struck in too to plot nicely
         errors_byrow = np.zeros(np.shape(errors_bybell))
+        alpha_byrow = 0.25*np.ones(np.shape(errors_bybell))  #A transparancy mask to select certain bells
         for row in range(nrows):
             bells =  np.array(raw_bells[row*nbells:(row+1)*nbells])  
             for pos in range(nbells):
                 errors_byrow[row, pos] = errors_bybell[row][bells[pos] - 1]
+                if bells[pos] in highlight_bells or len(highlight_bells) == 0.0:
+                    alpha_byrow[row, pos] = 1.0
 
         toprint = []
         orders = []; starts = []; ends = []
@@ -689,11 +702,12 @@ def plot_hawkear_line(raw_target_plot, raw_actuals, raw_bells, nbells, lead_leng
 
             nx = nbells; ny = rows_per_plot
             error_select = errors_byrow[(plot)*rows_per_plot + min_plot_change:(plot+1)*rows_per_plot+ min_plot_change + 1, :]
+            select_alpha = alpha_byrow[(plot)*rows_per_plot + min_plot_change:(plot+1)*rows_per_plot+ min_plot_change + 1, :]
 
             error_select[error_select > minmax] = minmax
             error_select[error_select < -minmax] = -minmax
 
-            ax.pcolormesh(mesh_xs, mesh_ys[-len(error_select)-1:], np.flip(error_select,axis = 0), cmap = 'seismic', vmin = -minmax*2.0, vmax = minmax*2.0)
+            ax.pcolormesh(mesh_xs, mesh_ys[-len(error_select)-1:], np.flip(error_select,axis = 0), cmap = hawkear_cmap, alpha = np.flip(select_alpha,axis = 0), vmin = -minmax*1.25, vmax = minmax*1.25)
             
             #for row in range(min_plot_change, max_plot_change):            
             plt.gca().invert_yaxis()
