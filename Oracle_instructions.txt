@@ -164,3 +164,8 @@ Open docker desktop for internet things
 RUN: docker build -t brenda .
 RUN: docker run --rm -p 8501:8501 -e STREAMLIT_SERVER_PORT=8501 brenda
 
+To run:
+
+#Activate dependencies etc. if necessary, then just:
+python backend/app.py 
+
