@@ -36,7 +36,7 @@ def run():
     
 
     st.markdown('''
-                ## BReNDA 0.9.8 
+                ## BReNDA 0.9.9 
                 ### Bell REcording with Novel Data Analysis 
                 ''')
 
@@ -88,6 +88,12 @@ def run():
                     
                     ''')
     with st.expander("Recent Updates"):
+
+        st.markdown('''
+            **Update (0.9.9):** \\
+            Minor changes to readability (mainly renaming the 'analyse striking' page). Streamlined a few functions and added a HawkEar-style plot at ASR's request.
+            ''')
+
         st.markdown('''
             **Update (0.9.8):** \\
             Updates to the backend maths, including logarithmic frequency binning and the use of a hamming filter to improve the accuracy of the Fourier Transforms. Now within 2ms of HawkEar's quality for the very best ringing. Also update to streamlit etc. to make things prettier and some changes to the tolerance for bad ringing.
