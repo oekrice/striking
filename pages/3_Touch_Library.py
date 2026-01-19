@@ -404,7 +404,7 @@ if st.session_state.collection_status == 1:
 
 elif st.session_state.collection_status == 0:
     st.write('Viewing collection **%s**' % st.session_state.current_collection_name)  
-    st.write('Share this collection with the url https://brenda.oekrice.com/Analyse_Striking?collection=%s' % st.session_state.current_collection_name)
+    st.write('Share this collection with the url https://brenda.oekrice.com/View_Touches?collection=%s' % st.session_state.current_collection_name)
 else:
     st.stop()  
 
@@ -435,7 +435,7 @@ ntouches = len(saved_index_list)
 
 def add_collection_to_cache(ntouches, saved_index_list):
     if ntouches!= 0 and saved_index_list[0][0] != ' ':
-        if st.button('**Analyse touches from this collection**'):
+        if st.button('**View touches in this collection**'):
             #Put everything from this collection into the cache (if it's not already there)
             for touch_info in saved_index_list:
                 #Check if it's already in there

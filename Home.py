@@ -52,11 +52,11 @@ def run():
         There are three 'pages' which can be accessed with the below links or the sidebar on the left (click the right-facing arrow top left if you can't see it):
                 ''')
                 
-    st.page_link("pages/1_Analyse_Recording.py", label = ":blue[Analyse Recording]")
+    st.page_link("pages/1_Analyse_Recording.py", label = ":blue[Analyse a Recording]")
     st.markdown('''
         Use this page to upload (or record) a recording of bellringing, 'learn' the frequencies of the bells if necessary and determine the strike times. This data can then be viewed on:
                 ''')
-    st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse Striking]")
+    st.page_link("pages/2_View_Touches.py", label = ":blue[View Touches]")
     st.markdown('''
         Which will take this data and display things like the blue line, a text 'striking report' and bar charts of errors. 
                 ''')
@@ -110,7 +110,7 @@ def run():
                 **Update (0.9.4):** \\
                 Added several new frontend features:
                 * In-browser recording added (a popular request)
-                * Added RWP striking model as an option on the Analyse Striking page
+                * Added RWP striking model as an option on the View Touches page
                 * Added a plain text striking report for each touch, identifying things which can be improved for each bell. Works using confidence intervals so can identify plenty which isn't obvious from the graphs themselves
                 * Made some minor changes to the timing identification to try to improve the accuracy. Now usually within 5ms of HawkEar, from what I've tested.
                 ''')

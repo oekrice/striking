@@ -44,7 +44,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.markdown("## Analyse a Recording")
 
-#st.sidebar.header("Analyse Striking")
 st.write("This page is to find strike times from a recording of bellringing")
 with st.expander('How to use this'):
     st.markdown(
@@ -953,7 +952,7 @@ if st.session_state.good_frequencies_selected and st.session_state.trimmed_signa
                 if not st.session_state.testing_mode:
                     st.rerun()
         else:
-            st.page_link("pages/2_Analyse_Striking.py", label = ":blue[Analyse this striking]")
+            st.page_link("pages/2_View_Touches.py", label = ":blue[View analysis for this touch]")
 
 
         if len(st.session_state.cached_strikes) == 1:
