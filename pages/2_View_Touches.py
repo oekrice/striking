@@ -641,9 +641,9 @@ if st.session_state.current_touch >= 0:
                     
             strokes = ["Both Strokes", "Handstrokes", "Backstrokes"]
             if len(st.session_state.highlight_bells) == 1:
-                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 700 + st.session_state.current_touch)
+                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="multi", key = 1700 + st.session_state.current_touch)
             elif len(st.session_state.highlight_bells) > 1:
-                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 800 + st.session_state.current_touch)
+                st.session_state.strokes_plot = st.pills("Select Strokes", strokes, default = "Both Strokes", selection_mode="single", key = 1800 + st.session_state.current_touch)
                 st.session_state.strokes_plot = [st.session_state.strokes_plot]
             else:
                 st.session_state.strokes_plot = None

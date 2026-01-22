@@ -30,10 +30,10 @@ from matplotlib.colors import LinearSegmentedColormap
 
 cmap = plt.cm.gnuplot2
 cmap = [
+    '#d62728',
     '#1f77b4',  
     '#ff7f0e', 
     '#2ca02c',  
-    '#d62728', 
     '#9467bd', 
     '#8c564b', 
     '#e377c2',  
@@ -46,7 +46,7 @@ hawkear_cmap = LinearSegmentedColormap.from_list(
     "hawkear_cmap",
     [
         (0.0, "#ff560e"),  
-        (0.5, "#5eff5e"), 
+        (0.5, "#00d300"), 
         (1.0, "#3431d5"), 
     ],
     N=256
