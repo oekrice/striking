@@ -295,6 +295,10 @@ for i in range(len(st.session_state.cached_data)):
 
 if len(touch_titles) > 0:
     selection = st.pills("Currently loaded touches:", touch_titles, default = touch_titles[-1])
+
+    if selection is None:
+        st.stop()
+
     st.session_state.current_touch = touch_titles.index(selection)
     longtitle = make_longtitle_cache(st.session_state.current_touch)
     st.write(longtitle)
