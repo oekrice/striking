@@ -234,13 +234,13 @@ class data():
         
         hamming_window = hamming(Paras.fcut_int)
 
-        while t < Paras.tmax - Paras.fcut_length/2:
+        while t < Paras.tmax - Paras.fcut_length/2:   
             cut_start  = round(t*st.session_state.fs - Paras.fcut_int/2)
             cut_end    = cut_start + Paras.fcut_int
             
             signal_cut = st.session_state.local_signal[cut_start:cut_end]
             
-            #I think the idea is to apply the hamming window at this point? 
+            #I think the idea is to apply the Hamming window at this point? 
             #Let's give it a go...
             signal_cut = signal_cut*hamming_window
 
