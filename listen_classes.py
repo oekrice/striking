@@ -30,6 +30,7 @@ import warnings
 from scipy.signal.windows import hamming
 
 class audio_data():
+
     #Does the initial audio normalisation things
     def __init__(self, raw_file, doprints = True):
  
@@ -49,10 +50,15 @@ class audio_data():
             st.write('Uploaded file is not a .wav - attempting to convert it.')
         
         if ext != '.wav':
+
             new_fname = './tmp/' + raw_file.name[:-4] + '.wav'
             #Convert this to a wav
-            os.system('ffmpeg -y -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
-            if os.path.exists(new_fname):
+            #os.system('ffmpeg -y -loglevel quiet -i ./tmp/%s ./tmp/%s.wav' % (raw_file.name, raw_file.name[:-4]))
+
+            #Attempt to convert it in chunks instead?
+            os.system(f'ffmpeg -y -loglevel quiet -i ./tmp/{raw_file.name} -f segment -segment_time 1800 -ar 44100 -ac 2 ./tmp/{raw_file.name[:-4]}_%03d.wav')
+
+            if os.path.exists(new_fname) or os.path.exists(f'./tmp/{raw_file.name[:-4]}_000.wav'):
                 upload_success = True
             else:
                 os.system('rm -r ./tmp/' + raw_file.name)
@@ -67,17 +73,33 @@ class audio_data():
             upload_success = True
 
         if upload_success:
-        
+                    
             st.session_state.audio_signal = None
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                self.fs, self.data = wavfile.read(new_fname)  #Hopefully this doesn't use too much...
-    
+                if os.path.exists(new_fname): #Haven't done chunking
+                    self.fs, self.data = wavfile.read(new_fname)  #Hopefully this doesn't use too much...
+                elif os.path.exists(f'./tmp/{raw_file.name[:-4]}_000.wav'):  #Have done chunking
+                    i = 0
+                    self.data = None
+                    while os.path.exists(f'./tmp/{raw_file.name[:-4]}_{i:03d}.wav'):
+                        self.fs, self.data_chunk = wavfile.read(f'./tmp/{raw_file.name[:-4]}_{i:03d}.wav')
+                        if self.data is None:
+                            self.data = self.data_chunk.copy()
+                        else:
+                            self.data= np.concatenate((self.data, self.data_chunk), axis = 0)
+                        i += 1
+                        del self.data_chunk
+                        
             if os.path.exists('./tmp/' + raw_file.name):
                 os.system('rm -r ./tmp/' + raw_file.name)
             if os.path.exists('./tmp/' + raw_file.name[:-4] + '.wav'):
                 os.system('rm -r ./tmp/' + raw_file.name[:-4] + '.wav')
-            
+            i = 0
+            while os.path.exists('./tmp/' + raw_file.name[:-4] + f'_{i:03d}.wav'):
+                os.system('rm -r ./tmp/' + raw_file.name[:-4] + f'_{i:03d}.wav')
+                i += 1
+
             if len(self.data.shape) > 1:  #Is stereo
                 import_wave = np.array(self.data)[:,0]
             else:  #Isn't
@@ -234,13 +256,13 @@ class data():
         
         hamming_window = hamming(Paras.fcut_int)
 
-        while t < Paras.tmax - Paras.fcut_length/2:
+        while t < Paras.tmax - Paras.fcut_length/2:   
             cut_start  = round(t*st.session_state.fs - Paras.fcut_int/2)
             cut_end    = cut_start + Paras.fcut_int
             
             signal_cut = st.session_state.local_signal[cut_start:cut_end]
             
-            #I think the idea is to apply the hamming window at this point? 
+            #I think the idea is to apply the Hamming window at this point? 
             #Let's give it a go...
             signal_cut = signal_cut*hamming_window
 
