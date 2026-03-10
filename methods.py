@@ -358,6 +358,9 @@ def determine_methods(trimmed_rows, hunt_types, method_data):
                 possible_methods = possible_methods[possible_methods['Stage'] <= nbells]
                 possible_notations = np.array([nots.rsplit(',', 1)[0] for nots in possible_methods['Interior Notation']])
 
+            if possible_methods.empty:  #No possible methods found (only happened in original caters so far)
+                return None, None, None
+
             place_notation = all_notations[li]
             bestmatch = 0.
             for pi, poss in enumerate(possible_notations):
