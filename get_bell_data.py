@@ -11,7 +11,7 @@ Needs to download a group of files...
 import pandas as pd
 import numpy as np
 
-if True:
+if False:
     print('Downloading data...')
     data = pd.read_csv('https://dove.cccbr.org.uk/bells.csv?bells=all&ring_type=english')
 
@@ -36,7 +36,10 @@ fine = True
 for bellcount in range(len(df) - 1):
 
     tower_id = df["Tower ID"][bellcount]
-    tower_name = df["Place"][bellcount] + ', ' + df["Dedication"][bellcount]
+    if not isinstance(df["Dedication"][bellcount], str):
+        tower_name = df["Place"][bellcount]
+    else:
+        tower_name = df["Place"][bellcount] + ', ' + df["Dedication"][bellcount]
     tower_region = df["Region"][bellcount]
     #Put in bell data
     belltype = df["Bell Role"][bellcount]
