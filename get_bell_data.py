@@ -100,8 +100,9 @@ for ri, bell_type in enumerate(all_fullcircles):
 df_new = df_new[df_new.apply(lambda tower: (tower != 0).sum(), axis=1) >= 6]
 #Add tower aliases
 df_new = tower_alias(df_new, 15311, 15140, "Woolpit, Blessed Virgin Mary")
-#df_new = tower_alias(df_new, 15838, 14094, "Sunderland, Bishopwearmouth, Minster Ch of S Michael & All Angels & S Benedict Biscop")
+df_new = tower_alias(df_new, 15838, 14094, "Sunderland, Bishopwearmouth, Minster Ch of S Michael & All Angels & S Benedict Biscop")
 df_new = tower_alias(df_new, 10925, 17108, "Coddington, All Saints (Herefordshire)")
+df_new = tower_alias(df_new, 16401, 16511, "Letcombe Regis, S Andrew")
 
 print('Saving to .csv...')
 df_new.to_csv('./bell_data/nominal_data.csv')  
