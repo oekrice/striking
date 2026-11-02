@@ -133,7 +133,7 @@ RUN: sudo COMPOSE_BAKE=true docker compose up -d --build #For actually having it
 crontab -e
 
 #Paste:
-0 3 * * * docker compose restart nginx streamlit1 streamlit2 streamlit3
+0 3 * * * sudo docker compose restart nginx streamlit1 streamlit2 streamlit3
 0 2 * * * /home/opc/striking/backup_to_gdrive.sh
 
 #To update from git
